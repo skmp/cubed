@@ -3,6 +3,8 @@ import { GA144 } from '../core/ga144';
 import type { GA144Snapshot, CompileError } from '../core/types';
 import { ROM_DATA } from '../core/rom-data';
 import { compile } from '../core/assembler';
+import { compileCube } from '../core/cube';
+import type { EditorLanguage } from '../ui/editor/CodeEditor';
 
 export function useEmulator() {
   const ga144Ref = useRef<GA144 | null>(null);
@@ -11,6 +13,7 @@ export function useEmulator() {
   const [isRunning, setIsRunning] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
   const [stepsPerFrame, setStepsPerFrame] = useState(10);
+  const [language, setLanguage] = useState<EditorLanguage>('arrayforth');
   const runningRef = useRef(false);
   const animFrameRef = useRef<number>(0);
 
@@ -86,13 +89,14 @@ export function useEmulator() {
     if (!ga144Ref.current) return;
     stop();
     ga144Ref.current.reset();
-    const result = compile(source);
+
+    const result = language === 'cube' ? compileCube(source) : compile(source);
     setCompileErrors(result.errors);
     if (result.errors.length === 0) {
       ga144Ref.current.load(result);
     }
     updateSnapshot();
-  }, [stop, updateSnapshot]);
+  }, [stop, updateSnapshot, language]);
 
   const selectNode = useCallback((coord: number | null) => {
     setSelectedCoord(coord);
@@ -107,6 +111,7 @@ export function useEmulator() {
     isRunning,
     compileErrors,
     stepsPerFrame,
+    language,
     step,
     stepN,
     run,
@@ -115,5 +120,6 @@ export function useEmulator() {
     compileAndLoad,
     selectNode,
     setStepsPerFrame,
+    setLanguage,
   };
 }

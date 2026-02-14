@@ -1,11 +1,12 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
 import { Box } from '@mui/material';
 import { registerArrayForthLanguage } from './arrayforthLang';
+import { registerCubeLanguage } from './cubeLang';
 import type { CompileError } from '../../core/types';
 
-const DEFAULT_SOURCE = `\\ GA144 Port Execution Example
+const DEFAULT_ARRAYFORTH = `\\ GA144 Port Execution Example
 \\ Node 609 acts as a slave memory array
 \\ Node 608 stores values via port execution
 
@@ -37,21 +38,36 @@ node 608
  next
 `;
 
+const DEFAULT_CUBE = `-- Simple addition: compute 3 + 4
+-- Result is stored in variable 'result'
+plus{a=3, b=4, c=result}
+`;
+
+export type EditorLanguage = 'arrayforth' | 'cube';
+
 interface CodeEditorProps {
+  language: EditorLanguage;
   onCompile: (source: string) => void;
   errors: CompileError[];
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ onCompile, errors }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, errors }) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
+  const languagesRegistered = useRef(false);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    registerArrayForthLanguage(monaco);
+
+    if (!languagesRegistered.current) {
+      registerArrayForthLanguage(monaco);
+      registerCubeLanguage(monaco);
+      languagesRegistered.current = true;
+    }
+
     const model = editor.getModel();
-    if (model) monaco.editor.setModelLanguage(model, 'arrayforth');
+    if (model) monaco.editor.setModelLanguage(model, language);
 
     // Ctrl+Enter to compile
     editor.addAction({
@@ -63,10 +79,26 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ onCompile, errors }) => 
         onCompile(source);
       },
     });
-  }, [onCompile]);
+  }, [onCompile, language]);
+
+  // Switch language when prop changes
+  useEffect(() => {
+    if (monacoRef.current && editorRef.current) {
+      const model = editorRef.current.getModel();
+      if (model) {
+        monacoRef.current.editor.setModelLanguage(model, language);
+      }
+      // Set default source for the language
+      const currentSource = editorRef.current.getValue();
+      const isDefault = currentSource === DEFAULT_ARRAYFORTH || currentSource === DEFAULT_CUBE || currentSource === '';
+      if (isDefault) {
+        editorRef.current.setValue(language === 'cube' ? DEFAULT_CUBE : DEFAULT_ARRAYFORTH);
+      }
+    }
+  }, [language]);
 
   // Update error markers
-  React.useEffect(() => {
+  useEffect(() => {
     if (monacoRef.current && editorRef.current) {
       const model = editorRef.current.getModel();
       if (model) {
@@ -78,7 +110,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ onCompile, errors }) => 
           endLineNumber: err.line || 1,
           endColumn: (err.col || 1) + 10,
         }));
-        monacoRef.current.editor.setModelMarkers(model, 'arrayforth', markers);
+        monacoRef.current.editor.setModelMarkers(model, 'compiler', markers);
       }
     }
   }, [errors]);
@@ -87,8 +119,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ onCompile, errors }) => 
     <Box sx={{ height: '100%', border: '1px solid #333' }}>
       <Editor
         height="100%"
-        defaultLanguage="arrayforth"
-        defaultValue={DEFAULT_SOURCE}
+        defaultLanguage={language}
+        defaultValue={language === 'cube' ? DEFAULT_CUBE : DEFAULT_ARRAYFORTH}
         theme="vs-dark"
         onMount={handleMount}
         options={{

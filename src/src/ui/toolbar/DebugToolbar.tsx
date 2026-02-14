@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Box, Button, ButtonGroup, Slider, Typography, Chip,
+  Box, Button, ButtonGroup, Slider, Typography, Chip, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -8,12 +8,14 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import BuildIcon from '@mui/icons-material/Build';
 import FastForwardIcon from '@mui/icons-material/FastForward';
+import type { EditorLanguage } from '../editor/CodeEditor';
 
 interface DebugToolbarProps {
   isRunning: boolean;
   activeCount: number;
   totalSteps: number;
   stepsPerFrame: number;
+  language: EditorLanguage;
   onStep: () => void;
   onStepN: (n: number) => void;
   onRun: () => void;
@@ -21,14 +23,30 @@ interface DebugToolbarProps {
   onReset: () => void;
   onCompile: () => void;
   onSetStepsPerFrame: (n: number) => void;
+  onSetLanguage: (lang: EditorLanguage) => void;
 }
 
 export const DebugToolbar: React.FC<DebugToolbarProps> = ({
-  isRunning, activeCount, totalSteps, stepsPerFrame,
-  onStep, onStepN, onRun, onStop, onReset, onCompile, onSetStepsPerFrame,
+  isRunning, activeCount, totalSteps, stepsPerFrame, language,
+  onStep, onStepN, onRun, onStop, onReset, onCompile, onSetStepsPerFrame, onSetLanguage,
 }) => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 40 }}>
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={language}
+        onChange={(_, val) => { if (val) onSetLanguage(val); }}
+        sx={{ height: 26 }}
+      >
+        <ToggleButton value="arrayforth" sx={{ textTransform: 'none', fontSize: '10px', px: 1 }}>
+          arrayForth
+        </ToggleButton>
+        <ToggleButton value="cube" sx={{ textTransform: 'none', fontSize: '10px', px: 1 }}>
+          CUBE
+        </ToggleButton>
+      </ToggleButtonGroup>
+
       <Button
         size="small"
         variant="contained"

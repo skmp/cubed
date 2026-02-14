@@ -15,6 +15,7 @@ function App() {
     isRunning,
     compileErrors,
     stepsPerFrame,
+    language,
     step,
     stepN,
     run,
@@ -23,6 +24,7 @@ function App() {
     compileAndLoad,
     selectNode,
     setStepsPerFrame,
+    setLanguage,
   } = useEmulator();
 
   const editorSourceRef = useRef<string>('');
@@ -33,8 +35,6 @@ function App() {
   }, [compileAndLoad]);
 
   const handleCompileButton = useCallback(() => {
-    // Trigger compile from the current editor contents
-    // The editor stores its latest source via onCompile callback
     if (editorSourceRef.current) {
       compileAndLoad(editorSourceRef.current);
     }
@@ -52,6 +52,7 @@ function App() {
             activeCount={snapshot.activeCount}
             totalSteps={snapshot.totalSteps}
             stepsPerFrame={stepsPerFrame}
+            language={language}
             onStep={step}
             onStepN={stepN}
             onRun={run}
@@ -59,6 +60,7 @@ function App() {
             onReset={reset}
             onCompile={handleCompileButton}
             onSetStepsPerFrame={setStepsPerFrame}
+            onSetLanguage={setLanguage}
           />
         }
         chipGrid={
@@ -71,6 +73,7 @@ function App() {
         }
         editor={
           <CodeEditor
+            language={language}
             onCompile={handleCompileFromEditor}
             errors={compileErrors}
           />
