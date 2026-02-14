@@ -1,0 +1,3 @@
+[submodule "reference/ga144"]
+	path = reference/ga144
+	url = https://github.com/mschuldt/ga144.git
