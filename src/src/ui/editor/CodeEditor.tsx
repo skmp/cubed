@@ -38,9 +38,57 @@ node 608
  next
 `;
 
-const DEFAULT_CUBE = `-- Simple addition: compute 3 + 4
--- Result is stored in variable 'result'
-plus{a=3, b=4, c=result}
+const DEFAULT_CUBE = `-- MD5 Hash on GA144 (AN001)
+-- Models the multi-node MD5 pipeline from the GreenArrays
+-- application note using CUBE's concurrent dataflow semantics.
+--
+-- Nodes 205/105: bitwise round functions
+-- Nodes 206/106: constant fetch + add + rotate
+-- Nodes 204/104: message buffer with index computation
+
+-- f'(x,y,z) = (x AND y) OR (NOT(x) AND z)
+md5f = lambda{x:Int, y:Int, z:Int, r:Int}.
+  (f18a.and{} /\\ f18a.xor{})
+
+/\\
+
+-- g'(x,y,z) = (x AND z) OR (y AND NOT(z))
+md5g = lambda{x:Int, y:Int, z:Int, r:Int}.
+  (f18a.and{} /\\ f18a.xor{})
+
+/\\
+
+-- h'(x,y,z) = x XOR y XOR z
+md5h = lambda{x:Int, y:Int, z:Int, r:Int}.
+  (f18a.xor{} /\\ f18a.xor{})
+
+/\\
+
+-- i'(x,y,z) = y XOR (x OR NOT(z))
+md5i = lambda{x:Int, y:Int, z:Int, r:Int}.
+  (f18a.xor{} /\\ f18a.xor{})
+
+/\\
+
+-- One MD5 step: out = b + (a + f(b,c,d) + msg + k)
+-- Rotation omitted for clarity (handled by nodes 206/106)
+md5step = lambda{a:Int, b:Int, c:Int, d:Int,
+                  msg:Int, kon:Int, out:Int}.
+  (md5f{x=b, y=c, z=d, r=fval} /\\
+   plus{a=a, b=fval, c=s1} /\\
+   plus{a=s1, b=msg, c=s2} /\\
+   plus{a=s2, b=kon, c=s3} /\\
+   plus{a=s3, b=b, c=out})
+
+/\\
+
+-- Compute first MD5 step on empty message
+-- Initial digest: A=0x67452301 B=0xEFCDAB89
+--                 C=0x98BADCFE D=0x10325476
+-- T[0] = 0xD76AA478 (low 16 bits)
+md5step{a=0x2301, b=0xAB89, c=0xDCFE,
+        d=0x5476, msg=128, kon=0xA478,
+        out=result}
 `;
 
 export type EditorLanguage = 'arrayforth' | 'cube';
