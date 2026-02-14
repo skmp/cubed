@@ -1,0 +1,94 @@
+import React from 'react';
+import {
+  Box, Button, ButtonGroup, Slider, Typography, Chip,
+} from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import BuildIcon from '@mui/icons-material/Build';
+import FastForwardIcon from '@mui/icons-material/FastForward';
+
+interface DebugToolbarProps {
+  isRunning: boolean;
+  activeCount: number;
+  totalSteps: number;
+  stepsPerFrame: number;
+  onStep: () => void;
+  onStepN: (n: number) => void;
+  onRun: () => void;
+  onStop: () => void;
+  onReset: () => void;
+  onCompile: () => void;
+  onSetStepsPerFrame: (n: number) => void;
+}
+
+export const DebugToolbar: React.FC<DebugToolbarProps> = ({
+  isRunning, activeCount, totalSteps, stepsPerFrame,
+  onStep, onStepN, onRun, onStop, onReset, onCompile, onSetStepsPerFrame,
+}) => {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 40 }}>
+      <Button
+        size="small"
+        variant="contained"
+        color="success"
+        startIcon={<BuildIcon />}
+        onClick={onCompile}
+        sx={{ textTransform: 'none', fontSize: '11px' }}
+      >
+        Compile
+      </Button>
+
+      <ButtonGroup size="small" variant="outlined">
+        <Button onClick={onStep} disabled={isRunning} title="Step (F10)">
+          <SkipNextIcon fontSize="small" />
+        </Button>
+        <Button onClick={() => onStepN(100)} disabled={isRunning} title="Step 100">
+          <FastForwardIcon fontSize="small" />
+        </Button>
+        {isRunning ? (
+          <Button onClick={onStop} color="warning" title="Stop (Esc)">
+            <PauseIcon fontSize="small" />
+          </Button>
+        ) : (
+          <Button onClick={onRun} color="success" title="Run (F5)">
+            <PlayArrowIcon fontSize="small" />
+          </Button>
+        )}
+        <Button onClick={onReset} color="error" title="Reset">
+          <RestartAltIcon fontSize="small" />
+        </Button>
+      </ButtonGroup>
+
+      <Box sx={{ width: 120, ml: 1 }}>
+        <Typography variant="caption" sx={{ color: '#888', fontSize: '9px' }}>
+          Steps/frame: {stepsPerFrame}
+        </Typography>
+        <Slider
+          size="small"
+          value={stepsPerFrame}
+          onChange={(_, v) => onSetStepsPerFrame(v as number)}
+          min={1}
+          max={1000}
+          step={1}
+          sx={{ py: 0 }}
+        />
+      </Box>
+
+      <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        <Chip
+          size="small"
+          label={`Active: ${activeCount}/144`}
+          sx={{ fontSize: '10px', height: 20 }}
+        />
+        <Chip
+          size="small"
+          label={`Steps: ${totalSteps}`}
+          variant="outlined"
+          sx={{ fontSize: '10px', height: 20 }}
+        />
+      </Box>
+    </Box>
+  );
+};
