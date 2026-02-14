@@ -48,13 +48,16 @@ export type EditorLanguage = 'arrayforth' | 'cube';
 interface CodeEditorProps {
   language: EditorLanguage;
   onCompile: (source: string) => void;
+  onSourceChange?: (source: string) => void;
   errors: CompileError[];
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, errors }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors }) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const languagesRegistered = useRef(false);
+  const onCompileRef = useRef(onCompile);
+  onCompileRef.current = onCompile;
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
@@ -69,17 +72,17 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, err
     const model = editor.getModel();
     if (model) monaco.editor.setModelLanguage(model, language);
 
-    // Ctrl+Enter to compile
+    // Ctrl+Enter to compile (use ref to avoid stale closure)
     editor.addAction({
       id: 'compile',
       label: 'Compile & Load',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => {
         const source = editor.getValue();
-        onCompile(source);
+        onCompileRef.current(source);
       },
     });
-  }, [onCompile, language]);
+  }, [language]);
 
   // Switch language when prop changes
   useEffect(() => {
@@ -123,6 +126,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, err
         defaultValue={language === 'cube' ? DEFAULT_CUBE : DEFAULT_ARRAYFORTH}
         theme="vs-dark"
         onMount={handleMount}
+        onChange={(value) => onSourceChange?.(value ?? '')}
         options={{
           fontSize: 13,
           fontFamily: '"JetBrains Mono", "Fira Code", monospace',

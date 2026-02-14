@@ -3,7 +3,8 @@ import { GA144 } from '../core/ga144';
 import type { GA144Snapshot, CompileError } from '../core/types';
 import { ROM_DATA } from '../core/rom-data';
 import { compile } from '../core/assembler';
-import { compileCube } from '../core/cube';
+import { compileCube, tokenizeCube, parseCube } from '../core/cube';
+import type { CubeProgram } from '../core/cube';
 import type { EditorLanguage } from '../ui/editor/CodeEditor';
 
 export function useEmulator() {
@@ -14,6 +15,7 @@ export function useEmulator() {
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
   const [stepsPerFrame, setStepsPerFrame] = useState(10);
   const [language, setLanguage] = useState<EditorLanguage>('arrayforth');
+  const [cubeAst, setCubeAst] = useState<CubeProgram | null>(null);
   const runningRef = useRef(false);
   const animFrameRef = useRef<number>(0);
 
@@ -90,6 +92,19 @@ export function useEmulator() {
     stop();
     ga144Ref.current.reset();
 
+    if (language === 'cube') {
+      // Parse AST for 3D renderer before full compilation
+      const { tokens, errors: tokErrors } = tokenizeCube(source);
+      if (tokErrors.length === 0) {
+        const { ast, errors: parseErrors } = parseCube(tokens);
+        setCubeAst(parseErrors.length === 0 ? ast : null);
+      } else {
+        setCubeAst(null);
+      }
+    } else {
+      setCubeAst(null);
+    }
+
     const result = language === 'cube' ? compileCube(source) : compile(source);
     setCompileErrors(result.errors);
     if (result.errors.length === 0) {
@@ -112,6 +127,7 @@ export function useEmulator() {
     compileErrors,
     stepsPerFrame,
     language,
+    cubeAst,
     step,
     stepN,
     run,

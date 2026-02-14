@@ -6,6 +6,7 @@ import { ChipGrid } from './ui/chip/ChipGrid';
 import { NodeDetailPanel } from './ui/detail/NodeDetailPanel';
 import { CodeEditor } from './ui/editor/CodeEditor';
 import { DebugToolbar } from './ui/toolbar/DebugToolbar';
+import { CubeRenderer } from './ui/cube3d/CubeRenderer';
 import { useEmulator } from './hooks/useEmulator';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
     compileErrors,
     stepsPerFrame,
     language,
+    cubeAst,
     step,
     stepN,
     run,
@@ -28,6 +30,10 @@ function App() {
   } = useEmulator();
 
   const editorSourceRef = useRef<string>('');
+
+  const handleSourceChange = useCallback((source: string) => {
+    editorSourceRef.current = source;
+  }, []);
 
   const handleCompileFromEditor = useCallback((source: string) => {
     editorSourceRef.current = source;
@@ -71,10 +77,12 @@ function App() {
             onNodeClick={selectNode}
           />
         }
+        cubeRenderer={language === 'cube' ? <CubeRenderer ast={cubeAst} /> : undefined}
         editor={
           <CodeEditor
             language={language}
             onCompile={handleCompileFromEditor}
+            onSourceChange={handleSourceChange}
             errors={compileErrors}
           />
         }
