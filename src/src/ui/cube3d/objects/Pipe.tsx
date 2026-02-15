@@ -19,11 +19,12 @@ export function Pipe({ pipe }: PipeProps) {
   }, [pipe.from, pipe.to]);
 
   return (
-    <mesh geometry={geometry}>
+    <mesh geometry={geometry} renderOrder={2}>
       <meshStandardMaterial
         color={pipe.color}
         transparent
         opacity={0.7}
+        depthWrite={false}
         emissive={pipe.color}
         emissiveIntensity={0.3}
       />

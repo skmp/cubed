@@ -13,6 +13,7 @@ export function DefinitionCube({ node, selected, onHover, onClick, onDoubleClick
   return (
     <group position={node.position}>
       <mesh
+        renderOrder={1}
         onPointerOver={() => onHover(node.id)}
         onPointerOut={() => onHover(null)}
         onClick={() => onClick(node.id)}
@@ -23,6 +24,7 @@ export function DefinitionCube({ node, selected, onHover, onClick, onDoubleClick
           color={node.color}
           transparent
           opacity={node.opacity}
+          depthWrite={false}
           roughness={0.3}
           metalness={0.1}
           side={2}

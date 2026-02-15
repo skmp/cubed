@@ -13,6 +13,7 @@ export function HolderCube({ node, selected, onHover, onClick, onDoubleClick }: 
   return (
     <group position={node.position}>
       <mesh
+        renderOrder={1}
         onPointerOver={() => onHover(node.id)}
         onPointerOut={() => onHover(null)}
         onClick={() => onClick(node.id)}
@@ -23,6 +24,7 @@ export function HolderCube({ node, selected, onHover, onClick, onDoubleClick }: 
           color={node.color}
           transparent
           opacity={0.4}
+          depthWrite={false}
           wireframe
         />
       </mesh>
