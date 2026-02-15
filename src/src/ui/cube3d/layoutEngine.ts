@@ -379,10 +379,11 @@ function layoutApplication(
   });
 
   // Layout arg values (holders, literals) and create pipes
+  // Use appId as parent so arg terms become children of this application
   for (let i = 0; i < app.args.length; i++) {
     const arg = app.args[i];
     const port = ports[i];
-    layoutTermForPort(arg.value, port, appId, pos, nodes, pipes, holderPositions, holderNodeIds, parentId);
+    layoutTermForPort(arg.value, port, appId, pos, nodes, pipes, holderPositions, holderNodeIds, appId);
   }
 
   return APP_SIZE;

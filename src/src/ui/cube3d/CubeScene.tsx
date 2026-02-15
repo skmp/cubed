@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
-import type { SceneGraph } from './layoutEngine';
+import type { SceneGraph, SceneNode } from './layoutEngine';
 import { DefinitionCube } from './objects/DefinitionCube';
 import { ApplicationCube } from './objects/ApplicationCube';
 import { HolderCube } from './objects/HolderCube';
@@ -60,8 +60,92 @@ interface CubeSceneProps {
   resetKey: number;
 }
 
+/** Build a map from parentId → direct children */
+function buildChildrenMap(nodes: SceneNode[]): Map<string | undefined, SceneNode[]> {
+  const map = new Map<string | undefined, SceneNode[]>();
+  for (const node of nodes) {
+    const key = node.parentId;
+    let list = map.get(key);
+    if (!list) {
+      list = [];
+      map.set(key, list);
+    }
+    list.push(node);
+  }
+  return map;
+}
+
 export function CubeScene({ sceneGraph, selectedId, hoveredId, onHover, onClick, onDoubleClick, resetKey }: CubeSceneProps) {
   const activeId = hoveredId ?? selectedId;
+
+  const childrenMap = useMemo(() => buildChildrenMap(sceneGraph.nodes), [sceneGraph.nodes]);
+
+  function renderNode(node: SceneNode): ReactNode {
+    const children = childrenMap.get(node.id);
+    const renderedChildren = children?.map(child => renderNode(child));
+
+    switch (node.type) {
+      case 'definition':
+        return (
+          <DefinitionCube
+            key={node.id}
+            node={node}
+            selected={node.id === activeId}
+            onHover={onHover}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+          >
+            {renderedChildren}
+          </DefinitionCube>
+        );
+      case 'application':
+        return (
+          <ApplicationCube
+            key={node.id}
+            node={node}
+            selected={node.id === activeId}
+            onHover={onHover}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+          >
+            {renderedChildren}
+          </ApplicationCube>
+        );
+      case 'holder':
+        return (
+          <HolderCube
+            key={node.id}
+            node={node}
+            selected={node.id === activeId}
+            onHover={onHover}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+          />
+        );
+      case 'literal':
+        return (
+          <LiteralCube
+            key={node.id}
+            node={node}
+            selected={node.id === activeId}
+            onHover={onHover}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+          />
+        );
+      case 'plane':
+        return (
+          <PlaneBox key={node.id} node={node}>
+            {renderedChildren}
+          </PlaneBox>
+        );
+      default:
+        return null;
+    }
+  }
+
+  // Render only root-level nodes (no parentId); children are rendered recursively
+  const rootNodes = childrenMap.get(undefined) ?? [];
 
   return (
     <>
@@ -92,59 +176,8 @@ export function CubeScene({ sceneGraph, selectedId, hoveredId, onHover, onClick,
         infiniteGrid
       />
 
-      {/* Scene nodes */}
-      {sceneGraph.nodes.map(node => {
-        switch (node.type) {
-          case 'definition':
-            return (
-              <DefinitionCube
-                key={node.id}
-                node={node}
-                selected={node.id === activeId}
-                onHover={onHover}
-                onClick={onClick}
-                onDoubleClick={onDoubleClick}
-              />
-            );
-          case 'application':
-            return (
-              <ApplicationCube
-                key={node.id}
-                node={node}
-                selected={node.id === activeId}
-                onHover={onHover}
-                onClick={onClick}
-                onDoubleClick={onDoubleClick}
-              />
-            );
-          case 'holder':
-            return (
-              <HolderCube
-                key={node.id}
-                node={node}
-                selected={node.id === activeId}
-                onHover={onHover}
-                onClick={onClick}
-                onDoubleClick={onDoubleClick}
-              />
-            );
-          case 'literal':
-            return (
-              <LiteralCube
-                key={node.id}
-                node={node}
-                selected={node.id === activeId}
-                onHover={onHover}
-                onClick={onClick}
-                onDoubleClick={onDoubleClick}
-              />
-            );
-          case 'plane':
-            return <PlaneBox key={node.id} node={node} />;
-          default:
-            return null;
-        }
-      })}
+      {/* Scene nodes (recursive from roots) */}
+      {rootNodes.map(node => renderNode(node))}
 
       {/* Pipes */}
       {sceneGraph.pipes.map(pipe => (

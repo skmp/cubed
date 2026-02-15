@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Text } from '@react-three/drei';
 import type { SceneNode } from '../layoutEngine';
 
@@ -7,9 +8,10 @@ interface DefinitionCubeProps {
   onHover: (id: string | null) => void;
   onClick: (id: string) => void;
   onDoubleClick: (id: string) => void;
+  children?: ReactNode;
 }
 
-export function DefinitionCube({ node, selected, onHover, onClick, onDoubleClick }: DefinitionCubeProps) {
+export function DefinitionCube({ node, selected, onHover, onClick, onDoubleClick, children }: DefinitionCubeProps) {
   return (
     <group position={node.position}>
       <mesh
@@ -45,6 +47,10 @@ export function DefinitionCube({ node, selected, onHover, onClick, onDoubleClick
       >
         {node.label}
       </Text>
+      {/* Render children with inverse offset so their absolute positions remain correct */}
+      <group position={[-node.position[0], -node.position[1], -node.position[2]]}>
+        {children}
+      </group>
     </group>
   );
 }
