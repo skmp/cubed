@@ -22,6 +22,11 @@ function isKnown(arg: ArgInfo | undefined): arg is ArgInfo {
   return arg !== undefined && (arg.literal !== undefined || arg.mapping !== undefined);
 }
 
+/** Same check as isKnown but without type narrowing (for use after prior narrowing) */
+function isArgKnown(arg: ArgInfo): boolean {
+  return arg.literal !== undefined || arg.mapping !== undefined;
+}
+
 // ---- Load / Store helpers ----
 
 /** Load a variable's value onto the stack (T register) */
@@ -337,8 +342,8 @@ function emitEqual(
   const b = args.get('b');
   if (!a || !b) return false;
 
-  const aKnown = isKnown(a);
-  const bKnown = isKnown(b);
+  const aKnown = isArgKnown(a);
+  const bKnown = isArgKnown(b);
 
   if (aKnown && !bKnown && b.mapping) {
     // Assignment: b = a

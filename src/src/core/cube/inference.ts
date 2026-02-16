@@ -8,13 +8,13 @@ import type { ResolvedProgram, ResolvedSymbol } from './resolver';
 import { SymbolKind } from './resolver';
 import type {
   Conjunction, ConjunctionItem, Application,
-  Unification, Term, PredicateDef, TypeDef,
+  Unification, Term, PredicateDef, TypeDef, TypeExpr,
 } from './ast';
 import {
   type Type, type TypeScheme,
   Substitution, UnificationError,
   freshVar, resetVarCounter, tInt, tProp, tCon,
-  unify, generalize, instantiate, prettyType,
+  unify, instantiate, prettyType,
 } from './cube-types';
 
 // ---- Type environment ----
@@ -219,14 +219,14 @@ function registerTypeDef(
 }
 
 function resolveTypeExpr(
-  typeExpr: { kind: string; name?: string; constructor?: string; args?: Record<string, unknown> },
+  typeExpr: TypeExpr,
   typeParamVars: Map<string, Type>,
 ): Type {
-  if (typeExpr.kind === 'type_var' && typeExpr.name) {
+  if (typeExpr.kind === 'type_var') {
     const tv = typeParamVars.get(typeExpr.name);
     return tv ?? tCon(typeExpr.name);
   }
-  if (typeExpr.kind === 'type_app' && typeExpr.constructor) {
+  if (typeExpr.kind === 'type_app') {
     return tCon(typeExpr.constructor);
   }
   return tInt; // Default

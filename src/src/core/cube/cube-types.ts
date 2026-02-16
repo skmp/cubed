@@ -136,8 +136,12 @@ export class Substitution {
 // ---- Unification ----
 
 export class UnificationError extends Error {
-  constructor(public t1: Type, public t2: Type, message?: string) {
+  t1: Type;
+  t2: Type;
+  constructor(t1: Type, t2: Type, message?: string) {
     super(message ?? `Cannot unify ${prettyType(t1)} with ${prettyType(t2)}`);
+    this.t1 = t1;
+    this.t2 = t2;
   }
 }
 
