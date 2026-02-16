@@ -66,7 +66,7 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
 
   // ---- Conjunction: items separated by /\ ----
 
-  function parseConjunction(): Conjunction {
+  function parseConjunction(stopAtDef = false): Conjunction {
     const loc = { line: peek().line, col: peek().col };
     const items: ConjunctionItem[] = [];
 
@@ -77,11 +77,41 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
     items.push(parseConjunctionItem());
 
     while (check(CubeTokenType.CONJUNCTION)) {
+      // In body mode, stop if the token after /\ starts a new definition
+      if (stopAtDef && looksLikeDefinitionAfterConj()) break;
       advance(); // consume /\;
       items.push(parseConjunctionItem());
     }
 
     return { kind: 'conjunction', items, loc };
+  }
+
+  /** Peek past the /\ to check if the next item is a definition or node directive.
+   *  This is used to stop unparenthesized predicate bodies from consuming sibling defs. */
+  function looksLikeDefinitionAfterConj(): boolean {
+    // pos is at the /\ token; peek past it
+    const afterConj = tokens[pos + 1];
+    if (!afterConj) return false;
+
+    // node directive
+    if (afterConj.type === CubeTokenType.NODE) return true;
+
+    // TYPE_IDENT = ... → type definition
+    if (afterConj.type === CubeTokenType.TYPE_IDENT) {
+      const afterName = tokens[pos + 2];
+      if (afterName && afterName.type === CubeTokenType.EQUALS) return true;
+    }
+
+    // ident = lambda{...} → predicate definition
+    if (afterConj.type === CubeTokenType.IDENT) {
+      const afterName = tokens[pos + 2];
+      if (afterName && afterName.type === CubeTokenType.EQUALS) {
+        const afterEquals = tokens[pos + 3];
+        if (afterEquals && afterEquals.type === CubeTokenType.LAMBDA) return true;
+      }
+    }
+
+    return false;
   }
 
   // ---- Conjunction Item: definition or atomic formula ----
@@ -174,8 +204,9 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
       }
       expect(CubeTokenType.RPAREN, ')');
     } else {
-      // Single clause (no parens)
-      clauses.push(parseConjunction());
+      // Single clause (no parens) — stop at the next definition boundary
+      // so the body doesn't greedily consume sibling definitions
+      clauses.push(parseConjunction(true));
     }
 
     return {

@@ -348,32 +348,72 @@ function layoutConjunction(
   topLevel: boolean = false,
 ): LayoutExtent {
   if (topLevel) {
-    // Top-level: lay items out along Z axis to avoid overlap
+    // Top-level: definitions (predicate_def, type_def) each get their own Z row.
+    // Consecutive invocations (application, unification) are grouped along X.
     let zCursor = origin[2];
-    for (const item of conj.items) {
-      const ext = layoutItem(item, [origin[0], origin[1], zCursor], nodes, pipes, holderPositions, holderNodeIds, parentId, constructorNames);
-      zCursor += ext.depth + TOP_LEVEL_SPACING_Z;
+
+    let i = 0;
+    while (i < conj.items.length) {
+      const item = conj.items[i];
+
+      if (item.kind === 'predicate_def' || item.kind === 'type_def') {
+        // Definition: own Z row
+        const ext = layoutItem(item, [origin[0], origin[1], zCursor], nodes, pipes, holderPositions, holderNodeIds, parentId, constructorNames);
+        zCursor += ext.depth + TOP_LEVEL_SPACING_Z;
+        i++;
+      } else {
+        // Invocation run: collect consecutive applications/unifications
+        // and lay them out along X on the same Z row
+        const runStart = i;
+        while (i < conj.items.length && conj.items[i].kind !== 'predicate_def' && conj.items[i].kind !== 'type_def') {
+          i++;
+        }
+        const runItems = conj.items.slice(runStart, i);
+        const runConj: Conjunction = { kind: 'conjunction', items: runItems, loc: conj.loc };
+        // Lay out this run as a nested conjunction (along X with Z zigzag)
+        const ext = layoutConjunction(runConj, [origin[0], origin[1], zCursor], nodes, pipes, holderPositions, holderNodeIds, parentId, constructorNames, false);
+        zCursor += ext.depth + TOP_LEVEL_SPACING_Z;
+      }
     }
+
     return { width: 0, depth: zCursor - origin[2] };
   }
 
-  // Nested: lay items along X axis. Each item is offset in Z by the
-  // cumulative depth of the preceding items so pipes route around objects.
+  // Nested: lay items in a grid — along X, wrapping to a new Z row
+  // after MAX_ROW_ITEMS to avoid excessively wide layouts.
+  const MAX_ROW_ITEMS = 4;
   let xCursor = origin[0];
+  let zCursor = origin[2];
+  let rowMaxDepth = 0;
+  let totalWidth = 0;
   let totalDepth = 0;
+  let rowItemCount = 0;
 
   for (let i = 0; i < conj.items.length; i++) {
     const item = conj.items[i];
-    // Alternate Z: even items at current Z, odd items pushed forward
-    const zOff = (i % 2 === 1) ? ITEM_SPACING_Z : 0;
-    const ext = layoutItem(item, [xCursor, origin[1], origin[2] + zOff], nodes, pipes, holderPositions, holderNodeIds, parentId, constructorNames);
+    // Alternate Z within a row for pipe routing
+    const zOff = (rowItemCount % 2 === 1) ? ITEM_SPACING_Z : 0;
+    const ext = layoutItem(item, [xCursor, origin[1], zCursor + zOff], nodes, pipes, holderPositions, holderNodeIds, parentId, constructorNames);
     xCursor += ext.width + ITEM_SPACING_X;
-    // Track the maximum Z extent (item depth + its Z offset)
-    totalDepth = Math.max(totalDepth, zOff + ext.depth);
+    rowMaxDepth = Math.max(rowMaxDepth, zOff + ext.depth);
+    rowItemCount++;
+
+    // Wrap to next row if we've hit the limit (unless last item)
+    if (rowItemCount >= MAX_ROW_ITEMS && i < conj.items.length - 1) {
+      totalWidth = Math.max(totalWidth, xCursor - origin[0] - ITEM_SPACING_X);
+      zCursor += rowMaxDepth + ITEM_SPACING_Z;
+      totalDepth = zCursor - origin[2];
+      xCursor = origin[0];
+      rowMaxDepth = 0;
+      rowItemCount = 0;
+    }
   }
 
+  totalWidth = Math.max(totalWidth, xCursor - origin[0] - ITEM_SPACING_X);
+  totalDepth = Math.max(totalDepth, (zCursor - origin[2]) + rowMaxDepth);
+
   return {
-    width: xCursor - origin[0] - ITEM_SPACING_X,
+    width: totalWidth,
     depth: totalDepth,
   };
 }
