@@ -2,7 +2,7 @@
 
 Summary of the Cube language as defined in three academic papers by Marc A. Najork
 and Simon M. Kaplan. This document serves as a reference for implementing a Cube
-variant targeting the EVB001/GA144 platform.
+variant targeting the EVB002/GA144 platform.
 
 ## Source Papers
 
@@ -437,7 +437,7 @@ carrying the same icon refer to the value inside the naming cube.
 
 ---
 
-## 12. Relevance to GA144/EVB001
+## 12. Relevance to GA144/EVB002
 
 The Cube language's concurrent dataflow model has natural parallels to the GA144
 architecture:

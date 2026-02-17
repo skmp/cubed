@@ -142,6 +142,15 @@ function fillNoise(data: Uint8Array) {
   }
 }
 
+function clearToBlack(data: Uint8Array) {
+  for (let i = 0; i < data.length; i += 4) {
+    data[i]     = 0;
+    data[i + 1] = 0;
+    data[i + 2] = 0;
+    data[i + 3] = 255;
+  }
+}
+
 
 // ---- Component ----
 
@@ -156,6 +165,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
   const cachedResRef = useRef<Resolution | null>(null);
   const forceFullRedrawRef = useRef(false);
   const dirtyRef = useRef(true);
+  const hasReceivedSignalRef = useRef(false);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
   const [manualWidth, setManualWidth] = useState(4);
@@ -310,7 +320,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
   }, []);
 
   // ---- Incremental pixel updates ----
-  // EVB001 VGA: 3 DAC nodes (117=R, 617=G, 717=B) write independently.
+  // EVB002 VGA: 3 DAC nodes (117=R, 617=G, 717=B) write independently.
   // We accumulate R/G/B channel values and emit a pixel when all 3 are set,
   // or when the R channel writes (for single-node fallback).
 
@@ -333,6 +343,12 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
       cursor.x = 0;
       cursor.y = 0;
       forceFullRedrawRef.current = false;
+      if (streamReset) {
+        hasReceivedSignalRef.current = false;
+        fillNoise(texData);
+      } else if (hasReceivedSignalRef.current) {
+        clearToBlack(texData);
+      }
     }
 
     // Accumulate R/G/B from the 3 DAC nodes
@@ -346,7 +362,11 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
       const val = taggedValue(tagged);
 
       if (hasSyncSignals) {
-        if (isVsync(tagged)) { cursor.y = 0; cursor.x = 0; continue; }
+        if (isVsync(tagged)) {
+          cursor.y = 0; cursor.x = 0;
+          if (hasReceivedSignalRef.current) clearToBlack(texData);
+          continue;
+        }
         // Only advance row on HSYNC if we've drawn at least one pixel on this row.
         // This handles out-of-order scheduling where the sync node runs faster.
         if (isHsync(tagged)) { if (cursor.x > 0) { cursor.y++; cursor.x = 0; } continue; }
@@ -354,6 +374,10 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
 
       // DAC channel writes — decode XOR encoding and accumulate
       if (coord === VGA_NODE_R) {
+        if (!hasReceivedSignalRef.current) {
+          hasReceivedSignalRef.current = true;
+          clearToBlack(texData);
+        }
         pendingR = DAC_TO_8BIT[decodeDac(val)];
       } else if (coord === VGA_NODE_G) {
         pendingG = DAC_TO_8BIT[decodeDac(val)];
@@ -387,6 +411,8 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
     cursorRef.current.x = 0;
     cursorRef.current.y = 0;
     lastDrawnSeqRef.current = 0;
+    hasReceivedSignalRef.current = false;
+    fillNoise(texDataRef.current);
     dirtyRef.current = true;
   }, [effectiveScale, manualWidth]);
 

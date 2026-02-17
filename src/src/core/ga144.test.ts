@@ -26,7 +26,7 @@ function snapshotTagged(snapshot: { ioWrites: number[]; ioWriteStart: number; io
   return values;
 }
 
-describe('GA144 IO write ring buffer (EVB001 tagged format)', () => {
+describe('GA144 IO write ring buffer (EVB002 tagged format)', () => {
   it('tags IO writes with node coordinate', () => {
     const ga = new GA144('test');
     ga.reset();

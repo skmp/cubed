@@ -3,7 +3,7 @@
  *
  * Converts compiled node data (CompiledNode[]) into the boot stream wire
  * format expected by the GA144's async boot ROM at node 708.  This enables
- * flashing real hardware (e.g. EVB001) over a serial connection.
+ * flashing real hardware (e.g. EVB002) over a serial connection.
  *
  * Ported from reference/ga144/src/bootstream.rkt
  */
