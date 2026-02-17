@@ -1,28 +1,28 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Box, Chip, TextField, Typography, Button } from '@mui/material';
+import { VGA_NODE_R, VGA_NODE_G, VGA_NODE_B } from '../../core/constants';
 import {
   detectResolution,
-  HSYNC_BIT,
-  VSYNC_BIT,
   readIoWrite,
+  taggedCoord,
+  taggedValue,
+  decodeDac,
+  isHsync,
+  isVsync,
   type Resolution,
 } from './vgaResolution';
 
 // ---- Constants ----
 
-const COLOR_MASK = 0x1FF;
-
 const NOISE_W = 640;
 const NOISE_H = 480;
 
-// ---- Precomputed DAC → RGBA lookup (512 entries × 4 bytes) ----
+// ---- Precomputed 9-bit DAC → 8-bit channel lookup (512 entries) ----
+// Each DAC node outputs a 9-bit current value. Scale to 0-255.
 
-const DAC_LUT = new Uint8Array(512 * 4);
+const DAC_TO_8BIT = new Uint8Array(512);
 for (let i = 0; i < 512; i++) {
-  DAC_LUT[i * 4]     = ((i >> 6) & 0x7) * 255 / 7 | 0;
-  DAC_LUT[i * 4 + 1] = ((i >> 3) & 0x7) * 255 / 7 | 0;
-  DAC_LUT[i * 4 + 2] = (i & 0x7) * 255 / 7 | 0;
-  DAC_LUT[i * 4 + 3] = 255;
+  DAC_TO_8BIT[i] = (i * 255 / 511) | 0;
 }
 
 // ---- Shaders ----
@@ -310,18 +310,19 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
   }, []);
 
   // ---- Incremental pixel updates ----
+  // EVB001 VGA: 3 DAC nodes (117=R, 617=G, 717=B) write independently.
+  // We accumulate R/G/B channel values and emit a pixel when all 3 are set,
+  // or when the R channel writes (for single-node fallback).
 
   useEffect(() => {
     if (!glStateRef.current || ioWriteCount === 0) return;
 
     const hasSyncSignals = resolution.hasSyncSignals;
-    // Write into existing texture — only reallocate when locked resolution differs
     const texW = texWRef.current;
     const texH = texHRef.current;
     const texData = texDataRef.current;
     const cursor = cursorRef.current;
 
-    // Buffer was trimmed/reset — just reset cursor, keep existing texture content (noise bleeds through)
     const startSeq = ioWriteSeq - ioWriteCount;
     const streamReset = ioWriteSeq < lastDrawnSeqRef.current;
     const dataDropped = lastDrawnSeqRef.current < startSeq;
@@ -334,24 +335,44 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
       forceFullRedrawRef.current = false;
     }
 
+    // Accumulate R/G/B from the 3 DAC nodes
+    let pendingR = 0, pendingG = 0, pendingB = 0;
+
     for (; seq < ioWriteSeq; seq++) {
       const offset = seq - startSeq;
       if (offset < 0 || offset >= ioWriteCount) continue;
-      const val = readIoWrite(ioWrites, ioWriteStart, offset);
+      const tagged = readIoWrite(ioWrites, ioWriteStart, offset);
+      const coord = taggedCoord(tagged);
+      const val = taggedValue(tagged);
+
       if (hasSyncSignals) {
-        if (val & VSYNC_BIT) { cursor.y = 0; cursor.x = 0; continue; }
-        if (val & HSYNC_BIT) { cursor.y++; cursor.x = 0; continue; }
+        if (isVsync(tagged)) { cursor.y = 0; cursor.x = 0; continue; }
+        if (isHsync(tagged)) { cursor.y++; cursor.x = 0; continue; }
       }
-      if (cursor.y < texH && cursor.x < texW) {
-        const lutOff = (val & COLOR_MASK) * 4;
-        const texOff = (cursor.y * texW + cursor.x) * 4;
-        texData[texOff]     = DAC_LUT[lutOff];
-        texData[texOff + 1] = DAC_LUT[lutOff + 1];
-        texData[texOff + 2] = DAC_LUT[lutOff + 2];
-        texData[texOff + 3] = 255;
+
+      // DAC channel writes — decode XOR encoding and accumulate
+      if (coord === VGA_NODE_R) {
+        pendingR = DAC_TO_8BIT[decodeDac(val)];
+      } else if (coord === VGA_NODE_G) {
+        pendingG = DAC_TO_8BIT[decodeDac(val)];
+      } else if (coord === VGA_NODE_B) {
+        pendingB = DAC_TO_8BIT[decodeDac(val)];
+      } else {
+        continue; // sync or other node — already handled above
       }
-      cursor.x++;
-      if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
+
+      // Emit pixel on R channel write (R is the timing master)
+      if (coord === VGA_NODE_R) {
+        if (cursor.y < texH && cursor.x < texW) {
+          const texOff = (cursor.y * texW + cursor.x) * 4;
+          texData[texOff]     = pendingR;
+          texData[texOff + 1] = pendingG;
+          texData[texOff + 2] = pendingB;
+          texData[texOff + 3] = 255;
+        }
+        cursor.x++;
+        if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
+      }
     }
 
     lastDrawnSeqRef.current = ioWriteSeq;

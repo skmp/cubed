@@ -3,7 +3,7 @@
  * Port of reference/ga144/src/ga144.rkt
  */
 import { F18ANode } from './f18a';
-import { NUM_NODES, coordToIndex, DAC_NODES } from './constants';
+import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 
@@ -23,8 +23,6 @@ export class GA144 {
   private ioWriteSeq = 0;       // next sequence number to write
   private lastVsyncSeq: number | null = null;
   private loadedNodes: Set<number> = new Set();
-  // DAC node indices for VGA output filtering (EVB001: nodes 117, 617, 717)
-  private static readonly DAC_NODE_INDICES = new Set(DAC_NODES.map(coordToIndex));
 
   // ROM data loaded externally
   private romData: Record<number, number[]> = {};
@@ -118,17 +116,17 @@ export class GA144 {
     this._breakpointHit = true;
   }
 
-  /** Called by F18ANode when an IO register write occurs (VGA DAC output) */
+  /** Called by F18ANode when an IO register write occurs.
+   *  Each write is tagged with the node coordinate so the VGA display
+   *  can separate R/G/B channels from DAC nodes 117/617/717 and
+   *  sync signals from GPIO nodes.  Stored as (coord << 18) | value. */
   onIoWrite(nodeIndex: number, value: number): void {
-    // Only DAC-capable nodes (117, 617, 717) produce VGA output,
-    // matching the EVB001 hardware where the VGA connector is wired
-    // to the analog DAC output pins of these nodes.
-    if (!GA144.DAC_NODE_INDICES.has(nodeIndex)) {
-      return;
-    }
     if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
-      // On VSYNC, drop everything before the previous VSYNC to keep one full frame
-      if (value & 0x10000) {
+      const coord = indexToCoord(nodeIndex);
+      const tagged = coord * 0x40000 + value;  // coord << 18 | value
+      // On VSYNC (node 217 pin17 driven high: bits 17:16 = 11),
+      // drop everything before the previous VSYNC to keep one full frame.
+      if (coord === 217 && (value & 0x30000) === 0x30000) {
         if (this.lastVsyncSeq !== null && this.lastVsyncSeq > this.ioWriteStartSeq) {
           const drop = this.lastVsyncSeq - this.ioWriteStartSeq;
           this.ioWriteStart = (this.ioWriteStart + drop) % this.ioWriteBuffer.length;
@@ -136,7 +134,7 @@ export class GA144 {
         }
         this.lastVsyncSeq = this.ioWriteSeq;
       }
-      this.pushIoWrite(value);
+      this.pushIoWrite(tagged);
     }
   }
 
