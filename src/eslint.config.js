@@ -42,4 +42,10 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ['**/*.test.ts'],
+    languageOptions: {
+      globals: globals.vitest,
+    },
+  },
 ])
