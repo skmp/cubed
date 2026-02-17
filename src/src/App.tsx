@@ -10,6 +10,7 @@ import { CompileOutputPanel } from './ui/output/CompileOutputPanel';
 import { useEmulator } from './hooks/useEmulator';
 import { readUrlSource, updateUrlSource } from './ui/urlSource';
 import { RecursePanel } from './ui/recurse/RecursePanel';
+import { BootStreamModal } from './ui/toolbar/BootStreamModal';
 
 function App() {
   const {
@@ -29,6 +30,8 @@ function App() {
     reset,
     compileAndLoad,
     selectNode,
+    clearBootStream,
+    bootStreamBytes,
     setStepsPerFrame,
     setLanguage,
   } = useEmulator();
@@ -158,6 +161,7 @@ function App() {
           />
         }
       />
+      <BootStreamModal bytes={bootStreamBytes} onClose={clearBootStream} />
     </ThemeProvider>
   );
 }

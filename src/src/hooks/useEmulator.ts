@@ -8,17 +8,6 @@ import type { CubeProgram, CubeCompileResult } from '../core/cube';
 import type { EditorLanguage } from '../ui/editor/CodeEditor';
 import { buildBootStream } from '../core/bootstream';
 
-function downloadBootStream(compiled: CompiledProgram): void {
-  const { bytes } = buildBootStream(compiled.nodes);
-  const blob = new Blob([bytes], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'bootstream.bin';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export function useEmulator() {
   const ga144 = useMemo(() => {
     const chip = new GA144('evb001');
@@ -36,6 +25,7 @@ export function useEmulator() {
   const [cubeAst, setCubeAst] = useState<CubeProgram | null>(null);
   const [cubeCompileResult, setCubeCompileResult] = useState<CubeCompileResult | null>(null);
   const [compiledProgram, setCompiledProgram] = useState<CompiledProgram | null>(null);
+  const [bootStreamBytes, setBootStreamBytes] = useState<Uint8Array | null>(null);
   const runningRef = useRef(false);
   const animFrameRef = useRef<number>(0);
 
@@ -119,7 +109,9 @@ export function useEmulator() {
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
         ga144.load(result);
-        if (options?.download) downloadBootStream(result);
+        if (options?.download) {
+          setBootStreamBytes(buildBootStream(result.nodes).bytes);
+        }
       }
     } else {
       const result = compile(source);
@@ -128,7 +120,9 @@ export function useEmulator() {
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
         ga144.load(result);
-        if (options?.download) downloadBootStream(result);
+        if (options?.download) {
+          setBootStreamBytes(buildBootStream(result.nodes).bytes);
+        }
       }
     }
     updateSnapshot();
@@ -138,6 +132,10 @@ export function useEmulator() {
     setSelectedCoord(coord);
     setSnapshot(ga144.getSnapshot(coord ?? undefined));
   }, [ga144]);
+
+  const clearBootStream = useCallback(() => {
+    setBootStreamBytes(null);
+  }, []);
 
   return {
     snapshot,
@@ -149,6 +147,7 @@ export function useEmulator() {
     cubeAst,
     cubeCompileResult,
     compiledProgram,
+    bootStreamBytes,
     step,
     stepN,
     run,
@@ -156,6 +155,7 @@ export function useEmulator() {
     reset,
     compileAndLoad,
     selectNode,
+    clearBootStream,
     setStepsPerFrame,
     setLanguage,
   };
