@@ -139,6 +139,26 @@ function makeBuiltinSchemes(): Map<string, TypeScheme> {
     },
   });
 
+  // setb: {addr:Int} -> o
+  schemes.set('setb', {
+    quantified: new Set(),
+    type: {
+      kind: 'tfunc',
+      params: new Map([['addr', tInt]]),
+      returnType: tProp,
+    },
+  });
+
+  // relay: {port:Int, count:Int} -> o
+  schemes.set('relay', {
+    quantified: new Set(),
+    type: {
+      kind: 'tfunc',
+      params: new Map([['port', tInt], ['count', tInt]]),
+      returnType: tProp,
+    },
+  });
+
   return schemes;
 }
 

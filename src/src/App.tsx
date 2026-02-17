@@ -155,6 +155,7 @@ function App() {
             compiledProgram={compiledProgram}
             language={language}
             ioWrites={snapshot.ioWrites}
+            ioWriteTimestamps={snapshot.ioWriteTimestamps}
             ioWriteCount={snapshot.ioWriteCount}
             ioWriteStart={snapshot.ioWriteStart}
             ioWriteSeq={snapshot.ioWriteSeq}

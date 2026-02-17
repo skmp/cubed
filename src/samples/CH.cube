@@ -1,0 +1,199 @@
+-- Swiss Flag (CH) 256x256 VGA Output (EVB002 7-node architecture)
+-- Renders a Swiss flag centered on a 640x480 framebuffer.
+-- Red square with white cross bar (simplified: horizontal bar only).
+-- Full cross requires more code than 64-word RAM allows per node.
+--
+-- Architecture: feeder-relay pipeline for synchronized RGB output.
+--   Feeder nodes (116, 616, 716) generate pixel data using fill{}
+--   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
+--   DAC relay nodes (117, 617, 717) read from west (RIGHT=0x1D5 for
+--   odd-x nodes) and write to IO.
+--   R relay (117) signals sync node (217) after each row for HSYNC.
+--
+-- EVB002 VGA wiring:
+--   Node 117 DAC (117.ao) -> R channel
+--   Node 617 DAC (617.ao) -> G channel
+--   Node 717 DAC (717.ao) -> B channel
+--   Node 217 pin17 (GPIO) -> HSYNC / VSYNC
+--
+-- DAC XOR encoding: write (desired ^ 0x155) to IO register.
+--   Zero output:  0x000 ^ 0x155 = 0x155
+--   Max output:   0x1FF ^ 0x155 = 0x0AA
+--
+-- LUDR port mapping (x=16 even, x=17 odd, y=1 odd, y=2 even):
+--   116 east -> RIGHT = 0x1D5
+--   117 west -> RIGHT = 0x1D5
+--   117 north -> UP = 0x145
+--   217 south -> UP = 0x145
+--
+-- Layout (640x480):
+--   Flag: 256x256 at (192,112)-(447,367)
+--   Cross bar: 160x64 at (240,208)-(399,271)
+--
+-- Row breakdown (480 rows):
+--   Rows 0-111:   black (112 rows)
+--   Rows 112-207: red flag, no bar (96 rows)
+--   Rows 208-271: red flag + white bar center (64 rows)
+--   Rows 272-367: red flag, no bar (96 rows)
+--   Rows 368-479: black (112 rows)
+
+-- ============================================================
+-- RED DAC RELAY (node 117)
+-- ============================================================
+-- Reads pixel data from west (RIGHT=0x1D5) and writes to DAC.
+-- After each row, signals sync node (217) via north (UP=0x145).
+
+node 117
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- R = max (0x0AA) for entire 256x256 flag, zero (0x155) elsewhere.
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black above flag: 112 rows
+loop{n=112}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- Flag area: 256 rows (R is max across entire flag width)
+loop{n=256}
+/\ fill{value=0x155, count=192}
+/\ fill{value=0x0AA, count=256}
+/\ fill{value=0x155, count=192}
+/\ again{}
+
+/\
+
+-- Black below flag: 112 rows
+loop{n=112}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+-- G = max (0x0AA) for white bar only, zero (0x155) elsewhere.
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black + red top: 208 rows (112 black + 96 red, both G=0)
+loop{n=208}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- White bar rows: 64 rows
+loop{n=64}
+/\ fill{value=0x155, count=240}
+/\ fill{value=0x0AA, count=160}
+/\ fill{value=0x155, count=240}
+/\ again{}
+
+/\
+
+-- Red bottom + black: 208 rows (96 red + 112 black, both G=0)
+loop{n=208}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE FEEDER (node 716)
+-- ============================================================
+-- B = same as G (white bar only).
+
+node 716
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black + red top: 208 rows
+loop{n=208}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- White bar rows: 64 rows
+loop{n=64}
+/\ fill{value=0x155, count=240}
+/\ fill{value=0x0AA, count=160}
+/\ fill{value=0x155, count=240}
+/\ again{}
+
+/\
+
+-- Red bottom + black: 208 rows
+loop{n=208}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+-- Waits for signal from R relay (117) after each row,
+-- then emits HSYNC. VSYNC at end of frame.
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}

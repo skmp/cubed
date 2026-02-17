@@ -18,6 +18,7 @@ export class GA144 {
   // IO write capture for VGA display — ring buffer of recent writes
   private static readonly IO_WRITE_CAPACITY = 2_000_000;
   private ioWriteBuffer: number[] = new Array(GA144.IO_WRITE_CAPACITY);
+  private ioWriteTimestamps: number[] = new Array(GA144.IO_WRITE_CAPACITY);
   private ioWriteStart = 0;     // ring start index
   private ioWriteStartSeq = 0;  // sequence number at ring start
   private ioWriteSeq = 0;       // next sequence number to write
@@ -148,6 +149,7 @@ export class GA144 {
     }
     const idx = (this.ioWriteStart + (this.ioWriteSeq - this.ioWriteStartSeq)) % capacity;
     this.ioWriteBuffer[idx] = value;
+    this.ioWriteTimestamps[idx] = this.totalSteps;
     this.ioWriteSeq++;
   }
 
@@ -243,6 +245,7 @@ export class GA144 {
       totalSteps: this.totalSteps,
       selectedNode,
       ioWrites: this.ioWriteBuffer,
+      ioWriteTimestamps: this.ioWriteTimestamps,
       ioWriteStart: this.ioWriteStart,
       ioWriteCount: this.ioWriteSeq - this.ioWriteStartSeq,
       ioWriteSeq: this.ioWriteSeq,

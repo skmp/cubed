@@ -24,6 +24,14 @@ export function readIoWrite(ioWrites: number[], start: number, idx: number): num
   return ioWrites[pos >= cap ? pos - cap : pos];
 }
 
+/** Read the timestamp (global step count) for an IO write from the ring buffer. */
+export function readIoTimestamp(timestamps: number[], start: number, idx: number): number {
+  const cap = timestamps.length;
+  if (cap === 0) return 0;
+  const pos = start + idx;
+  return timestamps[pos >= cap ? pos - cap : pos];
+}
+
 /** Extract node coordinate from a tagged IO write. */
 export function taggedCoord(tagged: number): number {
   return (tagged / 0x40000) | 0;
@@ -63,33 +71,64 @@ export function isDacWrite(tagged: number): boolean {
   return coord === VGA_NODE_R || coord === VGA_NODE_G || coord === VGA_NODE_B;
 }
 
-export function detectResolution(ioWrites: number[], count: number, start: number = 0): Resolution & { complete: boolean } {
+export function detectResolution(
+  ioWrites: number[],
+  count: number,
+  start: number = 0,
+  timestamps?: number[],
+): Resolution & { complete: boolean } {
   let x = 0;
   let maxX = 0;
   let y = 0;
   let hasSyncSignals = false;
+  let pendingHsyncTs = -1; // timestamp of deferred HSYNC (-1 = none)
 
   for (let i = 0; i < count; i++) {
     const tagged = readIoWrite(ioWrites, start, i);
     if (isVsync(tagged)) {
       hasSyncSignals = true;
-      // VSYNC marks end of frame — return what we've accumulated
       if (y > 0 || x > 0) {
         if (x > maxX) maxX = x;
         const height = Math.max(y + (x > 0 ? 1 : 0), 1);
         return { width: maxX || 1, height, hasSyncSignals: true, complete: true };
       }
+      pendingHsyncTs = -1;
     } else if (isHsync(tagged)) {
       hasSyncSignals = true;
-      // Only count as a row end if we've seen at least one R write since the last HSYNC.
-      // This handles out-of-order scheduling where the sync node runs faster than DAC nodes.
-      if (x > 0) {
+      if (timestamps) {
+        // Record HSYNC timestamp — defer line break until we see
+        // the next R write and can compare timestamps.
+        pendingHsyncTs = readIoTimestamp(timestamps, start, i);
+      } else if (x > 0) {
         if (x > maxX) maxX = x;
         y++;
         x = 0;
       }
     } else if (taggedCoord(tagged) === VGA_NODE_R) {
       x++;
+      // Apply deferred HSYNC: if the R write has the same timestamp
+      // as the HSYNC, it was produced in the same global step, so it
+      // belongs to the current line (before the line break).
+      if (pendingHsyncTs >= 0) {
+        const rTs = timestamps ? readIoTimestamp(timestamps, start, i) : -1;
+        if (rTs !== pendingHsyncTs) {
+          // Different step — HSYNC legitimately precedes this R write.
+          // Apply the deferred line break BEFORE counting this R write.
+          // Undo the x++ for this R write, apply HSYNC, then re-count it.
+          x--;
+          if (x > maxX) maxX = x;
+          y++;
+          x = 1; // this R write starts the new row
+          pendingHsyncTs = -1;
+        } else {
+          // Same step — R belongs to the line before HSYNC.
+          // Apply HSYNC after this R write.
+          if (x > maxX) maxX = x;
+          y++;
+          x = 0;
+          pendingHsyncTs = -1;
+        }
+      }
     }
   }
 

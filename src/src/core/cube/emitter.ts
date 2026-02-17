@@ -72,8 +72,13 @@ export function emitCode(
 
   emitConjunction(ctx, resolved.program.conjunction);
 
-  // End with a return/suspend
-  builder.emitOp(OPCODE_MAP.get(';')!);
+  // End with a self-jump (infinite halt loop).
+  // Using ';' would set P = R (initial 0x15555 = port space), causing the
+  // node to run garbage instructions that generate spurious IO writes.
+  // Use flushWithJump to avoid slot 3 ';' in the flushed word.
+  builder.flushWithJump();
+  const haltAddr = builder.getLocationCounter();
+  builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
 
   // Resolve any forward references
   const refErrors: Array<{ message: string }> = [];
@@ -82,18 +87,26 @@ export function emitCode(
     ctx.warnings.push({ line: 0, col: 0, message: e.message });
   }
 
-  const { mem, len } = builder.build();
+  const { mem, len, maxAddr } = builder.build();
 
-  // Error if code exceeds RAM, warn if close to limit
-  if (len > 64) {
+  // Error if code exceeds RAM, warn if close to limit.
+  // maxAddr tracks the highest address the compiler attempted to write,
+  // even beyond the 64-word array (which silently truncates).
+  // Find the source location of the __node directive for this node
+  const nodeDirective = resolved.program.conjunction.items.find(
+    item => item.kind === 'application' && item.functor === '__node'
+  );
+  const nodeLoc = nodeDirective?.loc ?? { line: 0, col: 0 };
+
+  if (maxAddr > 64) {
     ctx.errors.push({
-      line: 0, col: 0,
-      message: `Generated code uses ${len}/64 words of RAM — exceeds limit`,
+      line: nodeLoc.line, col: nodeLoc.col,
+      message: `Node ${plan.nodeCoord}: generated code uses ${maxAddr}/64 words of RAM — exceeds limit`,
     });
-  } else if (len > 56) {
+  } else if (maxAddr > 56) {
     ctx.warnings.push({
-      line: 0, col: 0,
-      message: `Generated code uses ${len}/64 words of RAM — close to limit`,
+      line: nodeLoc.line, col: nodeLoc.col,
+      message: `Node ${plan.nodeCoord}: generated code uses ${maxAddr}/64 words of RAM — close to limit`,
     });
   }
 
