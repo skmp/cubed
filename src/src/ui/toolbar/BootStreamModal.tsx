@@ -6,6 +6,22 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import UsbIcon from '@mui/icons-material/Usb';
 
+// Web Serial API type declarations (not in standard lib)
+interface SerialPortOptions { baudRate: number }
+interface WebSerialPort {
+  open(options: SerialPortOptions): Promise<void>;
+  close(): Promise<void>;
+  writable: WritableStream<Uint8Array> | null;
+}
+interface Serial {
+  requestPort(): Promise<WebSerialPort>;
+}
+
+function getSerial(): Serial | null {
+  const nav = navigator as Navigator & { serial?: Serial };
+  return nav.serial ?? null;
+}
+
 interface BootStreamModalProps {
   bytes: Uint8Array | null;
   onClose: () => void;
@@ -23,11 +39,12 @@ export const BootStreamModal: React.FC<BootStreamModalProps> = ({ bytes, onClose
   const [baudRate, setBaudRate] = useState(460800);
   const [serialState, setSerialState] = useState<SerialState>({ status: 'idle' });
 
-  const serialSupported = typeof navigator !== 'undefined' && 'serial' in navigator;
+  const serial = getSerial();
+  const serialSupported = serial !== null;
 
   const handleDownload = useCallback(() => {
     if (!bytes) return;
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -38,11 +55,11 @@ export const BootStreamModal: React.FC<BootStreamModalProps> = ({ bytes, onClose
   }, [bytes, onClose]);
 
   const handleSendSerial = useCallback(async () => {
-    if (!bytes || !serialSupported) return;
+    if (!bytes || !serial) return;
 
-    let port: SerialPort | null = null;
+    let port: WebSerialPort | null = null;
     try {
-      port = await navigator.serial.requestPort();
+      port = await serial.requestPort();
       await port.open({ baudRate });
 
       const writer = port.writable!.getWriter();
@@ -72,7 +89,7 @@ export const BootStreamModal: React.FC<BootStreamModalProps> = ({ bytes, onClose
       setSerialState({ status: 'error', message });
       try { if (port) await port.close(); } catch { /* ignore */ }
     }
-  }, [bytes, baudRate, serialSupported]);
+  }, [bytes, baudRate, serial]);
 
   const handleClose = useCallback(() => {
     if (serialState.status === 'sending') return; // don't close while sending

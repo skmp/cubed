@@ -8,8 +8,8 @@ import {
 } from './bootstream';
 import type { CompiledNode } from './types';
 import { WORD_MASK } from './types';
-import { OPCODE_MAP, PORT, coordToIndex, getDirectionAddress } from './constants';
-import { disassembleWord, formatDisassembly } from './disassembler';
+import { PORT, getDirectionAddress } from './constants';
+import { disassembleWord } from './disassembler';
 
 // ---------------------------------------------------------------------------
 // assembleWord

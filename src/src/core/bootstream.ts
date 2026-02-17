@@ -9,10 +9,9 @@
  */
 
 import { WORD_MASK } from './types';
-import type { CompiledNode, Word18 } from './types';
+import type { CompiledNode } from './types';
 import {
   OPCODE_MAP, PORT,
-  coordToIndex, validCoord,
   getDirectionAddress,
 } from './constants';
 
@@ -115,14 +114,16 @@ function getDirection(coord: number, dir: CompassDir): number {
  *   9E, 7S, 17W, (N+16E, N+16W)×3, N+7E
  */
 export function getAsyncPath1(): CompassDir[] {
-  const nenw = [N, ...Array<CompassDir>(16).fill(E), N, ...Array<CompassDir>(16).fill(W)];
+  const repeat = (dir: CompassDir, n: number): CompassDir[] =>
+    Array.from({ length: n }, () => dir);
+  const nenw = [N, ...repeat(E, 16), N, ...repeat(W, 16)];
   return [
-    ...Array<CompassDir>(9).fill(E),
-    ...Array<CompassDir>(7).fill(S),
-    ...Array<CompassDir>(17).fill(W),
+    ...repeat(E, 9),
+    ...repeat(S, 7),
+    ...repeat(W, 17),
     ...nenw, ...nenw, ...nenw,
-    N, ...Array<CompassDir>(7).fill(E),
-  ];
+    N, ...repeat(E, 7),
+  ] as CompassDir[];
   // Total: 9 + 7 + 17 + 3*(1+16+1+16) + 1 + 7 = 9+7+17+102+8 = 143
   // Plus the implicit start at 708 = 144 nodes total
 }
