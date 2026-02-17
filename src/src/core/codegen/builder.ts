@@ -159,6 +159,14 @@ export class CodeBuilder {
    * corrupting P when the return stack has non-return-address values.
    */
   emitLiteral(value: number): void {
+    // @p and jump must be in the same instruction word. @p reads from P
+    // (the data word at loc+1), then jump skips past it to loc+2.
+    // If @p ends up at slot 2+, the jump can't fit in the same word,
+    // causing @p to read the wrong word (the next instruction, not data).
+    // Flush first if there's not enough room for both @p + jump.
+    if (this.slotPointer >= 2) {
+      this.flushWithJump();
+    }
     this.emitOp(OPCODE_MAP.get('@p')!);
     // Jump past the literal data word to skip slot 3 safely.
     // After @p reads from P (the data word), P is already at loc+2.
@@ -179,6 +187,10 @@ export class CodeBuilder {
    * this patches the raw data word directly.
    */
   emitLiteralRef(labelName: string): void {
+    // Same slot-2 guard as emitLiteral: @p + jump must share a word.
+    if (this.slotPointer >= 2) {
+      this.flushWithJump();
+    }
     this.emitOp(OPCODE_MAP.get('@p')!);
     const continueAddr = this.locationCounter + 2;
     this.emitJump(JMP_OPCODE, continueAddr);

@@ -92,15 +92,21 @@ export function emitCode(
   // Error if code exceeds RAM, warn if close to limit.
   // maxAddr tracks the highest address the compiler attempted to write,
   // even beyond the 64-word array (which silently truncates).
+  // Find the source location of the __node directive for this node
+  const nodeDirective = resolved.program.conjunction.items.find(
+    item => item.kind === 'application' && item.functor === '__node'
+  );
+  const nodeLoc = nodeDirective?.loc ?? { line: 0, col: 0 };
+
   if (maxAddr > 64) {
     ctx.errors.push({
-      line: 0, col: 0,
-      message: `Generated code uses ${maxAddr}/64 words of RAM — exceeds limit`,
+      line: nodeLoc.line, col: nodeLoc.col,
+      message: `Node ${plan.nodeCoord}: generated code uses ${maxAddr}/64 words of RAM — exceeds limit`,
     });
   } else if (maxAddr > 56) {
     ctx.warnings.push({
-      line: 0, col: 0,
-      message: `Generated code uses ${maxAddr}/64 words of RAM — close to limit`,
+      line: nodeLoc.line, col: nodeLoc.col,
+      message: `Node ${plan.nodeCoord}: generated code uses ${maxAddr}/64 words of RAM — close to limit`,
     });
   }
 
