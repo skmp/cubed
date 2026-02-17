@@ -72,8 +72,13 @@ export function emitCode(
 
   emitConjunction(ctx, resolved.program.conjunction);
 
-  // End with a return/suspend
-  builder.emitOp(OPCODE_MAP.get(';')!);
+  // End with a self-jump (infinite halt loop).
+  // Using ';' would set P = R (initial 0x15555 = port space), causing the
+  // node to run garbage instructions that generate spurious IO writes.
+  // Use flushWithJump to avoid slot 3 ';' in the flushed word.
+  builder.flushWithJump();
+  const haltAddr = builder.getLocationCounter();
+  builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
 
   // Resolve any forward references
   const refErrors: Array<{ message: string }> = [];

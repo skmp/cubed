@@ -121,8 +121,10 @@ node 217
 /\
 
 -- 480 rows: delay to match DAC timing, then send HSYNC
+-- delay{n=641} balances timing between single-fill rows (2569 steps)
+-- and triple-fill rows (2583 steps): sync row = 4*641+12 = 2576 steps.
 loop{n=480}
-/\ delay{n=640}
+/\ delay{n=641}
 /\ send{port=0x15D, value=0x20000}
 /\ again{}
 

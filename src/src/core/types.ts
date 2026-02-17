@@ -53,6 +53,7 @@ export interface GA144Snapshot {
   totalSteps: number;
   selectedNode: NodeSnapshot | null;
   ioWrites: number[];        // IO register writes (ring buffer)
+  ioWriteTimestamps: number[]; // Global step count when each IO write occurred
   ioWriteStart: number;      // Start index for ring buffer
   ioWriteCount: number;      // Number of valid entries in ring buffer
   ioWriteSeq: number;        // Total writes seen (monotonic sequence)

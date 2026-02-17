@@ -1,29 +1,19 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Box, Chip, TextField, Typography, Button } from '@mui/material';
-import { VGA_NODE_R, VGA_NODE_G, VGA_NODE_B } from '../../core/constants';
 import {
   detectResolution,
-  readIoWrite,
-  taggedCoord,
-  taggedValue,
-  decodeDac,
-  isHsync,
-  isVsync,
   type Resolution,
 } from './vgaResolution';
+import {
+  renderIoWrites,
+  fillNoise,
+  type VgaRenderState,
+} from './vgaRenderer';
 
 // ---- Constants ----
 
 const NOISE_W = 640;
 const NOISE_H = 480;
-
-// ---- Precomputed 9-bit DAC → 8-bit channel lookup (512 entries) ----
-// Each DAC node outputs a 9-bit current value. Scale to 0-255.
-
-const DAC_TO_8BIT = new Uint8Array(512);
-for (let i = 0; i < 512; i++) {
-  DAC_TO_8BIT[i] = (i * 255 / 511) | 0;
-}
 
 // ---- Shaders ----
 
@@ -47,6 +37,7 @@ void main() {
 
 interface VgaDisplayProps {
   ioWrites: number[];
+  ioWriteTimestamps: number[];
   ioWriteCount: number;
   ioWriteStart: number;
   ioWriteSeq: number;
@@ -133,39 +124,17 @@ function initWebGL(canvas: HTMLCanvasElement): GlState | null {
   return { gl, program, texture, vbo };
 }
 
-function fillNoise(data: Uint8Array) {
-  for (let i = 0; i < data.length; i += 4) {
-    data[i]     = (Math.random() * 256) | 0;
-    data[i + 1] = (Math.random() * 256) | 0;
-    data[i + 2] = (Math.random() * 256) | 0;
-    data[i + 3] = 255;
-  }
-}
-
-function clearToBlack(data: Uint8Array) {
-  for (let i = 0; i < data.length; i += 4) {
-    data[i]     = 0;
-    data[i + 1] = 0;
-    data[i + 2] = 0;
-    data[i + 3] = 255;
-  }
-}
-
-
 // ---- Component ----
 
-export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq }) => {
+export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimestamps, ioWriteCount, ioWriteStart, ioWriteSeq }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glStateRef = useRef<GlState | null>(null);
   const texDataRef = useRef<Uint8Array>(new Uint8Array(0));
   const texWRef = useRef(0);
   const texHRef = useRef(0);
-  const lastDrawnSeqRef = useRef(0);
-  const cursorRef = useRef({ x: 0, y: 0 });
+  const renderStateRef = useRef<VgaRenderState>({ cursor: { x: 0, y: 0 }, hasReceivedSignal: false, lastDrawnSeq: 0, forceFullRedraw: false, lastHasSyncSignals: null });
   const cachedResRef = useRef<Resolution | null>(null);
-  const forceFullRedrawRef = useRef(false);
   const dirtyRef = useRef(true);
-  const hasReceivedSignalRef = useRef(false);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
   const [manualWidth, setManualWidth] = useState(4);
@@ -187,15 +156,15 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
   // ---- Resolution (cached after first complete frame) ----
 
   const ioWriteStartSeq = ioWriteSeq - ioWriteCount;
-  const streamReset = ioWriteSeq < lastDrawnSeqRef.current;
-  const dataDropped = lastDrawnSeqRef.current < ioWriteStartSeq;
+  const streamReset = ioWriteSeq < renderStateRef.current.lastDrawnSeq;
+  const dataDropped = renderStateRef.current.lastDrawnSeq < ioWriteStartSeq;
   const needsResReset = streamReset || dataDropped;
   const detectedRes = useMemo<Resolution & { complete: boolean }>(() => {
     if (!needsResReset && cachedResRef.current) {
       return { ...cachedResRef.current, complete: true };
     }
-    return detectResolution(ioWrites, ioWriteCount, ioWriteStart);
-  }, [ioWrites, ioWriteCount, ioWriteStart, needsResReset]);
+    return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
+  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, needsResReset]);
 
   const resolution: Resolution = detectedRes;
 
@@ -320,118 +289,34 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
   }, []);
 
   // ---- Incremental pixel updates ----
-  // EVB002 VGA: 3 DAC nodes (117=R, 617=G, 717=B) write independently.
-  // We accumulate R/G/B channel values and emit a pixel when all 3 are set,
-  // or when the R channel writes (for single-node fallback).
+  // Delegates to the pure renderIoWrites() function for testability.
 
   useEffect(() => {
     if (!glStateRef.current || ioWriteCount === 0) return;
 
-    const hasSyncSignals = resolution.hasSyncSignals;
-    const texW = texWRef.current;
-    const texH = texHRef.current;
-    const texData = texDataRef.current;
-    const cursor = cursorRef.current;
-
-    const startSeq = ioWriteSeq - ioWriteCount;
-    const streamReset = ioWriteSeq < lastDrawnSeqRef.current;
-    const dataDropped = lastDrawnSeqRef.current < startSeq;
-    const needsFullRedraw = forceFullRedrawRef.current || streamReset || dataDropped;
-
-    let seq = needsFullRedraw ? startSeq : lastDrawnSeqRef.current;
-    if (needsFullRedraw) {
-      cursor.x = 0;
-      cursor.y = 0;
-      forceFullRedrawRef.current = false;
-      if (streamReset) {
-        hasReceivedSignalRef.current = false;
-        fillNoise(texData);
-      } else if (hasReceivedSignalRef.current) {
-        // Only clear to black on VSYNC if we know there is subsequent pixel data
-        // in this batch. This avoids erasing the last fully rendered frame when
-        // the final IO write is a VSYNC marker.
-        let hasSubsequentDacWrite = false;
-        for (let lookSeq = seq + 1; lookSeq < ioWriteSeq; lookSeq++) {
-          const lookOffset = lookSeq - startSeq;
-          if (lookOffset < 0 || lookOffset >= ioWriteCount) continue;
-          const lookTagged = readIoWrite(ioWrites, ioWriteStart, lookOffset);
-          const lookCoord = taggedCoord(lookTagged);
-          if (
-            lookCoord === VGA_NODE_R ||
-            lookCoord === VGA_NODE_G ||
-            lookCoord === VGA_NODE_B
-          ) {
-            hasSubsequentDacWrite = true;
-            break;
-          }
-        }
-        if (hasSubsequentDacWrite) {
-          clearToBlack(texData);
-        }
-      }
-    }
-
-    // Accumulate R/G/B from the 3 DAC nodes
-    let pendingR = 0, pendingG = 0, pendingB = 0;
-
-    for (; seq < ioWriteSeq; seq++) {
-      const offset = seq - startSeq;
-      if (offset < 0 || offset >= ioWriteCount) continue;
-      const tagged = readIoWrite(ioWrites, ioWriteStart, offset);
-      const coord = taggedCoord(tagged);
-      const val = taggedValue(tagged);
-
-      if (hasSyncSignals) {
-        if (isVsync(tagged)) {
-          cursor.y = 0; cursor.x = 0;
-          if (hasReceivedSignalRef.current) clearToBlack(texData);
-          continue;
-        }
-        // Only advance row on HSYNC if we've drawn at least one pixel on this row.
-        // This handles out-of-order scheduling where the sync node runs faster.
-        if (isHsync(tagged)) { if (cursor.x > 0) { cursor.y++; cursor.x = 0; } continue; }
-      }
-
-      // DAC channel writes — decode XOR encoding and accumulate
-      if (coord === VGA_NODE_R) {
-        if (!hasReceivedSignalRef.current) {
-          hasReceivedSignalRef.current = true;
-          clearToBlack(texData);
-        }
-        pendingR = DAC_TO_8BIT[decodeDac(val)];
-      } else if (coord === VGA_NODE_G) {
-        pendingG = DAC_TO_8BIT[decodeDac(val)];
-      } else if (coord === VGA_NODE_B) {
-        pendingB = DAC_TO_8BIT[decodeDac(val)];
-      } else {
-        continue; // sync or other node — already handled above
-      }
-
-      // Emit pixel on R channel write (R is the timing master)
-      if (coord === VGA_NODE_R) {
-        if (cursor.y < texH && cursor.x < texW) {
-          const texOff = (cursor.y * texW + cursor.x) * 4;
-          texData[texOff]     = pendingR;
-          texData[texOff + 1] = pendingG;
-          texData[texOff + 2] = pendingB;
-          texData[texOff + 3] = 255;
-        }
-        cursor.x++;
-        if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
-      }
-    }
-
-    lastDrawnSeqRef.current = ioWriteSeq;
-    dirtyRef.current = true;
-  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution.hasSyncSignals, ioWrites]);
+    const dirty = renderIoWrites(
+      renderStateRef.current,
+      texDataRef.current,
+      texWRef.current,
+      texHRef.current,
+      ioWrites,
+      ioWriteCount,
+      ioWriteStart,
+      ioWriteSeq,
+      resolution.hasSyncSignals,
+      ioWriteTimestamps,
+    );
+    if (dirty) dirtyRef.current = true;
+  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution.hasSyncSignals, ioWrites, ioWriteTimestamps]);
 
   // Force full redraw when user changes scale/width settings
   useEffect(() => {
-    forceFullRedrawRef.current = true;
-    cursorRef.current.x = 0;
-    cursorRef.current.y = 0;
-    lastDrawnSeqRef.current = 0;
-    hasReceivedSignalRef.current = false;
+    const rs = renderStateRef.current;
+    rs.forceFullRedraw = true;
+    rs.cursor.x = 0;
+    rs.cursor.y = 0;
+    rs.lastDrawnSeq = 0;
+    rs.hasReceivedSignal = false;
     fillNoise(texDataRef.current);
     dirtyRef.current = true;
   }, [effectiveScale, manualWidth]);

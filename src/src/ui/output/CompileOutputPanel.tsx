@@ -16,6 +16,7 @@ interface CompileOutputPanelProps {
   compiledProgram: CompiledProgram | null;
   language: EditorLanguage;
   ioWrites: number[];
+  ioWriteTimestamps: number[];
   ioWriteCount: number;
   ioWriteStart: number;
   ioWriteSeq: number;
@@ -29,6 +30,7 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
   compiledProgram,
   language,
   ioWrites,
+  ioWriteTimestamps,
   ioWriteCount,
   ioWriteStart,
   ioWriteSeq,
@@ -50,6 +52,7 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
       <Box sx={{ flexShrink: 0, borderBottom: '1px solid #333', maxHeight: '50%', overflow: 'auto' }}>
         <VgaDisplay
           ioWrites={ioWrites}
+          ioWriteTimestamps={ioWriteTimestamps}
           ioWriteCount={ioWriteCount}
           ioWriteStart={ioWriteStart}
           ioWriteSeq={ioWriteSeq}
