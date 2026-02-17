@@ -32,13 +32,17 @@
 -- ============================================================
 -- RED DAC RELAY (node 117)
 -- ============================================================
--- Reads pixel data from left neighbor (node 116) and writes to DAC.
+-- Reads pixel data from west neighbor (node 116) via RIGHT port and writes to DAC.
+-- (x=17 is odd, so west maps to RIGHT=0x1D5 in LUDR convention.)
+-- Uses nested loop: 480 rows x 640 pixels (307200 total exceeds 18-bit).
 
 node 117
 
 /\
 
-relay{port=0x175, count=307200}
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617)
@@ -48,7 +52,9 @@ node 617
 
 /\
 
-relay{port=0x175, count=307200}
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
 
 -- ============================================================
 -- BLUE DAC RELAY (node 717)
@@ -58,7 +64,9 @@ node 717
 
 /\
 
-relay{port=0x175, count=307200}
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
