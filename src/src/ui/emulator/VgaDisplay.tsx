@@ -1,10 +1,14 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Box, Chip, TextField, Typography } from '@mui/material';
+import {
+  detectResolution,
+  HSYNC_BIT,
+  VSYNC_BIT,
+  type Resolution,
+} from './vgaResolution';
 
 // ---- Constants ----
 
-const HSYNC_BIT = 0x20000;
-const VSYNC_BIT = 0x10000;
 const COLOR_MASK = 0x1FF;
 
 const NOISE_W = 640;
@@ -45,41 +49,10 @@ interface VgaDisplayProps {
   ioWriteCount: number;
 }
 
-interface Resolution {
-  width: number;
-  height: number;
-  hasSyncSignals: boolean;
-}
-
 interface GlState {
   gl: WebGLRenderingContext;
   program: WebGLProgram;
   texture: WebGLTexture;
-}
-
-// ---- Resolution detection ----
-
-function detectResolution(ioWrites: number[], count: number): Resolution & { complete: boolean } {
-  let x = 0, maxX = 0, y = 0;
-  let hasSyncSignals = false;
-  let frameStarted = false;
-  for (let i = 0; i < count; i++) {
-    const val = ioWrites[i];
-    if (val & VSYNC_BIT) {
-      hasSyncSignals = true;
-      if (frameStarted && maxX > 0) {
-        return { width: maxX, height: Math.max(y, 1), hasSyncSignals: true, complete: true };
-      }
-      frameStarted = true;
-      y = 0; x = 0;
-    } else if (val & HSYNC_BIT) {
-      hasSyncSignals = true;
-      if (x > maxX) maxX = x;
-      y++; x = 0;
-    } else { x++; }
-  }
-  if (x > maxX) maxX = x;
-  return { width: maxX || 1, height: Math.max(y + (x > 0 ? 1 : 0), 1), hasSyncSignals, complete: false };
 }
 
 // ---- WebGL helpers ----
@@ -146,6 +119,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
   const lastDrawnRef = useRef(0);
   const cursorRef = useRef({ x: 0, y: 0 });
   const cachedResRef = useRef<Resolution | null>(null);
+  const forceFullRedrawRef = useRef(false);
   const dirtyRef = useRef(true);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
@@ -153,16 +127,29 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
 
   // ---- Resolution (cached after first complete frame) ----
 
-  if (ioWriteCount < lastDrawnRef.current) cachedResRef.current = null;
+  const needsResReset = ioWriteCount < lastDrawnRef.current;
+  const detectedRes = useMemo<Resolution & { complete: boolean }>(() => {
+    if (!needsResReset && cachedResRef.current) {
+      return { ...cachedResRef.current, complete: true };
+    }
+    return detectResolution(ioWrites, ioWriteCount);
+  }, [ioWrites, ioWriteCount, needsResReset]);
 
-  let resolution: Resolution;
-  if (cachedResRef.current) {
-    resolution = cachedResRef.current;
-  } else {
-    const det = detectResolution(ioWrites, ioWriteCount);
-    if (det.complete) cachedResRef.current = det;
-    resolution = det;
-  }
+  const resolution: Resolution = detectedRes;
+
+  useEffect(() => {
+    if (needsResReset) {
+      cachedResRef.current = null;
+      return;
+    }
+    if (!cachedResRef.current && detectedRes.complete) {
+      cachedResRef.current = {
+        width: detectedRes.width,
+        height: detectedRes.height,
+        hasSyncSignals: detectedRes.hasSyncSignals,
+      };
+    }
+  }, [needsResReset, detectedRes]);
 
   const displayWidth = resolution.hasSyncSignals ? resolution.width : (ioWriteCount > 0 ? manualWidth : NOISE_W);
   const displayHeight = resolution.hasSyncSignals
@@ -245,12 +232,13 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
     const cursor = cursorRef.current;
 
     // Buffer was trimmed/reset — just reset cursor, keep existing texture content (noise bleeds through)
-    const needsFullRedraw = ioWriteCount < lastDrawnRef.current;
+    const needsFullRedraw = forceFullRedrawRef.current || ioWriteCount < lastDrawnRef.current;
     let startIdx: number;
     if (needsFullRedraw) {
       cursor.x = 0;
       cursor.y = 0;
       startIdx = 0;
+      forceFullRedrawRef.current = false;
     } else {
       startIdx = lastDrawnRef.current;
     }
@@ -279,6 +267,9 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
 
   // Force full redraw when user changes scale/width settings
   useEffect(() => {
+    forceFullRedrawRef.current = true;
+    cursorRef.current.x = 0;
+    cursorRef.current.y = 0;
     lastDrawnRef.current = 0;
     dirtyRef.current = true;
   }, [effectiveScale, manualWidth]);

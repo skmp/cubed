@@ -35,6 +35,7 @@ This document contains tickets/issues identified from reviewing recent pull requ
 ### Issue 1: VGA Display - Cursor State Bug on Scale/Width Changes
 **Source**: PR #3 Review Comment  
 **Priority**: High  
+**Status**: Resolved (2026-02-17)  
 **Component**: UI - VGA Display  
 **Description**:
 
@@ -60,6 +61,7 @@ Display should correctly redraw all pixels from scratch when scale or width chan
 ### Issue 2: VGA Display - Resolution Cache Mutation During Render
 **Source**: PR #3 Review Comment  
 **Priority**: High  
+**Status**: Resolved (2026-02-17)  
 **Component**: UI - VGA Display  
 **Description**:
 
@@ -80,6 +82,7 @@ Move the cache update/reset into `useEffect`/`useMemo` so render stays pure and 
 ### Issue 3: VGA Display - Incomplete Frame Detection
 **Source**: PR #3 Review Comment  
 **Priority**: High  
+**Status**: Resolved (2026-02-17)  
 **Component**: UI - VGA Display  
 **Description**:
 
