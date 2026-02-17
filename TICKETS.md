@@ -79,7 +79,7 @@ Move the cache update/reset into `useEffect`/`useMemo` so render stays pure and 
 
 ### Issue 3: VGA Display - Incomplete Frame Detection
 **Source**: PR #3 Review Comment  
-**Priority**: Medium  
+**Priority**: High  
 **Component**: UI - VGA Display  
 **Description**:
 
