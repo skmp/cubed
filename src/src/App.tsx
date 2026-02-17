@@ -67,13 +67,13 @@ function App() {
 
   const handleCompileFromEditor = useCallback((source: string) => {
     editorSourceRef.current = source;
-    compileAndLoad(source);
+    compileAndLoad(source, { download: true });
     updateUrlSource(source);
   }, [compileAndLoad]);
 
   const handleCompileButton = useCallback(() => {
     if (editorSourceRef.current) {
-      compileAndLoad(editorSourceRef.current);
+      compileAndLoad(editorSourceRef.current, { download: true });
       updateUrlSource(editorSourceRef.current);
     }
   }, [compileAndLoad]);

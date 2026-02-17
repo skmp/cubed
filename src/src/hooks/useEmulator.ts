@@ -6,6 +6,18 @@ import { compile } from '../core/assembler';
 import { compileCube, tokenizeCube, parseCube } from '../core/cube';
 import type { CubeProgram, CubeCompileResult } from '../core/cube';
 import type { EditorLanguage } from '../ui/editor/CodeEditor';
+import { buildBootStream } from '../core/bootstream';
+
+function downloadBootStream(compiled: CompiledProgram): void {
+  const { bytes } = buildBootStream(compiled.nodes);
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'bootstream.bin';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function useEmulator() {
   const ga144 = useMemo(() => {
@@ -82,7 +94,7 @@ export function useEmulator() {
     updateSnapshot();
   }, [ga144, stop, updateSnapshot]);
 
-  const compileAndLoad = useCallback((source: string) => {
+  const compileAndLoad = useCallback((source: string, options?: { download?: boolean }) => {
     stop();
     ga144.reset();
 
@@ -107,6 +119,7 @@ export function useEmulator() {
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
         ga144.load(result);
+        if (options?.download) downloadBootStream(result);
       }
     } else {
       const result = compile(source);
@@ -115,6 +128,7 @@ export function useEmulator() {
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
         ga144.load(result);
+        if (options?.download) downloadBootStream(result);
       }
     }
     updateSnapshot();
