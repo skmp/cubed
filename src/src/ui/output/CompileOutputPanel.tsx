@@ -9,17 +9,20 @@ import type { SourceMapEntry } from '../../core/cube/emitter';
 import type { EditorLanguage } from '../editor/CodeEditor';
 import { OPCODES } from '../../core/constants';
 import { XOR_ENCODING } from '../../core/types';
+import { VgaDisplay } from '../emulator/VgaDisplay';
 
 interface CompileOutputPanelProps {
   cubeResult: CubeCompileResult | null;
   compiledProgram: CompiledProgram | null;
   language: EditorLanguage;
+  ioWrites: number[];
+  ioWriteCount: number;
 }
 
 const cellSx = { fontSize: '11px', py: 0.5, px: 1, fontFamily: 'monospace' };
 const headerSx = { ...cellSx, fontWeight: 'bold', color: '#aaa' };
 
-export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({ cubeResult, compiledProgram, language }) => {
+export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({ cubeResult, compiledProgram, language, ioWrites, ioWriteCount }) => {
   const [tab, setTab] = React.useState(0);
 
   if (language === 'recurse') {
@@ -32,10 +35,19 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({ cubeResu
     );
   }
 
-  if (language === 'cube') {
-    return <CubeOutputView result={cubeResult} tab={tab} setTab={setTab} />;
-  }
-  return <ArrayForthOutputView result={compiledProgram} tab={tab} setTab={setTab} />;
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ flexShrink: 0, borderBottom: '1px solid #333', maxHeight: '50%', overflow: 'auto' }}>
+        <VgaDisplay ioWrites={ioWrites} ioWriteCount={ioWriteCount} />
+      </Box>
+      <Box sx={{ flex: 1, overflow: 'hidden' }}>
+        {language === 'cube'
+          ? <CubeOutputView result={cubeResult} tab={tab} setTab={setTab} />
+          : <ArrayForthOutputView result={compiledProgram} tab={tab} setTab={setTab} />
+        }
+      </Box>
+    </Box>
+  );
 };
 
 // ---- arrayForth Disassembly View ----

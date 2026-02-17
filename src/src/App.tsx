@@ -74,59 +74,19 @@ function App() {
       <CssBaseline />
       <MainLayout
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          if (tab === 0) setLanguage('recurse');
-        }}
+        onTabChange={setActiveTab}
         toolbar={
           <DebugToolbar
             activeCount={snapshot.activeCount}
             totalSteps={snapshot.totalSteps}
             language={language}
+            isRunning={isRunning}
+            stepsPerFrame={stepsPerFrame}
             onCompile={handleCompileButton}
             onSetLanguage={(lang) => {
               setLanguage(lang);
-              setActiveTab(lang === 'recurse' ? 0 : 1);
+              if (lang === 'recurse') setActiveTab(0);
             }}
-          />
-        }
-        editorTab={
-          <>
-            {/* Left: CUBE 3D renderer (only in CUBE mode) */}
-            {language === 'cube' && (
-              <Box sx={{
-                width: 510,
-                flexShrink: 0,
-                overflow: 'hidden',
-                borderRight: '1px solid #333',
-              }}>
-                <CubeRenderer ast={cubeAst} />
-              </Box>
-            )}
-            {/* Center: Code editor */}
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              <CodeEditor
-                language={language}
-                onCompile={handleCompileFromEditor}
-                onSourceChange={handleSourceChange}
-                errors={compileErrors}
-                initialSource={urlSource}
-              />
-            </Box>
-          </>
-        }
-        emulatorTab={
-          <EmulatorPanel
-            nodeStates={snapshot.nodeStates}
-            nodeCoords={snapshot.nodeCoords}
-            ioWrites={snapshot.ioWrites}
-            ioWriteCount={snapshot.ioWriteCount}
-            selectedCoord={selectedCoord}
-            selectedNode={snapshot.selectedNode}
-            isRunning={isRunning}
-            stepsPerFrame={stepsPerFrame}
-            sourceMap={sourceMap}
-            onNodeClick={selectNode}
             onStep={step}
             onStepN={stepN}
             onRun={run}
@@ -135,14 +95,52 @@ function App() {
             onSetStepsPerFrame={setStepsPerFrame}
           />
         }
+        editorTab={
+          language === 'recurse' ? (
+            <RecursePanel />
+          ) : (
+            <>
+              {language === 'cube' && (
+                <Box sx={{
+                  width: 510,
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  borderRight: '1px solid #333',
+                }}>
+                  <CubeRenderer ast={cubeAst} />
+                </Box>
+              )}
+              <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                <CodeEditor
+                  language={language}
+                  onCompile={handleCompileFromEditor}
+                  onSourceChange={handleSourceChange}
+                  errors={compileErrors}
+                  initialSource={urlSource}
+                />
+              </Box>
+            </>
+          )
+        }
+        emulatorTab={
+          <EmulatorPanel
+            nodeStates={snapshot.nodeStates}
+            nodeCoords={snapshot.nodeCoords}
+            selectedCoord={selectedCoord}
+            selectedNode={snapshot.selectedNode}
+            sourceMap={sourceMap}
+            onNodeClick={selectNode}
+          />
+        }
         outputTab={
           <CompileOutputPanel
             cubeResult={cubeCompileResult}
             compiledProgram={compiledProgram}
             language={language}
+            ioWrites={snapshot.ioWrites}
+            ioWriteCount={snapshot.ioWriteCount}
           />
         }
-        recurseTab={<RecursePanel />}
       />
     </ThemeProvider>
   );

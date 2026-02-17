@@ -1,14 +1,19 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Box, Typography, Chip, TextField } from '@mui/material';
+import React, { useRef, useEffect, useState } from 'react';
+import { Box, Chip, TextField, Typography } from '@mui/material';
 
 const HSYNC_BIT = 0x20000;
 const VSYNC_BIT = 0x10000;
-const SYNC_MASK = HSYNC_BIT | VSYNC_BIT;
 const COLOR_MASK = 0x1FF;
 
 interface VgaDisplayProps {
   ioWrites: number[];
   ioWriteCount: number;
+}
+
+interface Resolution {
+  width: number;
+  height: number;
+  hasSyncSignals: boolean;
 }
 
 function dacToRgb(value: number): string {
@@ -18,31 +23,69 @@ function dacToRgb(value: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-function detectResolution(ioWrites: number[], count: number): { width: number; height: number; hasSyncSignals: boolean } {
+/** Scan for the first complete frame (VSYNC→lines→VSYNC) and return its dimensions. */
+function detectResolution(ioWrites: number[], count: number): Resolution & { complete: boolean } {
   let x = 0, maxX = 0, y = 0;
   let hasSyncSignals = false;
+  let frameStarted = false;
   for (let i = 0; i < count; i++) {
     const val = ioWrites[i];
-    if (val & VSYNC_BIT) { hasSyncSignals = true; y = 0; x = 0; }
-    else if (val & HSYNC_BIT) { hasSyncSignals = true; if (x > maxX) maxX = x; y++; x = 0; }
-    else { x++; }
+    if (val & VSYNC_BIT) {
+      hasSyncSignals = true;
+      if (frameStarted && maxX > 0) {
+        return { width: maxX, height: Math.max(y, 1), hasSyncSignals: true, complete: true };
+      }
+      frameStarted = true;
+      y = 0; x = 0;
+    } else if (val & HSYNC_BIT) {
+      hasSyncSignals = true;
+      if (x > maxX) maxX = x;
+      y++; x = 0;
+    } else { x++; }
   }
   if (x > maxX) maxX = x;
-  return { width: maxX || 1, height: Math.max(y + (x > 0 ? 1 : 0), 1), hasSyncSignals };
+  return { width: maxX || 1, height: Math.max(y + (x > 0 ? 1 : 0), 1), hasSyncSignals, complete: false };
+}
+
+const NOISE_W = 640;
+const NOISE_H = 480;
+
+function drawNoise(canvas: HTMLCanvasElement) {
+  canvas.width = NOISE_W;
+  canvas.height = NOISE_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const img = ctx.createImageData(NOISE_W, NOISE_H);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = (Math.random() * 256) | 0;
+    d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastDrawnRef = useRef(0);
   const cursorRef = useRef({ x: 0, y: 0 });
-  const prevDimsRef = useRef({ w: 0, h: 0 });
+  const noiseDrawnRef = useRef(false);
+  const cachedResRef = useRef<Resolution | null>(null);
   const [pixelScale, setPixelScale] = useState(0);
   const [manualWidth, setManualWidth] = useState(4);
 
-  const resolution = useMemo(
-    () => detectResolution(ioWrites, ioWriteCount),
-    [ioWrites, ioWriteCount],
-  );
+  // Resolve resolution — cache once a complete frame is detected
+  if (ioWriteCount < lastDrawnRef.current) {
+    // Buffer was reset
+    cachedResRef.current = null;
+  }
+  let resolution: Resolution;
+  if (cachedResRef.current) {
+    resolution = cachedResRef.current;
+  } else {
+    const det = detectResolution(ioWrites, ioWriteCount);
+    if (det.complete) cachedResRef.current = det;
+    resolution = det;
+  }
 
   const displayWidth = resolution.hasSyncSignals ? resolution.width : manualWidth;
   const displayHeight = resolution.hasSyncSignals
@@ -55,25 +98,36 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
   const canvasWidth = displayWidth * effectiveScale;
   const canvasHeight = displayHeight * effectiveScale;
 
+  // Draw noise when there's nothing to show
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || ioWriteCount > 0) return;
+    if (!noiseDrawnRef.current) {
+      drawNoise(canvas);
+      noiseDrawnRef.current = true;
+    }
+  }, [ioWriteCount]);
+
   // Draw effect — incremental by default, full redraw when dimensions change or buffer resets
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || ioWriteCount === 0) return;
+    noiseDrawnRef.current = false;
 
     const scale = effectiveScale;
     const hasSyncSignals = resolution.hasSyncSignals;
     const w = displayWidth;
 
-    // Detect if we need a full redraw (dimensions changed, buffer reset, or first draw)
+    // Only resize canvas when dimensions actually grow — avoids clearing
+    const needsResize = canvas.width < canvasWidth || canvas.height < canvasHeight;
     const needsFullRedraw =
-      ioWriteCount < lastDrawnRef.current ||  // buffer was reset
-      canvasWidth !== prevDimsRef.current.w ||
-      canvasHeight !== prevDimsRef.current.h;
+      needsResize ||
+      ioWriteCount < lastDrawnRef.current; // buffer was reset
 
-    // Update canvas DOM dimensions if needed (this clears the canvas)
-    if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
-    if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
-    prevDimsRef.current = { w: canvasWidth, h: canvasHeight };
+    if (needsResize) {
+      canvas.width = Math.max(canvas.width, canvasWidth);
+      canvas.height = Math.max(canvas.height, canvasHeight);
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -83,7 +137,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
 
     if (needsFullRedraw) {
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       cursor.x = 0;
       cursor.y = 0;
       startIdx = 0;
@@ -91,7 +145,6 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
       startIdx = lastDrawnRef.current;
     }
 
-    // Draw pixels from startIdx to ioWriteCount
     for (let i = startIdx; i < ioWriteCount; i++) {
       const val = ioWrites[i];
       if (hasSyncSignals) {
@@ -107,19 +160,10 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
     lastDrawnRef.current = ioWriteCount;
   }, [ioWriteCount, effectiveScale, resolution.hasSyncSignals, displayWidth, canvasWidth, canvasHeight, ioWrites]);
 
-  // Full redraw when user changes scale/width settings
+  // Force full redraw when user changes scale/width settings
   useEffect(() => {
-    prevDimsRef.current = { w: 0, h: 0 }; // force full redraw on next render
+    lastDrawnRef.current = 0;
   }, [effectiveScale, manualWidth]);
-
-  let totalPixels = ioWriteCount;
-  if (resolution.hasSyncSignals) {
-    let syncCount = 0;
-    for (let i = 0; i < ioWriteCount; i++) {
-      if (ioWrites[i] & SYNC_MASK) syncCount++;
-    }
-    totalPixels = ioWriteCount - syncCount;
-  }
 
   return (
     <Box sx={{ backgroundColor: '#0a0a0a', border: '1px solid #333', borderRadius: 1 }}>
@@ -129,10 +173,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
         </Typography>
         <Chip label={`${ioWriteCount} writes`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         {ioWriteCount > 0 && (
-          <>
-            <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
-            <Chip label={`${totalPixels} px`} size="small" sx={{ fontSize: '9px', height: 18 }} />
-          </>
+          <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
         {!resolution.hasSyncSignals && ioWriteCount > 0 && (
           <>
@@ -157,22 +198,18 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
           </>
         )}
       </Box>
-      {ioWriteCount > 0 ? (
-        <Box sx={{ overflow: 'auto', maxHeight: 520, p: 0.5 }}>
-          <canvas
-            ref={canvasRef}
-            width={canvasWidth}
-            height={canvasHeight}
-            style={{ display: 'block', backgroundColor: '#000', imageRendering: 'pixelated' }}
-          />
-        </Box>
-      ) : (
-        <Box sx={{ p: 1 }}>
-          <Typography variant="caption" sx={{ color: '#555', fontSize: '10px' }}>
-            No IO writes yet. Compile and run a program that writes to the IO port.
-          </Typography>
-        </Box>
-      )}
+      <Box sx={{ overflow: 'auto', maxHeight: 520, p: 0.5 }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: 'block',
+            width: ioWriteCount > 0 ? canvasWidth : NOISE_W,
+            height: ioWriteCount > 0 ? canvasHeight : NOISE_H,
+            backgroundColor: '#000',
+            imageRendering: 'pixelated',
+          }}
+        />
+      </Box>
     </Box>
   );
 };
