@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Box, Typography, IconButton } from '@mui/material';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import DownloadIcon from '@mui/icons-material/Download';
 import type { CubeProgram } from '../../core/cube/ast';
 import { layoutAST, filterSceneGraph } from './layoutEngine';
 import type { SceneNode, PipeInfo } from './layoutEngine';
@@ -108,6 +109,26 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
     }
   }, []);
 
+  const handleDownloadSVG = useCallback(() => {
+    const svg = sceneGraphToSVG(sceneGraph);
+    if (!svg) return;
+    
+    // Create a blob from the SVG content
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary anchor element and trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cube-scene.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    // Clean up the URL
+    URL.revokeObjectURL(url);
+  }, [sceneGraph]);
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
@@ -191,21 +212,39 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
         </Box>
       )}
 
-      {/* Fullscreen toggle */}
-      <IconButton
-        size="small"
-        onClick={toggleFullscreen}
-        sx={{
-          position: 'absolute',
-          bottom: 8,
-          right: 8,
-          color: '#aaa',
-          bgcolor: 'rgba(0,0,0,0.6)',
-          '&:hover': { color: '#fff', bgcolor: 'rgba(0,0,0,0.85)' },
-        }}
-      >
-        {isFullscreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
-      </IconButton>
+      {/* Fullscreen toggle and SVG download */}
+      <Box sx={{
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        display: 'flex',
+        gap: 1,
+      }}>
+        <IconButton
+          size="small"
+          onClick={handleDownloadSVG}
+          title="Download as SVG"
+          sx={{
+            color: '#aaa',
+            bgcolor: 'rgba(0,0,0,0.6)',
+            '&:hover': { color: '#fff', bgcolor: 'rgba(0,0,0,0.85)' },
+          }}
+        >
+          <DownloadIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={toggleFullscreen}
+          title="Toggle fullscreen"
+          sx={{
+            color: '#aaa',
+            bgcolor: 'rgba(0,0,0,0.6)',
+            '&:hover': { color: '#fff', bgcolor: 'rgba(0,0,0,0.85)' },
+          }}
+        >
+          {isFullscreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+        </IconButton>
+      </Box>
 
       {/* Tooltip overlay */}
       {(hoveredNode || hoveredPipe) && (
