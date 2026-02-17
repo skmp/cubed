@@ -235,6 +235,7 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
         <IconButton
           size="small"
           onClick={toggleFullscreen}
+          title="Toggle fullscreen"
           sx={{
             color: '#aaa',
             bgcolor: 'rgba(0,0,0,0.6)',
