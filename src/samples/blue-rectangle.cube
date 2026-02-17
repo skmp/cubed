@@ -1,14 +1,20 @@
--- Blue Rectangle 640x480 VGA Output
+-- Blue Rectangle 640x480 VGA Output (EVB001)
 -- Renders a blue rectangle centered on a green background
 -- using the GA144's 9-bit DAC on node 117 for VGA output.
 --
--- 9-bit DAC format: bits [8:6]=R, [5:3]=G, [2:0]=B
+-- EVB001 VGA wiring (connector J70):
+--   Node 117 analog out → R/G/B via resistor DAC
+--   Node 117 pin17      → HSYNC (active-low pulse)
+--   VSYNC encoded in bit 16 of IO register
+--
+-- 9-bit DAC format (IO register bits [8:0]):
+--   bits [8:6]=R, [5:3]=G, [2:0]=B — 3 bits per channel, 512 colors
 --   Green: R=0, G=7, B=0 -> 0b000_111_000 = 56
 --   Blue:  R=0, G=0, B=7 -> 0b000_000_111 = 7
 --
--- Sync signals (upper bits of 18-bit IO write):
---   bit 17 (0x20000) = hsync (end of scanline)
---   bit 16 (0x10000) = vsync (end of frame)
+-- Sync signals (upper bits of 18-bit IO write to 0x15D):
+--   bit 17 (0x20000) = HSYNC (end of scanline, pin17 active)
+--   bit 16 (0x10000) = VSYNC (end of frame)
 --
 -- Layout: 640x480 with centered 200x200 blue rectangle
 --   Rows 0-139:   all green (640 px) + hsync
