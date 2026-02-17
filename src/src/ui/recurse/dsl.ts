@@ -125,7 +125,7 @@ function evalExpr(expr: string, source: string, outputSoFar: string, depth: numb
 
         // Evaluate each argument
         const evalArgs = args.map(a => evalExpr(a.trim(), source, outputSoFar, depth + 1));
-        result += callFunc(name, evalArgs, source, outputSoFar, depth);
+        result += callFunc(name, evalArgs);
         continue;
       }
 
@@ -210,9 +210,6 @@ function parseArgs(expr: string, openIdx: number): { args: string[]; end: number
 function callFunc(
   name: string,
   args: string[],
-  _source: string,
-  _outputSoFar: string,
-  _depth: number,
 ): string {
   switch (name) {
     case 'repeat': {

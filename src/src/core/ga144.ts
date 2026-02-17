@@ -3,7 +3,7 @@
  * Port of reference/ga144/src/ga144.rkt
  */
 import { F18ANode } from './f18a';
-import { NUM_NODES, coordToIndex } from './constants';
+import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 
@@ -15,9 +15,13 @@ export class GA144 {
   private totalSteps = 0;
   private _breakpointHit = false;
 
-  // IO write capture for VGA display — only keep the last frame
-  private ioWriteBuffer: number[] = [];
-  private frameStart = 0; // index in ioWriteBuffer where the last VSYNC occurred
+  // IO write capture for VGA display — ring buffer of recent writes
+  private static readonly IO_WRITE_CAPACITY = 2_000_000;
+  private ioWriteBuffer: number[] = new Array(GA144.IO_WRITE_CAPACITY);
+  private ioWriteStart = 0;     // ring start index
+  private ioWriteStartSeq = 0;  // sequence number at ring start
+  private ioWriteSeq = 0;       // next sequence number to write
+  private lastVsyncSeq: number | null = null;
   private loadedNodes: Set<number> = new Set();
 
   // ROM data loaded externally
@@ -108,22 +112,43 @@ export class GA144 {
     return false;
   }
 
-  onBreakpoint(_node: F18ANode): void {
+  onBreakpoint(): void {
     this._breakpointHit = true;
   }
 
-  /** Called by F18ANode when an IO register write occurs (VGA DAC output) */
+  /** Called by F18ANode when an IO register write occurs.
+   *  Each write is tagged with the node coordinate so the VGA display
+   *  can separate R/G/B channels from DAC nodes 117/617/717 and
+   *  sync signals from GPIO nodes.  Stored as (coord << 18) | value. */
   onIoWrite(nodeIndex: number, value: number): void {
     if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
-      // On VSYNC, discard previous frames — keep only the current one
-      if (value & 0x10000) {
-        if (this.frameStart > 0) {
-          this.ioWriteBuffer = this.ioWriteBuffer.slice(this.frameStart);
+      const coord = indexToCoord(nodeIndex);
+      const tagged = coord * 0x40000 + value;  // coord << 18 | value
+      // On VSYNC (node 217 pin17 driven high: bits 17:16 = 11),
+      // drop everything before the previous VSYNC to keep one full frame.
+      if (coord === 217 && (value & 0x30000) === 0x30000) {
+        if (this.lastVsyncSeq !== null && this.lastVsyncSeq > this.ioWriteStartSeq) {
+          const drop = this.lastVsyncSeq - this.ioWriteStartSeq;
+          this.ioWriteStart = (this.ioWriteStart + drop) % this.ioWriteBuffer.length;
+          this.ioWriteStartSeq = this.lastVsyncSeq;
         }
-        this.frameStart = this.ioWriteBuffer.length;
+        this.lastVsyncSeq = this.ioWriteSeq;
       }
-      this.ioWriteBuffer.push(value);
+      this.pushIoWrite(tagged);
     }
+  }
+
+  private pushIoWrite(value: number): void {
+    const capacity = this.ioWriteBuffer.length;
+    const size = this.ioWriteSeq - this.ioWriteStartSeq;
+    if (size >= capacity) {
+      // Overwrite oldest entry
+      this.ioWriteStart = (this.ioWriteStart + 1) % capacity;
+      this.ioWriteStartSeq++;
+    }
+    const idx = (this.ioWriteStart + (this.ioWriteSeq - this.ioWriteStartSeq)) % capacity;
+    this.ioWriteBuffer[idx] = value;
+    this.ioWriteSeq++;
   }
 
   // ========================================================================
@@ -148,8 +173,10 @@ export class GA144 {
   reset(): void {
     this.totalSteps = 0;
     this._breakpointHit = false;
-    this.ioWriteBuffer = [];
-    this.frameStart = 0;
+    this.ioWriteStart = 0;
+    this.ioWriteStartSeq = 0;
+    this.ioWriteSeq = 0;
+    this.lastVsyncSeq = null;
     this.lastActiveIndex = NUM_NODES - 1;
 
     for (let i = 0; i < NUM_NODES; i++) {
@@ -216,7 +243,9 @@ export class GA144 {
       totalSteps: this.totalSteps,
       selectedNode,
       ioWrites: this.ioWriteBuffer,
-      ioWriteCount: this.ioWriteBuffer.length,
+      ioWriteStart: this.ioWriteStart,
+      ioWriteCount: this.ioWriteSeq - this.ioWriteStartSeq,
+      ioWriteSeq: this.ioWriteSeq,
     };
   }
 }

@@ -22,7 +22,7 @@ export function registerArrayForthLanguage(m: typeof monaco) {
         [/0x[0-9a-fA-F]+/, 'number.hex'],
         [/0b[01]+/, 'number.binary'],
         [/-?\d+/, 'number'],
-        [/[a-zA-Z@!+*\/;.\-][a-zA-Z0-9@!+*\/;.\-]*/, {
+        [/[a-zA-Z@!+*/;.-][a-zA-Z0-9@!+*/;.-]*/, {
           cases: {
             '@keywords': 'keyword',
             '@directives': 'keyword.control',

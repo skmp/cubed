@@ -92,6 +92,14 @@ export const IO_BITS = {
 
 // Special node classifications
 export const ANALOG_NODES = [709, 713, 717, 617, 117];
+
+// EVB001 VGA node assignments:
+//   R = node 117 DAC (row 1), G = node 617 DAC (row 6), B = node 717 DAC (row 7)
+//   HSYNC/VSYNC = node 217 pin17 (1-pin GPIO node on column 17)
+export const VGA_NODE_R = 117;
+export const VGA_NODE_G = 617;
+export const VGA_NODE_B = 717;
+export const VGA_NODE_SYNC = 217;
 export const SERDES_NODES = [1, 701];
 export const BOOT_NODES = [1, 200, 300, 701, 705, 708];
 export const SYNC_BOOT_NODES = [300];

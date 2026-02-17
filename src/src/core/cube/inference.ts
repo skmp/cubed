@@ -158,14 +158,14 @@ export function inferProgram(resolved: ResolvedProgram): { errors: CompileError[
   // First pass: register type definitions and constructors
   for (const item of resolved.program.conjunction.items) {
     if (item.kind === 'type_def') {
-      registerTypeDef(item, env, sub, errors);
+      registerTypeDef(item, env);
     }
   }
 
   // Second pass: register user predicate signatures (with fresh type vars)
   for (const item of resolved.program.conjunction.items) {
     if (item.kind === 'predicate_def') {
-      registerPredDef(item, env, resolved.symbols);
+      registerPredDef(item, env);
     }
   }
 
@@ -180,8 +180,6 @@ export function inferProgram(resolved: ResolvedProgram): { errors: CompileError[
 function registerTypeDef(
   def: TypeDef,
   env: TypeEnv,
-  _sub: Substitution,
-  _errors: CompileError[],
 ): void {
   // Create type variables for type parameters
   const typeParamVars = new Map<string, Type>();
@@ -237,7 +235,6 @@ function resolveTypeExpr(
 function registerPredDef(
   def: PredicateDef,
   env: TypeEnv,
-  _symbols: Map<string, ResolvedSymbol>,
 ): void {
   const params = new Map<string, Type>();
   for (const param of def.params) {

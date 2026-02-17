@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { SceneGraph, SceneNode } from './layoutEngine';
 import { DefinitionCube } from './objects/DefinitionCube';
 import { ApplicationCube } from './objects/ApplicationCube';
@@ -41,9 +42,10 @@ function CameraReset({ sceneGraph, resetKey }: { sceneGraph: SceneGraph; resetKe
     camera.lookAt(center);
 
     // Update orbit controls target
-    if (controls && 'target' in controls) {
-      (controls as any).target.copy(center);
-      (controls as any).update();
+    const orbit = controls as OrbitControlsImpl | undefined;
+    if (orbit) {
+      orbit.target.copy(center);
+      orbit.update();
     }
 
     initialReset.current = false;

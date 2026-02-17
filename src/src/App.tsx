@@ -36,6 +36,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [urlSource, setUrlSource] = useState<string | null>(null);
   const editorSourceRef = useRef<string>('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load source from URL ?src= on mount
   useEffect(() => {
@@ -48,9 +49,21 @@ function App() {
     });
   }, [compileAndLoad]);
 
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const handleSourceChange = useCallback((source: string) => {
     editorSourceRef.current = source;
-  }, []);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      compileAndLoad(source);
+      updateUrlSource(source);
+    }, 500);
+  }, [compileAndLoad]);
 
   const handleCompileFromEditor = useCallback((source: string) => {
     editorSourceRef.current = source;
@@ -116,6 +129,7 @@ function App() {
                   onCompile={handleCompileFromEditor}
                   onSourceChange={handleSourceChange}
                   errors={compileErrors}
+                  compiledNodes={compiledProgram?.nodes}
                   initialSource={urlSource}
                 />
               </Box>
@@ -139,6 +153,8 @@ function App() {
             language={language}
             ioWrites={snapshot.ioWrites}
             ioWriteCount={snapshot.ioWriteCount}
+            ioWriteStart={snapshot.ioWriteStart}
+            ioWriteSeq={snapshot.ioWriteSeq}
           />
         }
       />

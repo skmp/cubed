@@ -67,6 +67,7 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   fill:    ['value', 'count'], // fill count pixels via IO register (uses B=0x15D)
   loop:    ['n'],              // begin counted loop (push n-1 to R)
   again:   [],                 // end counted loop (next back to loop start)
+  delay:   ['n'],              // burn n cycles in a tight loop (no IO)
 };
 
 // F18A opcode names mapped to clean identifiers

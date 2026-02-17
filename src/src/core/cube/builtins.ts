@@ -131,6 +131,8 @@ export function emitBuiltin(
       return emitLoop(builder, argMappings);
     case 'again':
       return emitAgain(builder);
+    case 'delay':
+      return emitDelay(builder, argMappings);
     default:
       return false;
   }
@@ -612,5 +614,27 @@ function emitAgain(builder: CodeBuilder): boolean {
 
   builder.flushWithJump();                            // skip slot 3, ensure next gets slot 0 (13-bit addr)
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+  return true;
+}
+
+// ---- delay{n}: burn n cycles in a tight next loop (no IO) ----
+// Loop body matches fill{} timing: dup drop [flushWithJump] next = 2 words/iteration.
+
+function emitDelay(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const n = args.get('n');
+  if (!n || n.literal === undefined) return false;
+  if (n.literal <= 0) return true;
+
+  emitLoadLiteral(builder, n.literal - 1);             // T = n-1
+  builder.emitOp(OPCODE_MAP.get('push')!);             // R = n-1
+  builder.flushWithJump();                              // skip slot 3
+  const loopAddr = builder.getLocationCounter();
+  builder.emitOp(OPCODE_MAP.get('dup')!);              // dup (matches fill timing)
+  builder.emitOp(OPCODE_MAP.get('drop')!);             // drop
+  builder.flushWithJump();                              // skip slot 3
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr); // decrement R, loop
   return true;
 }

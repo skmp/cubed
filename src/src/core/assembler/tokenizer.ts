@@ -32,7 +32,7 @@ export function tokenize(source: string): Token[] {
   const lines = source.split('\n');
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-    let line = lines[lineNum];
+    const line = lines[lineNum];
     let col = 0;
 
     while (col < line.length) {

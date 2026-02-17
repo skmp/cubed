@@ -53,7 +53,7 @@ export function registerCubeLanguage(monaco: Monaco): void {
         }],
 
         // Delimiters
-        [/[{}()\[\]]/, 'delimiter.bracket'],
+        [/[{}()[\]]/, 'delimiter.bracket'],
         [/[,.:=+]/, 'delimiter'],
       ],
     },

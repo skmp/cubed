@@ -1,53 +1,145 @@
--- Blue Rectangle 640x480 VGA Output
+-- Blue Rectangle 640x480 VGA Output (EVB001 3-node architecture)
 -- Renders a blue rectangle centered on a green background
--- using the GA144's 9-bit DAC on node 117 for VGA output.
+-- using three 9-bit DAC nodes for separate R/G/B VGA channels.
 --
--- 9-bit DAC format: bits [8:6]=R, [5:3]=G, [2:0]=B
---   Green: R=0, G=7, B=0 -> 0b000_111_000 = 56
---   Blue:  R=0, G=0, B=7 -> 0b000_000_111 = 7
+-- EVB001 VGA wiring:
+--   Node 117 DAC (117.ao) -> R channel (J70 pin 1)
+--   Node 617 DAC (617.ao) -> G channel (J70 pin 2)
+--   Node 717 DAC (717.ao) -> B channel (J70 pin 3)
+--   Node 217 pin17 (GPIO) -> HSYNC (J70 pin 4) / VSYNC (J70 pin 5)
 --
--- Sync signals (upper bits of 18-bit IO write):
---   bit 17 (0x20000) = hsync (end of scanline)
---   bit 16 (0x10000) = vsync (end of frame)
+-- DAC XOR encoding: the F18A DAC stores values as (desired ^ 0x155).
+-- To output DAC level V, write (V ^ 0x155) to the IO register.
+--   Zero output:  0x000 ^ 0x155 = 0x155 (341 decimal)
+--   Max output:   0x1FF ^ 0x155 = 0x0AA (170 decimal)
+--
+-- Sync signals (node 217 pin17):
+--   HSYNC: pin17 drive low  = 0x20000 (bits 17:16 = 10)
+--   VSYNC: pin17 drive high = 0x30000 (bits 17:16 = 11)
 --
 -- Layout: 640x480 with centered 200x200 blue rectangle
---   Rows 0-139:   all green (640 px) + hsync
+--   Rows 0-139:   green (640 px) + hsync
 --   Rows 140-339: 220 green + 200 blue + 220 green + hsync
---   Rows 340-479: all green (640 px) + hsync
+--   Rows 340-479: green (640 px) + hsync
 --   vsync at end of frame
 --
--- Uses fill{} for tight pixel loops and loop{}/again{} for row loops.
+-- Each DAC node runs matching fill{} loops in lockstep.
+-- The emulator uses R (node 117) as the timing master: a pixel
+-- is emitted each time node 117 writes to its DAC.
 -- B register defaults to 0x15D (IO port) on F18A reset.
+
+-- ============================================================
+-- RED CHANNEL (node 117 DAC)
+-- ============================================================
+-- For green background: R = 0 -> XOR -> 0x155
+-- For blue rectangle:   R = 0 -> XOR -> 0x155
+-- (Red is zero everywhere in this demo)
 
 node 117
 
 /\
 
--- Top green margin: 140 rows of 640 green pixels
+-- Top margin: 140 rows
 loop{n=140}
-/\ fill{value=56, count=640}
-/\ send{port=0x15D, value=0x20000}
+/\ fill{value=0x155, count=640}
 /\ again{}
 
 /\
 
--- Rectangle rows: 200 rows (220 green + 200 blue + 220 green)
+-- Rectangle rows: 200 rows
 loop{n=200}
-/\ fill{value=56, count=220}
-/\ fill{value=7, count=200}
-/\ fill{value=56, count=220}
-/\ send{port=0x15D, value=0x20000}
+/\ fill{value=0x155, count=220}
+/\ fill{value=0x155, count=200}
+/\ fill{value=0x155, count=220}
 /\ again{}
 
 /\
 
--- Bottom green margin: 140 rows of 640 green pixels
+-- Bottom margin: 140 rows
 loop{n=140}
-/\ fill{value=56, count=640}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- GREEN CHANNEL (node 617 DAC)
+-- ============================================================
+-- For green background: G = max (0x1FF) -> XOR -> 0x0AA
+-- For blue rectangle:   G = 0           -> XOR -> 0x155
+
+node 617
+
+/\
+
+-- Top margin: 140 rows of green
+loop{n=140}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+/\
+
+-- Rectangle rows: 200 rows (220 green + 200 black + 220 green)
+loop{n=200}
+/\ fill{value=0x0AA, count=220}
+/\ fill{value=0x155, count=200}
+/\ fill{value=0x0AA, count=220}
+/\ again{}
+
+/\
+
+-- Bottom margin: 140 rows of green
+loop{n=140}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE CHANNEL (node 717 DAC)
+-- ============================================================
+-- For green background: B = 0           -> XOR -> 0x155
+-- For blue rectangle:   B = max (0x1FF) -> XOR -> 0x0AA
+
+node 717
+
+/\
+
+-- Top margin: 140 rows of no blue
+loop{n=140}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- Rectangle rows: 200 rows (220 no-blue + 200 blue + 220 no-blue)
+loop{n=200}
+/\ fill{value=0x155, count=220}
+/\ fill{value=0x0AA, count=200}
+/\ fill{value=0x155, count=220}
+/\ again{}
+
+/\
+
+-- Bottom margin: 140 rows of no blue
+loop{n=140}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+-- Generates HSYNC after each row, VSYNC at end of frame.
+-- The delay{} burns cycles to match DAC fill loop timing
+-- so HSYNC signals interleave correctly with pixel writes.
+
+node 217
+
+/\
+
+-- 480 rows: delay to match DAC timing, then send HSYNC
+loop{n=480}
+/\ delay{n=640}
 /\ send{port=0x15D, value=0x20000}
 /\ again{}
 
 /\
 
--- End of frame
-send{port=0x15D, value=0x10000}
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}

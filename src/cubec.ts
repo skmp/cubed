@@ -10,9 +10,14 @@
  *   --disasm    Show per-node disassembly
  *   --json      Output compile result as JSON
  *   --quiet     Only show errors
+ *   --svg       Output SVG visualization to <file>.svg
  */
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { compileCube } from './src/core/cube/compiler';
+import { tokenizeCube } from './src/core/cube/tokenizer';
+import { parseCube } from './src/core/cube/parser';
+import { layoutAST } from './src/ui/cube3d/layoutEngine';
+import { sceneGraphToSVG } from './src/ui/cube3d/svgExport';
 
 // ---- Argument parsing ----
 
@@ -30,6 +35,7 @@ if (files.length === 0) {
   console.error('  --disasm    Show per-node disassembly');
   console.error('  --json      Output compile result as JSON');
   console.error('  --quiet     Only show errors');
+  console.error('  --svg       Output SVG visualization to <file>.svg');
   process.exit(1);
 }
 
@@ -37,6 +43,7 @@ const verbose = flags.has('--verbose');
 const disasm = flags.has('--disasm');
 const jsonOut = flags.has('--json');
 const quiet = flags.has('--quiet');
+const svgOut = flags.has('--svg');
 
 // ---- Compile ----
 
@@ -50,6 +57,26 @@ try {
 }
 
 const result = compileCube(source);
+
+// ---- SVG output ----
+
+if (svgOut) {
+  const { tokens, errors: tokErrors } = tokenizeCube(source);
+  if (tokErrors.length === 0) {
+    const { ast, errors: parseErrors } = parseCube(tokens);
+    if (parseErrors.length === 0) {
+      const sceneGraph = layoutAST(ast);
+      const svg = sceneGraphToSVG(sceneGraph);
+      const svgPath = filePath.replace(/\.cube$/, '.svg');
+      writeFileSync(svgPath, svg, 'utf-8');
+      console.log(`  SVG written to ${svgPath}`);
+    } else {
+      console.error('  SVG: parse errors, skipping SVG generation');
+    }
+  } else {
+    console.error('  SVG: tokenization errors, skipping SVG generation');
+  }
+}
 
 // ---- JSON output mode ----
 
@@ -151,7 +178,7 @@ if (disasm) {
     console.log(`\n  Node ${node.coord.toString().padStart(3, '0')}:`);
     for (let addr = 0; addr < node.mem.length; addr++) {
       const raw = node.mem[addr];
-      if (raw === 0) continue;
+      if (raw === null || raw === 0) continue;
       const decoded = raw ^ 0x15555;
       const s0 = (decoded >> 13) & 0x1F;
       const s1 = (decoded >> 8) & 0x1F;

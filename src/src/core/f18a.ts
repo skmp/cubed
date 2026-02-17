@@ -452,11 +452,12 @@ export class F18ANode {
         this.rPop();
         return false;
 
-      case 1: // ex (exchange P and R)
+      case 1: { // ex (exchange P and R)
         const temp = this.P;
         this.P = this.R;
         this.R = temp;
         return false;
+      }
 
       case 2: // jump
         this.extendedArith = (addr & 0x200) !== 0;
@@ -679,7 +680,7 @@ export class F18ANode {
         const bpAddr = isPortAddr(this.IIndex) ? (this.IIndex & 0x1FF) : regionIndex(this.IIndex);
         if (this.breakpoints.has(bpAddr)) {
           this.breakpointHit = true;
-          this.ga144.onBreakpoint(this);
+          this.ga144.onBreakpoint();
           return;
         }
         const opcode = (this.IXor >> 13) & 0x1F;
@@ -794,14 +795,13 @@ export class F18ANode {
   }
 
   private setupPorts(): void {
-    const self = this;
     const makeSinglePort = (port: PortIndex): PortHandler => ({
-      read: () => self.doPortRead(port),
-      write: (v: number) => { self.portWrite(port, v); },
+      read: () => this.doPortRead(port),
+      write: (v: number) => { this.portWrite(port, v); },
     });
     const makeMultiPort = (ports: PortIndex[]): PortHandler => ({
-      read: () => self.doMultiportRead(ports),
-      write: (v: number) => { self.multiportWrite(ports, v); },
+      read: () => this.doMultiportRead(ports),
+      write: (v: number) => { this.multiportWrite(ports, v); },
     });
 
     // Single ports
@@ -812,8 +812,8 @@ export class F18ANode {
 
     // IO register
     this.memory[PORT.IO] = {
-      read: () => { self.fetchedData = self.readIoReg(); return true; },
-      write: (v: number) => { self.setIoReg(v); },
+      read: () => { this.fetchedData = this.readIoReg(); return true; },
+      write: (v: number) => { this.setIoReg(v); },
     };
 
     // Multiport combinations
@@ -832,7 +832,7 @@ export class F18ANode {
     // DATA port
     let dataVal = 0;
     this.memory[PORT.DATA] = {
-      read: () => { self.fetchedData = dataVal; return true; },
+      read: () => { this.fetchedData = dataVal; return true; },
       write: (v: number) => { dataVal = v; },
     };
   }

@@ -36,8 +36,6 @@ if (node117data) {
     if (raw === null) { console.log(`  ${addr.toString().padStart(3)}: (null)`); continue; }
     const hex = '0x' + raw.toString(16).padStart(5, '0');
     const decoded = raw ^ 0x15555;
-    // Check if this looks like a data word (preceded by @p in previous word)
-    const isData = addr > 0 && node117data.mem[addr-1] !== null;
     console.log(`  ${addr.toString().padStart(3)}: ${hex}  ${disassemble(raw)}  (raw: 0x${decoded.toString(16).padStart(5, '0')}, dec: ${raw})`);
   }
 }
@@ -62,7 +60,7 @@ for (let step = 0; step < 30; step++) {
     + ' S=' + snap117.registers.S.toString().padStart(6)
     + ' R=' + snap117.registers.R.toString().padStart(6)
     + ' state=' + snap117.state
-    + ' io=' + gsnap.ioWrites.length);
+    + ' io=' + gsnap.ioWriteCount);
 }
 
 // Now batch step - each fill(640) loop needs 640*2 + overhead steps per scanline
@@ -76,19 +74,19 @@ for (let batch = 0; batch < 200; batch++) {
   }
   const gsnap = chip.getSnapshot(117);
   snap117 = n117.getSnapshot();
-  if (batch % 20 === 0 || gsnap.ioWrites.length >= 307681) {
-    console.log(`After ${(batch+1) * batchSize + 30} steps: io_writes=${gsnap.ioWrites.length} P=${snap117.registers.P} R=${snap117.registers.R} state=${snap117.state}`);
+  if (batch % 20 === 0 || gsnap.ioWriteCount >= 307681) {
+    console.log(`After ${(batch+1) * batchSize + 30} steps: io_writes=${gsnap.ioWriteCount} P=${snap117.registers.P} R=${snap117.registers.R} state=${snap117.state}`);
   }
-  if (gsnap.ioWrites.length >= 307681) {
+  if (gsnap.ioWriteCount >= 307681) {
     console.log('Expected 307681 IO writes (640*480 pixels + 480 hsyncs + 1 vsync)');
     break;
   }
 }
 
 const finalSnap = chip.getSnapshot(117);
-console.log(`\nFinal: ${finalSnap.ioWrites.length} IO writes`);
+console.log(`\nFinal: ${finalSnap.ioWriteCount} IO writes`);
 // Check first few and last few IO writes
-if (finalSnap.ioWrites.length > 0) {
+if (finalSnap.ioWriteCount > 0) {
   console.log('First 5 IO writes:', finalSnap.ioWrites.slice(0, 5).map(v => '0x' + v.toString(16)));
   console.log('Last 5 IO writes:', finalSnap.ioWrites.slice(-5).map(v => '0x' + v.toString(16)));
 }

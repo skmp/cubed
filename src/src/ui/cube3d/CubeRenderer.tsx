@@ -7,6 +7,7 @@ import type { CubeProgram } from '../../core/cube/ast';
 import { layoutAST, filterSceneGraph } from './layoutEngine';
 import type { SceneNode, PipeInfo } from './layoutEngine';
 import { CubeScene } from './CubeScene';
+import { sceneGraphToSVG } from './svgExport';
 
 interface CubeRendererProps {
   ast: CubeProgram | null;
@@ -20,35 +21,36 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
   const [hoveredPipeId, setHoveredPipeId] = useState<string | null>(null);
   const [focusStack, setFocusStack] = useState<string[]>([]);
 
-  // Reset focus when AST changes (new compilation)
-  useEffect(() => {
-    setFocusStack([]);
-    setSelectedId(null);
-    setHoveredId(null);
-    setCameraResetKey(k => k + 1);
-  }, [ast]);
-
   const fullSceneGraph = useMemo(() => {
     if (!ast) return { nodes: [], pipes: [] };
     return layoutAST(ast);
   }, [ast]);
 
+  const focusStackSafe = useMemo(() => {
+    if (focusStack.length === 0) return focusStack;
+    const ids = new Set(fullSceneGraph.nodes.map(n => n.id));
+    return focusStack.filter(id => ids.has(id));
+  }, [focusStack, fullSceneGraph]);
+
+  const focusId = focusStackSafe.length > 0 ? focusStackSafe[focusStackSafe.length - 1] : null;
+
   // Apply focus filtering
   const sceneGraph = useMemo(() => {
-    if (focusStack.length === 0) return fullSceneGraph;
-    const focusId = focusStack[focusStack.length - 1];
+    if (!focusId) return fullSceneGraph;
     return filterSceneGraph(fullSceneGraph, focusId);
-  }, [fullSceneGraph, focusStack]);
+  }, [fullSceneGraph, focusId]);
 
   const focusedLabel = useMemo(() => {
-    if (focusStack.length === 0) return null;
-    const focusId = focusStack[focusStack.length - 1];
+    if (!focusId) return null;
     const node = fullSceneGraph.nodes.find(n => n.id === focusId);
     return node?.label ?? focusId;
-  }, [fullSceneGraph, focusStack]);
+  }, [fullSceneGraph, focusId]);
 
-  const hoveredNode: SceneNode | undefined = hoveredId
-    ? sceneGraph.nodes.find(n => n.id === hoveredId)
+  const safeSelectedId = selectedId && fullSceneGraph.nodes.some(n => n.id === selectedId) ? selectedId : null;
+  const safeHoveredId = hoveredId && fullSceneGraph.nodes.some(n => n.id === hoveredId) ? hoveredId : null;
+
+  const hoveredNode: SceneNode | undefined = safeHoveredId
+    ? sceneGraph.nodes.find(n => n.id === safeHoveredId)
     : undefined;
 
   const hoveredPipe: PipeInfo | undefined = hoveredPipeId
@@ -64,26 +66,38 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
     return ids;
   }, [hoveredPipe]);
 
-  // Incremented to trigger camera reset on focus change
-  const [cameraResetKey, setCameraResetKey] = useState(0);
+  const cameraResetKey = useMemo(() => {
+    const key = `${focusId ?? 'root'}:${fullSceneGraph.nodes.length}:${fullSceneGraph.pipes.length}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    return hash;
+  }, [focusId, fullSceneGraph.nodes.length, fullSceneGraph.pipes.length]);
 
   const handleDoubleClick = useCallback((id: string) => {
     // Check if the node has children in the full scene graph
     const hasChildren = fullSceneGraph.nodes.some(n => n.parentId === id);
     if (hasChildren) {
-      setFocusStack(prev => [...prev, id]);
+      setFocusStack(prev => {
+        const ids = new Set(fullSceneGraph.nodes.map(n => n.id));
+        const cleaned = prev.filter(p => ids.has(p));
+        return [...cleaned, id];
+      });
       setSelectedId(null);
       setHoveredId(null);
-      setCameraResetKey(k => k + 1);
     }
   }, [fullSceneGraph]);
 
   const handleBack = useCallback(() => {
-    setFocusStack(prev => prev.slice(0, -1));
+    setFocusStack(prev => {
+      const ids = new Set(fullSceneGraph.nodes.map(n => n.id));
+      const cleaned = prev.filter(p => ids.has(p));
+      return cleaned.slice(0, -1);
+    });
     setSelectedId(null);
     setHoveredId(null);
-    setCameraResetKey(k => k + 1);
-  }, []);
+  }, [fullSceneGraph]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -99,6 +113,8 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+
+  const svgContent = useMemo(() => sceneGraphToSVG(sceneGraph), [sceneGraph]);
 
   if (!ast) {
     return (
@@ -117,15 +133,22 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
   }
 
   return (
-    <Box ref={containerRef} sx={{ height: '100%', position: 'relative', bgcolor: '#121212' }}>
+    <Box ref={containerRef} sx={{ height: '100%', position: 'relative', bgcolor: '#121212', display: 'flex', flexDirection: 'column' }}>
+      {/* SVG isometric view */}
+      {svgContent && (
+        <Box
+          sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      )}
       <Canvas
         camera={{ position: [6, 4, 6], fov: 50 }}
         style={{ background: '#121212' }}
       >
         <CubeScene
           sceneGraph={sceneGraph}
-          selectedId={selectedId}
-          hoveredId={hoveredId}
+          selectedId={safeSelectedId}
+          hoveredId={safeHoveredId}
           onHover={setHoveredId}
           onClick={setSelectedId}
           onDoubleClick={handleDoubleClick}
@@ -137,7 +160,7 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
       </Canvas>
 
       {/* Focus breadcrumb / back button */}
-      {focusStack.length > 0 && (
+      {focusStackSafe.length > 0 && (
         <Box sx={{
           position: 'absolute',
           top: 8,
