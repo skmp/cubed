@@ -1,9 +1,44 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Box, Chip, TextField, Typography } from '@mui/material';
 
+// ---- Constants ----
+
 const HSYNC_BIT = 0x20000;
 const VSYNC_BIT = 0x10000;
 const COLOR_MASK = 0x1FF;
+
+const NOISE_W = 640;
+const NOISE_H = 480;
+
+// ---- Precomputed DAC → RGBA lookup (512 entries × 4 bytes) ----
+
+const DAC_LUT = new Uint8Array(512 * 4);
+for (let i = 0; i < 512; i++) {
+  DAC_LUT[i * 4]     = ((i >> 6) & 0x7) * 255 / 7 | 0;
+  DAC_LUT[i * 4 + 1] = ((i >> 3) & 0x7) * 255 / 7 | 0;
+  DAC_LUT[i * 4 + 2] = (i & 0x7) * 255 / 7 | 0;
+  DAC_LUT[i * 4 + 3] = 255;
+}
+
+// ---- Shaders ----
+
+const VERT_SRC = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main() {
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+  v_uv = vec2((a_pos.x + 1.0) * 0.5, 1.0 - (a_pos.y + 1.0) * 0.5);
+}`;
+
+const FRAG_SRC = `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+void main() {
+  gl_FragColor = texture2D(u_tex, v_uv);
+}`;
+
+// ---- Types ----
 
 interface VgaDisplayProps {
   ioWrites: number[];
@@ -16,14 +51,14 @@ interface Resolution {
   hasSyncSignals: boolean;
 }
 
-function dacToRgb(value: number): string {
-  const r = ((value >> 6) & 0x7) * 255 / 7 | 0;
-  const g = ((value >> 3) & 0x7) * 255 / 7 | 0;
-  const b = (value & 0x7) * 255 / 7 | 0;
-  return `rgb(${r},${g},${b})`;
+interface GlState {
+  gl: WebGLRenderingContext;
+  program: WebGLProgram;
+  texture: WebGLTexture;
 }
 
-/** Scan for the first complete frame (VSYNC→lines→VSYNC) and return its dimensions. */
+// ---- Resolution detection ----
+
 function detectResolution(ioWrites: number[], count: number): Resolution & { complete: boolean } {
   let x = 0, maxX = 0, y = 0;
   let hasSyncSignals = false;
@@ -47,37 +82,79 @@ function detectResolution(ioWrites: number[], count: number): Resolution & { com
   return { width: maxX || 1, height: Math.max(y + (x > 0 ? 1 : 0), 1), hasSyncSignals, complete: false };
 }
 
-const NOISE_W = 640;
-const NOISE_H = 480;
+// ---- WebGL helpers ----
 
-function drawNoise(canvas: HTMLCanvasElement) {
-  canvas.width = NOISE_W;
-  canvas.height = NOISE_H;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const img = ctx.createImageData(NOISE_W, NOISE_H);
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const v = (Math.random() * 256) | 0;
-    d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
+function compileShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader | null {
+  const s = gl.createShader(type);
+  if (!s) return null;
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  return s;
 }
+
+function initWebGL(canvas: HTMLCanvasElement): GlState | null {
+  const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
+  if (!gl) return null;
+
+  const vs = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
+  if (!vs || !fs) return null;
+
+  const program = gl.createProgram()!;
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  gl.useProgram(program);
+
+  // Fullscreen quad
+  const vbo = gl.createBuffer()!;
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const posLoc = gl.getAttribLocation(program, 'a_pos');
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  // Texture
+  const texture = gl.createTexture()!;
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  return { gl, program, texture };
+}
+
+function fillNoise(data: Uint8Array) {
+  for (let i = 0; i < data.length; i += 4) {
+    data[i]     = (Math.random() * 256) | 0;
+    data[i + 1] = (Math.random() * 256) | 0;
+    data[i + 2] = (Math.random() * 256) | 0;
+    data[i + 3] = 255;
+  }
+}
+
+
+// ---- Component ----
 
 export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const glStateRef = useRef<GlState | null>(null);
+  const texDataRef = useRef<Uint8Array>(new Uint8Array(0));
+  const texWRef = useRef(0);
+  const texHRef = useRef(0);
   const lastDrawnRef = useRef(0);
   const cursorRef = useRef({ x: 0, y: 0 });
-  const noiseDrawnRef = useRef(false);
   const cachedResRef = useRef<Resolution | null>(null);
+  const dirtyRef = useRef(true);
+  const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
   const [manualWidth, setManualWidth] = useState(4);
 
-  // Resolve resolution — cache once a complete frame is detected
-  if (ioWriteCount < lastDrawnRef.current) {
-    // Buffer was reset
-    cachedResRef.current = null;
-  }
+  // ---- Resolution (cached after first complete frame) ----
+
+  if (ioWriteCount < lastDrawnRef.current) cachedResRef.current = null;
+
   let resolution: Resolution;
   if (cachedResRef.current) {
     resolution = cachedResRef.current;
@@ -87,10 +164,10 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
     resolution = det;
   }
 
-  const displayWidth = resolution.hasSyncSignals ? resolution.width : manualWidth;
+  const displayWidth = resolution.hasSyncSignals ? resolution.width : (ioWriteCount > 0 ? manualWidth : NOISE_W);
   const displayHeight = resolution.hasSyncSignals
     ? resolution.height
-    : Math.max(1, Math.ceil(ioWriteCount / manualWidth));
+    : (ioWriteCount > 0 ? Math.max(1, Math.ceil(ioWriteCount / manualWidth)) : NOISE_H);
 
   const effectiveScale = pixelScale > 0 ? pixelScale
     : displayWidth >= 320 ? 1 : displayWidth >= 64 ? 4 : 12;
@@ -98,46 +175,79 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
   const canvasWidth = displayWidth * effectiveScale;
   const canvasHeight = displayHeight * effectiveScale;
 
-  // Draw noise when there's nothing to show
+  // ---- WebGL init + noise + RAF loop ----
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || ioWriteCount > 0) return;
-    if (!noiseDrawnRef.current) {
-      drawNoise(canvas);
-      noiseDrawnRef.current = true;
-    }
-  }, [ioWriteCount]);
+    if (!canvas) return;
 
-  // Draw effect — incremental by default, full redraw when dimensions change or buffer resets
+    const state = initWebGL(canvas);
+    if (!state) return;
+    glStateRef.current = state;
+
+    // Initial noise texture
+    const data = new Uint8Array(NOISE_W * NOISE_H * 4);
+    fillNoise(data);
+    texDataRef.current = data;
+    texWRef.current = NOISE_W;
+    texHRef.current = NOISE_H;
+
+    canvas.width = NOISE_W;
+    canvas.height = NOISE_H;
+
+    const { gl, texture } = state;
+    gl.viewport(0, 0, NOISE_W, NOISE_H);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, NOISE_W, NOISE_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    dirtyRef.current = false;
+
+    // RAF loop
+    const tick = () => {
+      rafRef.current = requestAnimationFrame(tick);
+      if (!dirtyRef.current || !glStateRef.current) return;
+      dirtyRef.current = false;
+
+      const { gl: g, texture: tex } = glStateRef.current;
+      const w = texWRef.current;
+      const h = texHRef.current;
+
+      const c = canvasRef.current;
+      if (c && (c.width !== w || c.height !== h)) {
+        c.width = w;
+        c.height = h;
+        g.viewport(0, 0, w, h);
+      }
+
+      g.bindTexture(g.TEXTURE_2D, tex);
+      g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, w, h, 0, g.RGBA, g.UNSIGNED_BYTE, texDataRef.current);
+      g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      gl.deleteTexture(texture);
+      gl.deleteProgram(state.program);
+    };
+  }, []);
+
+  // ---- Incremental pixel updates ----
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || ioWriteCount === 0) return;
-    noiseDrawnRef.current = false;
+    if (!glStateRef.current || ioWriteCount === 0) return;
 
-    const scale = effectiveScale;
     const hasSyncSignals = resolution.hasSyncSignals;
-    const w = displayWidth;
-
-    // Only resize canvas when dimensions actually grow — avoids clearing
-    const needsResize = canvas.width < canvasWidth || canvas.height < canvasHeight;
-    const needsFullRedraw =
-      needsResize ||
-      ioWriteCount < lastDrawnRef.current; // buffer was reset
-
-    if (needsResize) {
-      canvas.width = Math.max(canvas.width, canvasWidth);
-      canvas.height = Math.max(canvas.height, canvasHeight);
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let startIdx: number;
+    // Write into existing texture — only reallocate when locked resolution differs
+    const texW = texWRef.current;
+    const texH = texHRef.current;
+    const texData = texDataRef.current;
     const cursor = cursorRef.current;
 
+    // Buffer was trimmed/reset — just reset cursor, keep existing texture content (noise bleeds through)
+    const needsFullRedraw = ioWriteCount < lastDrawnRef.current;
+    let startIdx: number;
     if (needsFullRedraw) {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
       cursor.x = 0;
       cursor.y = 0;
       startIdx = 0;
@@ -151,19 +261,29 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
         if (val & VSYNC_BIT) { cursor.y = 0; cursor.x = 0; continue; }
         if (val & HSYNC_BIT) { cursor.y++; cursor.x = 0; continue; }
       }
-      ctx.fillStyle = dacToRgb(val & COLOR_MASK);
-      ctx.fillRect(cursor.x * scale, cursor.y * scale, scale, scale);
+      if (cursor.y < texH && cursor.x < texW) {
+        const lutOff = (val & COLOR_MASK) * 4;
+        const texOff = (cursor.y * texW + cursor.x) * 4;
+        texData[texOff]     = DAC_LUT[lutOff];
+        texData[texOff + 1] = DAC_LUT[lutOff + 1];
+        texData[texOff + 2] = DAC_LUT[lutOff + 2];
+        texData[texOff + 3] = 255;
+      }
       cursor.x++;
-      if (!hasSyncSignals && cursor.x >= w) { cursor.x = 0; cursor.y++; }
+      if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
     }
 
     lastDrawnRef.current = ioWriteCount;
-  }, [ioWriteCount, effectiveScale, resolution.hasSyncSignals, displayWidth, canvasWidth, canvasHeight, ioWrites]);
+    dirtyRef.current = true;
+  }, [ioWriteCount, resolution.hasSyncSignals, ioWrites]);
 
   // Force full redraw when user changes scale/width settings
   useEffect(() => {
     lastDrawnRef.current = 0;
+    dirtyRef.current = true;
   }, [effectiveScale, manualWidth]);
+
+  // ---- Render ----
 
   return (
     <Box sx={{ backgroundColor: '#0a0a0a', border: '1px solid #333', borderRadius: 1 }}>
@@ -203,9 +323,8 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount }
           ref={canvasRef}
           style={{
             display: 'block',
-            width: ioWriteCount > 0 ? canvasWidth : NOISE_W,
-            height: ioWriteCount > 0 ? canvasHeight : NOISE_H,
-            backgroundColor: '#000',
+            width: canvasWidth,
+            height: canvasHeight,
             imageRendering: 'pixelated',
           }}
         />

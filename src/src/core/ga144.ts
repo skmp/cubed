@@ -15,8 +15,9 @@ export class GA144 {
   private totalSteps = 0;
   private _breakpointHit = false;
 
-  // IO write capture for VGA display
+  // IO write capture for VGA display — only keep the last frame
   private ioWriteBuffer: number[] = [];
+  private frameStart = 0; // index in ioWriteBuffer where the last VSYNC occurred
   private loadedNodes: Set<number> = new Set();
 
   // ROM data loaded externally
@@ -114,6 +115,13 @@ export class GA144 {
   /** Called by F18ANode when an IO register write occurs (VGA DAC output) */
   onIoWrite(nodeIndex: number, value: number): void {
     if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
+      // On VSYNC, discard previous frames — keep only the current one
+      if (value & 0x10000) {
+        if (this.frameStart > 0) {
+          this.ioWriteBuffer = this.ioWriteBuffer.slice(this.frameStart);
+        }
+        this.frameStart = this.ioWriteBuffer.length;
+      }
       this.ioWriteBuffer.push(value);
     }
   }
@@ -141,6 +149,7 @@ export class GA144 {
     this.totalSteps = 0;
     this._breakpointHit = false;
     this.ioWriteBuffer = [];
+    this.frameStart = 0;
     this.lastActiveIndex = NUM_NODES - 1;
 
     for (let i = 0; i < NUM_NODES; i++) {
