@@ -5,7 +5,6 @@
 import type { PredicateDef, Conjunction } from './ast';
 import type { ResolvedSymbol } from './resolver';
 import { SymbolKind } from './resolver';
-import type { VariableMap } from './varmapper';
 
 // ---- Discriminant types ----
 
@@ -37,7 +36,6 @@ export type ClauseDiscriminant = LiteralMatchDiscriminant | GuardDiscriminant | 
 export function analyzeClauses(
   def: PredicateDef,
   symbols: Map<string, ResolvedSymbol>,
-  _varMap: VariableMap,
 ): ClauseDiscriminant[] {
   const paramNames = new Set(def.params.map(p => p.name));
   return def.clauses.map(clause => analyzeClause(clause, paramNames, symbols));

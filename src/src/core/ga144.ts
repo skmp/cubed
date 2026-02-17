@@ -112,7 +112,7 @@ export class GA144 {
     return false;
   }
 
-  onBreakpoint(_node: F18ANode): void {
+  onBreakpoint(): void {
     this._breakpointHit = true;
   }
 

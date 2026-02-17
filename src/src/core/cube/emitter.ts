@@ -235,7 +235,7 @@ function emitUserPredCall(ctx: EmitContext, app: Application, sym: ResolvedSymbo
 // ---- Multi-clause predicate emission ----
 
 function emitMultiClausePred(ctx: EmitContext, def: PredicateDef): void {
-  const analysis = analyzeClauses(def, ctx.resolved.symbols, ctx.varMap);
+  const analysis = analyzeClauses(def, ctx.resolved.symbols);
   const endLabel = nextLabel(ctx, 'end');
   const clauseLabels: string[] = [];
 

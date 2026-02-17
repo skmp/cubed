@@ -44,6 +44,9 @@ const DEFAULT_CUBE = CUBE_SAMPLES['Blue Rectangle'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
+type EditorInstance = Parameters<OnMount>[0];
+type MonacoInstance = Parameters<OnMount>[1];
+
 interface CodeEditorProps {
   language: EditorLanguage;
   onCompile: (source: string) => void;
@@ -53,12 +56,15 @@ interface CodeEditorProps {
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors, initialSource }) => {
-  const editorRef = useRef<any>(null);
-  const monacoRef = useRef<any>(null);
+  const editorRef = useRef<EditorInstance | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  onCompileRef.current = onCompile;
   const [selectedSample, setSelectedSample] = useState('Blue Rectangle');
+
+  useEffect(() => {
+    onCompileRef.current = onCompile;
+  }, [onCompile]);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;

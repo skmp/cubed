@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GA144 } from '../core/ga144';
 import type { GA144Snapshot, CompileError, CompiledProgram } from '../core/types';
 import { ROM_DATA } from '../core/rom-data';
@@ -8,9 +8,15 @@ import type { CubeProgram, CubeCompileResult } from '../core/cube';
 import type { EditorLanguage } from '../ui/editor/CodeEditor';
 
 export function useEmulator() {
-  const ga144Ref = useRef<GA144 | null>(null);
+  const ga144 = useMemo(() => {
+    const chip = new GA144('evb001');
+    chip.setRomData(ROM_DATA);
+    return chip;
+  }, []);
   const [selectedCoord, setSelectedCoord] = useState<number | null>(null);
-  const [snapshot, setSnapshot] = useState<GA144Snapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<GA144Snapshot | null>(() => {
+    return ga144.getSnapshot();
+  });
   const [isRunning, setIsRunning] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
   const [stepsPerFrame, setStepsPerFrame] = useState(1000);
@@ -21,12 +27,8 @@ export function useEmulator() {
   const runningRef = useRef(false);
   const animFrameRef = useRef<number>(0);
 
-  // Initialize
+  // Cleanup
   useEffect(() => {
-    const chip = new GA144('evb001');
-    chip.setRomData(ROM_DATA);
-    ga144Ref.current = chip;
-    setSnapshot(chip.getSnapshot(selectedCoord ?? undefined));
     return () => {
       runningRef.current = false;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -34,36 +36,29 @@ export function useEmulator() {
   }, []);
 
   const updateSnapshot = useCallback(() => {
-    if (ga144Ref.current) {
-      setSnapshot(ga144Ref.current.getSnapshot(selectedCoord ?? undefined));
-    }
-  }, [selectedCoord]);
+    setSnapshot(ga144.getSnapshot(selectedCoord ?? undefined));
+  }, [ga144, selectedCoord]);
 
   const step = useCallback(() => {
-    if (ga144Ref.current) {
-      ga144Ref.current.stepProgram();
-      updateSnapshot();
-    }
-  }, [updateSnapshot]);
+    ga144.stepProgram();
+    updateSnapshot();
+  }, [ga144, updateSnapshot]);
 
   const stepN = useCallback((n: number) => {
-    if (ga144Ref.current) {
-      ga144Ref.current.stepProgramN(n);
-      updateSnapshot();
-    }
-  }, [updateSnapshot]);
+    ga144.stepProgramN(n);
+    updateSnapshot();
+  }, [ga144, updateSnapshot]);
 
   const run = useCallback(() => {
-    if (!ga144Ref.current) return;
     runningRef.current = true;
     setIsRunning(true);
 
     const tick = () => {
-      if (!runningRef.current || !ga144Ref.current) {
+      if (!runningRef.current) {
         setIsRunning(false);
         return;
       }
-      const hit = ga144Ref.current.stepProgramN(stepsPerFrame);
+      const hit = ga144.stepProgramN(stepsPerFrame);
       updateSnapshot();
       if (hit) {
         runningRef.current = false;
@@ -73,7 +68,7 @@ export function useEmulator() {
       animFrameRef.current = requestAnimationFrame(tick);
     };
     tick();
-  }, [stepsPerFrame, updateSnapshot]);
+  }, [ga144, stepsPerFrame, updateSnapshot]);
 
   const stop = useCallback(() => {
     runningRef.current = false;
@@ -83,16 +78,13 @@ export function useEmulator() {
 
   const reset = useCallback(() => {
     stop();
-    if (ga144Ref.current) {
-      ga144Ref.current.reset();
-      updateSnapshot();
-    }
-  }, [stop, updateSnapshot]);
+    ga144.reset();
+    updateSnapshot();
+  }, [ga144, stop, updateSnapshot]);
 
   const compileAndLoad = useCallback((source: string) => {
-    if (!ga144Ref.current) return;
     stop();
-    ga144Ref.current.reset();
+    ga144.reset();
 
     if (language === 'cube') {
       // Parse AST for 3D renderer before full compilation
@@ -114,7 +106,7 @@ export function useEmulator() {
       setCubeCompileResult(result.errors.length === 0 ? result : null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        ga144Ref.current.load(result);
+        ga144.load(result);
       }
     } else {
       const result = compile(source);
@@ -122,18 +114,16 @@ export function useEmulator() {
       setCubeCompileResult(null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        ga144Ref.current.load(result);
+        ga144.load(result);
       }
     }
     updateSnapshot();
-  }, [stop, updateSnapshot, language]);
+  }, [stop, updateSnapshot, language, ga144]);
 
   const selectNode = useCallback((coord: number | null) => {
     setSelectedCoord(coord);
-    if (ga144Ref.current) {
-      setSnapshot(ga144Ref.current.getSnapshot(coord ?? undefined));
-    }
-  }, []);
+    setSnapshot(ga144.getSnapshot(coord ?? undefined));
+  }, [ga144]);
 
   return {
     snapshot,
