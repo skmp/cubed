@@ -133,6 +133,10 @@ export function emitBuiltin(
       return emitAgain(builder);
     case 'delay':
       return emitDelay(builder, argMappings);
+    case 'setb':
+      return emitSetB(builder, argMappings);
+    case 'relay':
+      return emitRelay(builder, argMappings);
     default:
       return false;
   }
@@ -640,5 +644,48 @@ function emitDelay(
   builder.flushWithJump();                              // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr); // decrement R, loop
   // next falls through here when done
+  return true;
+}
+
+// ---- setb{addr}: set B register to a new address ----
+// Changes the target of !b writes. Default B is 0x15D (IO register).
+// Set to a port address (e.g. 0x1D5 for right) to redirect fill{} output.
+
+function emitSetB(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const addr = args.get('addr');
+  if (!addr || addr.literal === undefined) return false;
+
+  emitLoadLiteral(builder, addr.literal);              // T = address
+  builder.emitOp(OPCODE_MAP.get('b!')!);               // B = address
+  return true;
+}
+
+// ---- relay{port, count}: read from port and write to IO, count times ----
+// Used for DAC relay nodes that read pixel data from a neighbor and output it.
+// Uses blocking read (@) from A register and write (!b) to B register (IO).
+
+function emitRelay(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const port = args.get('port');
+  const count = args.get('count');
+  if (!port || port.literal === undefined) return false;
+  if (!count || count.literal === undefined) return false;
+  if (count.literal <= 0) return true;
+
+  emitLoadLiteral(builder, port.literal);              // T = port address
+  builder.emitOp(OPCODE_MAP.get('a!')!);               // A = port address
+  emitLoadLiteral(builder, count.literal - 1);          // T = count-1
+  builder.emitOp(OPCODE_MAP.get('push')!);              // R = count-1
+  builder.flushWithJump();                               // skip slot 3
+  const loopAddr = builder.getLocationCounter();
+  builder.emitOp(OPCODE_MAP.get('@')!);                 // blocking read from [A=port] → T
+  builder.emitOp(OPCODE_MAP.get('!b')!);                // write T to [B=0x15D (IO)], pop
+  builder.flushWithJump();                               // skip slot 3
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
   return true;
 }

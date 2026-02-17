@@ -1,6 +1,12 @@
--- Swiss Flag (CH) 256x256 VGA Output (EVB002 3-node architecture)
--- Renders a simplified Swiss flag centered on a 640x480 framebuffer.
+-- Swiss Flag (CH) 256x256 VGA Output (EVB002 7-node architecture)
+-- Renders a Swiss flag centered on a 640x480 framebuffer.
 -- Red square with white horizontal bar (simplified cross pattern).
+--
+-- Architecture: feeder-relay pipeline for synchronized RGB output.
+--   Feeder nodes (116, 616, 716) generate pixel data using fill{}
+--   with B redirected to the right port. The blocking port writes
+--   synchronize all three channels per-pixel via the relay handshake.
+--   DAC relay nodes (117, 617, 717) read from left and write to IO.
 --
 -- EVB002 VGA wiring:
 --   Node 117 DAC (117.ao) -> R channel (J70 pin 1)
@@ -14,18 +20,57 @@
 --
 -- Layout (absolute coordinates, 640x480):
 --   Flag: 256x256 at (192,112)-(447,367)
+--   Cross bar: 160x64 at (240,208)-(399,271)
+--
+-- Row breakdown (480 rows):
 --   Rows 0-111:   black (112 rows)
---   Rows 112-207: red only (96 rows, flag top)
---   Rows 208-271: white bar (64 rows, cross center)
---   Rows 272-367: red only (96 rows, flag bottom)
+--   Rows 112-207: red flag, no bar (96 rows)
+--   Rows 208-271: red flag + white bar center (64 rows)
+--   Rows 272-367: red flag, no bar (96 rows)
 --   Rows 368-479: black (112 rows)
 
 -- ============================================================
--- RED CHANNEL (node 117 DAC)
+-- RED DAC RELAY (node 117)
 -- ============================================================
--- R is max (0x0AA) for both red and white areas, zero (0x155) for black.
+-- Reads pixel data from left neighbor (node 116) and writes to DAC.
 
 node 117
+
+/\
+
+relay{port=0x175, count=307200}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+relay{port=0x175, count=307200}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+relay{port=0x175, count=307200}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- R = max (0x0AA) for entire 256x256 flag area, zero (0x155) elsewhere.
+-- Sends via fill{} with B redirected to right port.
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
 
 /\
 
@@ -36,7 +81,7 @@ loop{n=112}
 
 /\
 
--- Flag rows: 256 rows (R=max for entire flag area)
+-- Flag area: 256 rows (R is max across entire flag width)
 loop{n=256}
 /\ fill{value=0x155, count=192}
 /\ fill{value=0x0AA, count=256}
@@ -51,15 +96,19 @@ loop{n=112}
 /\ again{}
 
 -- ============================================================
--- GREEN CHANNEL (node 617 DAC)
+-- GREEN FEEDER (node 616)
 -- ============================================================
--- G is max (0x0AA) for white bar only, zero (0x155) everywhere else.
+-- G = max (0x0AA) for white bar only, zero (0x155) elsewhere.
 
-node 617
+node 616
 
 /\
 
--- Black + red top: 208 rows (112 black + 96 red)
+setb{addr=0x1D5}
+
+/\
+
+-- Black + red top: 208 rows (112 black + 96 red, both G=0)
 loop{n=208}
 /\ fill{value=0x155, count=640}
 /\ again{}
@@ -67,7 +116,6 @@ loop{n=208}
 /\
 
 -- White bar rows: 64 rows
--- 192 black + 48 red + 160 white + 48 red + 192 black
 loop{n=64}
 /\ fill{value=0x155, count=240}
 /\ fill{value=0x0AA, count=160}
@@ -76,17 +124,21 @@ loop{n=64}
 
 /\
 
--- Red bottom + black: 208 rows (96 red + 112 black)
+-- Red bottom + black: 208 rows (96 red + 112 black, both G=0)
 loop{n=208}
 /\ fill{value=0x155, count=640}
 /\ again{}
 
 -- ============================================================
--- BLUE CHANNEL (node 717 DAC)
+-- BLUE FEEDER (node 716)
 -- ============================================================
--- B is identical to G: max for white bar, zero everywhere else.
+-- B = same as G (white bar only).
 
-node 717
+node 716
+
+/\
+
+setb{addr=0x1D5}
 
 /\
 
@@ -120,11 +172,9 @@ node 217
 
 /\
 
--- 480 rows: delay to match DAC timing, then send HSYNC
--- delay{n=641} balances timing between single-fill rows (2569 steps)
--- and triple-fill rows (2583 steps): sync row = 4*641+12 = 2576 steps.
+-- 480 rows: delay to match relay timing, then send HSYNC
 loop{n=480}
-/\ delay{n=641}
+/\ delay{n=644}
 /\ send{port=0x15D, value=0x20000}
 /\ again{}
 
