@@ -1,8 +1,8 @@
--- Blue Rectangle 640x480 VGA Output (EVB001 3-node architecture)
+-- Blue Rectangle 640x480 VGA Output (EVB002 3-node architecture)
 -- Renders a blue rectangle centered on a green background
 -- using three 9-bit DAC nodes for separate R/G/B VGA channels.
 --
--- EVB001 VGA wiring:
+-- EVB002 VGA wiring:
 --   Node 117 DAC (117.ao) -> R channel (J70 pin 1)
 --   Node 617 DAC (617.ao) -> G channel (J70 pin 2)
 --   Node 717 DAC (717.ao) -> B channel (J70 pin 3)

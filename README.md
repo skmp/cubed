@@ -1,6 +1,6 @@
 # CUBED
 
-An open-source emulator for the [GreenArrays GA144](https://www.greenarraychips.com/home/products/) multi-computer chip and EVB001 evaluation board, paired with an experimental implementation of the **CUBE** 3D visual logic programming language.
+An open-source emulator for the [GreenArrays GA144](https://www.greenarraychips.com/home/products/) multi-computer chip and EVB002 evaluation board, paired with an experimental implementation of the **CUBE** 3D visual logic programming language.
 
 The GA144 packs 144 tiny 18-bit Forth processors into a single chip, communicating through a mesh of blocking ports. CUBED lets you write, visualize, and step through programs for this unusual architecture right in your browser.
 

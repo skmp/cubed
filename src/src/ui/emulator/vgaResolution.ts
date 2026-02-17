@@ -40,7 +40,7 @@ export function decodeDac(ioValue: number): number {
 }
 
 /** Check if an IO write from the sync node signals HSYNC.
- *  EVB001: node 217 pin17 driven low (bits 17:16 = 10). */
+ *  EVB002: node 217 pin17 driven low (bits 17:16 = 10). */
 export function isHsync(tagged: number): boolean {
   const coord = taggedCoord(tagged);
   if (coord !== VGA_NODE_SYNC) return false;
@@ -49,7 +49,7 @@ export function isHsync(tagged: number): boolean {
 }
 
 /** Check if an IO write from the sync node signals VSYNC.
- *  EVB001: node 217 pin17 driven high (bits 17:16 = 11) — frame marker. */
+ *  EVB002: node 217 pin17 driven high (bits 17:16 = 11) — frame marker. */
 export function isVsync(tagged: number): boolean {
   const coord = taggedCoord(tagged);
   if (coord !== VGA_NODE_SYNC) return false;
