@@ -319,7 +319,6 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     // Reset resolution tracking state — necessary to sync with ref reset above
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLastDrawnSeqSnapshot(0);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCachedRes(null);
   }, [effectiveScale, manualWidth]);
 
