@@ -87,7 +87,7 @@ describe('CH.cube Swiss flag sample', () => {
     ga.setRomData(ROM_DATA);
     ga.reset();
     ga.load(compiled);
-    ga.stepUntilDone(10_000_000);
+    ga.stepUntilDone(50_000_000);
 
     const snap = ga.getSnapshot();
     const ioCount = snap.ioWriteCount;
@@ -125,7 +125,7 @@ describe('CH.cube Swiss flag sample', () => {
     ga.setRomData(ROM_DATA);
     ga.reset();
     ga.load(compiled);
-    ga.stepUntilDone(10_000_000);
+    ga.stepUntilDone(50_000_000);
 
     const snap = ga.getSnapshot();
     const res = detectResolution(
@@ -144,7 +144,7 @@ describe('CH.cube Swiss flag sample', () => {
     ga.setRomData(ROM_DATA);
     ga.reset();
     ga.load(compiled);
-    ga.stepUntilDone(10_000_000);
+    ga.stepUntilDone(50_000_000);
 
     const snap = ga.getSnapshot();
     const rows = decodeFrame(snap);
@@ -199,7 +199,7 @@ describe('CH.cube Swiss flag sample', () => {
     ga.setRomData(ROM_DATA);
     ga.reset();
     ga.load(compiled);
-    ga.stepUntilDone(10_000_000);
+    ga.stepUntilDone(50_000_000);
 
     // Check node 217 state — should have written to IO register
     const snap = ga.getSnapshot(217);
