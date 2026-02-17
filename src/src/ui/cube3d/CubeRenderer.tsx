@@ -66,7 +66,12 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
   }, [hoveredPipe]);
 
   const cameraResetKey = useMemo(() => {
-    return `${focusId ?? 'root'}:${fullSceneGraph.nodes.length}:${fullSceneGraph.pipes.length}`;
+    const key = `${focusId ?? 'root'}:${fullSceneGraph.nodes.length}:${fullSceneGraph.pipes.length}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    return hash;
   }, [focusId, fullSceneGraph.nodes.length, fullSceneGraph.pipes.length]);
 
   const handleDoubleClick = useCallback((id: string) => {

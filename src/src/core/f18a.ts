@@ -680,7 +680,7 @@ export class F18ANode {
         const bpAddr = isPortAddr(this.IIndex) ? (this.IIndex & 0x1FF) : regionIndex(this.IIndex);
         if (this.breakpoints.has(bpAddr)) {
           this.breakpointHit = true;
-          this.ga144.onBreakpoint(this);
+          this.ga144.onBreakpoint();
           return;
         }
         const opcode = (this.IXor >> 13) & 0x1F;

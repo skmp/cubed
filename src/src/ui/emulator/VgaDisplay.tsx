@@ -256,7 +256,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
       return state;
     };
 
-    const handleContextLost = (e: WebGLContextEvent) => {
+    const handleContextLost = (e: Event) => {
       e.preventDefault();
       glStateRef.current = null;
     };
