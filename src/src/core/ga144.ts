@@ -3,7 +3,7 @@
  * Port of reference/ga144/src/ga144.rkt
  */
 import { F18ANode } from './f18a';
-import { NUM_NODES, coordToIndex } from './constants';
+import { NUM_NODES, coordToIndex, DAC_NODES } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 
@@ -23,6 +23,8 @@ export class GA144 {
   private ioWriteSeq = 0;       // next sequence number to write
   private lastVsyncSeq: number | null = null;
   private loadedNodes: Set<number> = new Set();
+  // DAC node indices for VGA output filtering (EVB001: nodes 117, 617, 717)
+  private static readonly DAC_NODE_INDICES = new Set(DAC_NODES.map(coordToIndex));
 
   // ROM data loaded externally
   private romData: Record<number, number[]> = {};
@@ -118,6 +120,12 @@ export class GA144 {
 
   /** Called by F18ANode when an IO register write occurs (VGA DAC output) */
   onIoWrite(nodeIndex: number, value: number): void {
+    // Only DAC-capable nodes (117, 617, 717) produce VGA output,
+    // matching the EVB001 hardware where the VGA connector is wired
+    // to the analog DAC output pins of these nodes.
+    if (!GA144.DAC_NODE_INDICES.has(nodeIndex)) {
+      return;
+    }
     if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
       // On VSYNC, drop everything before the previous VSYNC to keep one full frame
       if (value & 0x10000) {

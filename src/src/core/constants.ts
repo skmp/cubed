@@ -92,6 +92,8 @@ export const IO_BITS = {
 
 // Special node classifications
 export const ANALOG_NODES = [709, 713, 717, 617, 117];
+// DAC-capable nodes (can drive VGA output on EVB001)
+export const DAC_NODES = [117, 617, 717];
 export const SERDES_NODES = [1, 701];
 export const BOOT_NODES = [1, 200, 300, 701, 705, 708];
 export const SYNC_BOOT_NODES = [300];
