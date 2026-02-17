@@ -133,11 +133,12 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   const texWRef = useRef(0);
   const texHRef = useRef(0);
   const renderStateRef = useRef<VgaRenderState>({ cursor: { x: 0, y: 0 }, hasReceivedSignal: false, lastDrawnSeq: 0, forceFullRedraw: false, lastHasSyncSignals: null });
-  const cachedResRef = useRef<Resolution | null>(null);
   const dirtyRef = useRef(true);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
   const [manualWidth, setManualWidth] = useState(4);
+  const [lastDrawnSeqSnapshot, setLastDrawnSeqSnapshot] = useState(0);
+  const [cachedRes, setCachedRes] = useState<Resolution | null>(null);
 
   const handleExport = useCallback(() => {
     const canvas = canvasRef.current;
@@ -156,31 +157,18 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   // ---- Resolution (cached after first complete frame) ----
 
   const ioWriteStartSeq = ioWriteSeq - ioWriteCount;
-  const streamReset = ioWriteSeq < renderStateRef.current.lastDrawnSeq;
-  const dataDropped = renderStateRef.current.lastDrawnSeq < ioWriteStartSeq;
+  const streamReset = ioWriteSeq < lastDrawnSeqSnapshot;
+  const dataDropped = lastDrawnSeqSnapshot < ioWriteStartSeq;
   const needsResReset = streamReset || dataDropped;
-  const detectedRes = useMemo<Resolution & { complete: boolean }>(() => {
-    if (!needsResReset && cachedResRef.current) {
-      return { ...cachedResRef.current, complete: true };
+  const resolution = useMemo<Resolution & { complete: boolean }>(() => {
+    if (needsResReset) {
+      return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
+    }
+    if (cachedRes) {
+      return { ...cachedRes, complete: true };
     }
     return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
-  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, needsResReset]);
-
-  const resolution: Resolution = detectedRes;
-
-  useEffect(() => {
-    if (needsResReset) {
-      cachedResRef.current = null;
-      return;
-    }
-    if (!cachedResRef.current && detectedRes.complete) {
-      cachedResRef.current = {
-        width: detectedRes.width,
-        height: detectedRes.height,
-        hasSyncSignals: detectedRes.hasSyncSignals,
-      };
-    }
-  }, [needsResReset, detectedRes]);
+  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, needsResReset, cachedRes]);
 
   const displayWidth = resolution.hasSyncSignals ? resolution.width : (ioWriteCount > 0 ? manualWidth : NOISE_W);
   const displayHeight = resolution.hasSyncSignals
@@ -307,7 +295,16 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
       ioWriteTimestamps,
     );
     if (dirty) dirtyRef.current = true;
-  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution.hasSyncSignals, ioWrites, ioWriteTimestamps]);
+    // Sync lastDrawnSeq to state for resolution reset detection
+    setLastDrawnSeqSnapshot(renderStateRef.current.lastDrawnSeq);
+    // Cache resolution after first complete detection
+    if (!cachedRes && resolution.complete) {
+      setCachedRes({ width: resolution.width, height: resolution.height, hasSyncSignals: resolution.hasSyncSignals });
+    }
+    if (needsResReset && cachedRes) {
+      setCachedRes(null);
+    }
+  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution, ioWrites, ioWriteTimestamps, cachedRes, needsResReset]);
 
   // Force full redraw when user changes scale/width settings
   useEffect(() => {
@@ -319,6 +316,11 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     rs.hasReceivedSignal = false;
     fillNoise(texDataRef.current);
     dirtyRef.current = true;
+    // Reset resolution tracking state — necessary to sync with ref reset above
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLastDrawnSeqSnapshot(0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCachedRes(null);
   }, [effectiveScale, manualWidth]);
 
   // ---- Render ----

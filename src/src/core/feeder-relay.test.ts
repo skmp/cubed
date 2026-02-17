@@ -2,14 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
-import { VGA_NODE_R, VGA_NODE_G, VGA_NODE_B } from './constants';
 import {
   readIoWrite,
   taggedCoord,
   taggedValue,
   decodeDac,
-  isHsync,
-  isVsync,
 } from '../ui/emulator/vgaResolution';
 
 function runCube(source: string, maxSteps = 10_000_000) {
