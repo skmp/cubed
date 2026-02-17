@@ -68,31 +68,40 @@ export function detectResolution(ioWrites: number[], count: number, start: numbe
   let maxX = 0;
   let y = 0;
   let hasSyncSignals = false;
-  let frameStarted = false;
 
   for (let i = 0; i < count; i++) {
     const tagged = readIoWrite(ioWrites, start, i);
     if (isVsync(tagged)) {
       hasSyncSignals = true;
-      if (frameStarted) {
+      // VSYNC marks end of frame — return what we've accumulated
+      if (y > 0 || x > 0) {
         if (x > maxX) maxX = x;
         const height = Math.max(y + (x > 0 ? 1 : 0), 1);
         return { width: maxX || 1, height, hasSyncSignals: true, complete: true };
       }
-      frameStarted = true;
-      y = 0;
-      x = 0;
     } else if (isHsync(tagged)) {
       hasSyncSignals = true;
-      if (x > maxX) maxX = x;
-      y++;
-      x = 0;
+      // Only count as a row end if we've seen at least one R write since the last HSYNC.
+      // This handles out-of-order scheduling where the sync node runs faster than DAC nodes.
+      if (x > 0) {
+        if (x > maxX) maxX = x;
+        y++;
+        x = 0;
+      }
     } else if (taggedCoord(tagged) === VGA_NODE_R) {
-      // Count pixels by the R channel writes (all 3 channels write in lockstep)
       x++;
     }
   }
 
+  // No complete frame found — use what we have from HSYNC-delimited rows
+  if (hasSyncSignals && maxX > 0) {
+    return {
+      width: maxX,
+      height: Math.max(y + (x > 0 ? 1 : 0), 1),
+      hasSyncSignals,
+      complete: false,
+    };
+  }
   if (x > maxX) maxX = x;
   return {
     width: maxX || 1,

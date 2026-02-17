@@ -4,7 +4,7 @@ import type { OnMount } from '@monaco-editor/react';
 import { Box, Select, MenuItem, type SelectChangeEvent } from '@mui/material';
 import { registerArrayForthLanguage } from './arrayforthLang';
 import { registerCubeLanguage } from './cubeLang';
-import type { CompileError } from '../../core/types';
+import type { CompileError, CompiledNode } from '../../core/types';
 
 // Import sample files using Vite's ?raw imports
 import defaultArrayforth from '../../../samples/default.aforth?raw';
@@ -52,10 +52,11 @@ interface CodeEditorProps {
   onCompile: (source: string) => void;
   onSourceChange?: (source: string) => void;
   errors: CompileError[];
+  compiledNodes?: CompiledNode[];
   initialSource?: string | null;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors, initialSource }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors, compiledNodes, initialSource }) => {
   const editorRef = useRef<EditorInstance | null>(null);
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
@@ -65,6 +66,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   useEffect(() => {
     onCompileRef.current = onCompile;
   }, [onCompile]);
+
+  const onSourceChangeRef = useRef(onSourceChange);
+  useEffect(() => {
+    onSourceChangeRef.current = onSourceChange;
+  }, [onSourceChange]);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
@@ -89,12 +95,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
         onCompileRef.current(source);
       },
     });
+
+    // Notify parent with initial editor content so compile triggers on load
+    onSourceChangeRef.current?.(editor.getValue());
   }, [language]);
 
   // Load initial source from URL if provided
   useEffect(() => {
     if (initialSource && editorRef.current) {
       editorRef.current.setValue(initialSource);
+      onSourceChangeRef.current?.(initialSource);
     }
   }, [initialSource]);
 
@@ -110,7 +120,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
       const isDefault = Object.values(CUBE_SAMPLES).includes(currentSource) ||
         currentSource === DEFAULT_ARRAYFORTH || currentSource === '';
       if (isDefault) {
-        editorRef.current.setValue(language === 'cube' ? DEFAULT_CUBE : DEFAULT_ARRAYFORTH);
+        const newSource = language === 'cube' ? DEFAULT_CUBE : DEFAULT_ARRAYFORTH;
+        editorRef.current.setValue(newSource);
+        onSourceChangeRef.current?.(newSource);
       }
     }
   }, [language]);
@@ -122,6 +134,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
     const sample = CUBE_SAMPLES[name];
     if (sample && editorRef.current) {
       editorRef.current.setValue(sample);
+      onSourceChangeRef.current?.(sample);
     }
   }, []);
 
@@ -167,7 +180,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
           </Select>
         </Box>
       )}
-      <Box sx={{ flex: 1, border: '1px solid #333' }}>
+      <Box sx={{ flex: 1, minHeight: 0, border: '1px solid #333' }}>
         <Editor
           height="100%"
           defaultLanguage={language}
@@ -187,6 +200,60 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
           }}
         />
       </Box>
+      {/* Status bar: errors + node usage */}
+      {(errors.length > 0 || (compiledNodes && compiledNodes.length > 0)) && (
+        <Box sx={{
+          maxHeight: 150,
+          overflow: 'auto',
+          borderTop: '1px solid #333',
+          bgcolor: '#1a1a1a',
+          flexShrink: 0,
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+          fontSize: 12,
+        }}>
+          {errors.length > 0 && errors.map((err, i) => (
+            <Box
+              key={`err-${i}`}
+              onClick={() => {
+                if (editorRef.current) {
+                  editorRef.current.revealLineInCenter(err.line || 1);
+                  editorRef.current.setPosition({
+                    lineNumber: err.line || 1,
+                    column: err.col || 1,
+                  });
+                  editorRef.current.focus();
+                }
+              }}
+              sx={{
+                px: 1,
+                py: 0.25,
+                color: '#ff6b6b',
+                cursor: 'pointer',
+                '&:hover': { bgcolor: '#2a1515' },
+              }}
+            >
+              {err.line ? `${err.line}:${err.col || 1}` : '?'}: {err.message}
+            </Box>
+          ))}
+          {compiledNodes && compiledNodes.length > 0 && (
+            <Box sx={{ px: 1, py: 0.5, color: '#8c8', display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+              {compiledNodes.map(node => {
+                const wordsUsed = node.mem.filter(w => w !== null && w !== 0).length;
+                return (
+                  <Box key={node.coord} component="span" sx={{ whiteSpace: 'nowrap' }}>
+                    <Box component="span" sx={{ color: '#6b6' }}>
+                      {node.coord}
+                    </Box>
+                    <Box component="span" sx={{ color: '#666', mx: 0.3 }}>
+                      {wordsUsed}/{node.mem.length}w
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };

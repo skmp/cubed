@@ -16,7 +16,7 @@ export class GA144 {
   private _breakpointHit = false;
 
   // IO write capture for VGA display — ring buffer of recent writes
-  private static readonly IO_WRITE_CAPACITY = 1_000_000;
+  private static readonly IO_WRITE_CAPACITY = 2_000_000;
   private ioWriteBuffer: number[] = new Array(GA144.IO_WRITE_CAPACITY);
   private ioWriteStart = 0;     // ring start index
   private ioWriteStartSeq = 0;  // sequence number at ring start

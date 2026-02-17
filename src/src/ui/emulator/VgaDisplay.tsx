@@ -347,7 +347,9 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
 
       if (hasSyncSignals) {
         if (isVsync(tagged)) { cursor.y = 0; cursor.x = 0; continue; }
-        if (isHsync(tagged)) { cursor.y++; cursor.x = 0; continue; }
+        // Only advance row on HSYNC if we've drawn at least one pixel on this row.
+        // This handles out-of-order scheduling where the sync node runs faster.
+        if (isHsync(tagged)) { if (cursor.x > 0) { cursor.y++; cursor.x = 0; } continue; }
       }
 
       // DAC channel writes — decode XOR encoding and accumulate

@@ -126,14 +126,16 @@ loop{n=140}
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
 -- Generates HSYNC after each row, VSYNC at end of frame.
--- Must be in lockstep with the DAC nodes: one HSYNC per 640 pixels.
+-- The delay{} burns cycles to match DAC fill loop timing
+-- so HSYNC signals interleave correctly with pixel writes.
 
 node 217
 
 /\
 
--- 480 rows: send HSYNC after each
+-- 480 rows: delay to match DAC timing, then send HSYNC
 loop{n=480}
+/\ delay{n=640}
 /\ send{port=0x15D, value=0x20000}
 /\ again{}
 
