@@ -7,6 +7,7 @@ import type { CubeProgram } from '../../core/cube/ast';
 import { layoutAST, filterSceneGraph } from './layoutEngine';
 import type { SceneNode, PipeInfo } from './layoutEngine';
 import { CubeScene } from './CubeScene';
+import { sceneGraphToSVG } from './svgExport';
 
 interface CubeRendererProps {
   ast: CubeProgram | null;
@@ -113,6 +114,8 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
+  const svgContent = useMemo(() => sceneGraphToSVG(sceneGraph), [sceneGraph]);
+
   if (!ast) {
     return (
       <Box sx={{
@@ -130,7 +133,14 @@ export function CubeRenderer({ ast }: CubeRendererProps) {
   }
 
   return (
-    <Box ref={containerRef} sx={{ height: '100%', position: 'relative', bgcolor: '#121212' }}>
+    <Box ref={containerRef} sx={{ height: '100%', position: 'relative', bgcolor: '#121212', display: 'flex', flexDirection: 'column' }}>
+      {/* SVG isometric view */}
+      {svgContent && (
+        <Box
+          sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      )}
       <Canvas
         camera={{ position: [6, 4, 6], fov: 50 }}
         style={{ background: '#121212' }}

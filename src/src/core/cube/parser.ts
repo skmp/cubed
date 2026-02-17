@@ -61,6 +61,14 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
   function parseProgram(): CubeProgram {
     const loc = { line: peek().line, col: peek().col };
     const conjunction = parseConjunction();
+
+    // Continue parsing when additional node directives appear without /\
+    // (multi-node programs separate node blocks with blank lines, not /\)
+    while (peek().type === CubeTokenType.NODE) {
+      const next = parseConjunction();
+      conjunction.items.push(...next.items);
+    }
+
     return { kind: 'program', conjunction, loc };
   }
 
