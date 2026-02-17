@@ -347,7 +347,27 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteCount, 
         hasReceivedSignalRef.current = false;
         fillNoise(texData);
       } else if (hasReceivedSignalRef.current) {
-        clearToBlack(texData);
+        // Only clear to black on VSYNC if we know there is subsequent pixel data
+        // in this batch. This avoids erasing the last fully rendered frame when
+        // the final IO write is a VSYNC marker.
+        let hasSubsequentDacWrite = false;
+        for (let lookSeq = seq + 1; lookSeq < ioWriteSeq; lookSeq++) {
+          const lookOffset = lookSeq - startSeq;
+          if (lookOffset < 0 || lookOffset >= ioWriteCount) continue;
+          const lookTagged = readIoWrite(ioWrites, ioWriteStart, lookOffset);
+          const lookCoord = taggedCoord(lookTagged);
+          if (
+            lookCoord === VGA_NODE_R ||
+            lookCoord === VGA_NODE_G ||
+            lookCoord === VGA_NODE_B
+          ) {
+            hasSubsequentDacWrite = true;
+            break;
+          }
+        }
+        if (hasSubsequentDacWrite) {
+          clearToBlack(texData);
+        }
       }
     }
 
