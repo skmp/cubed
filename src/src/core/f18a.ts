@@ -390,6 +390,7 @@ export class F18ANode {
     this.IO = val;
     this.WD = ((val >> 11) & 1) === 1;
     this.notWD = !this.WD;
+    this.ga144.onIoWrite(this.index, val);
   }
 
   // ========================================================================
@@ -437,8 +438,8 @@ export class F18ANode {
     this.stepCount++;
 
     if (opcode < 8) {
-      // Control flow instructions - need address
-      const addr = this.I & ((1 << jumpAddrPos) - 1);
+      // Control flow instructions - need address from decoded word
+      const addr = this.IXor & ((1 << jumpAddrPos) - 1);
       return this.executeWithAddr(opcode, addr, addrMask);
     }
     return this.executeNoAddr(opcode);

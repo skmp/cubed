@@ -124,6 +124,13 @@ export function emitBuiltin(
       return emitSend(builder, argMappings);
     case 'recv':
       return emitRecv(builder, argMappings);
+    // VGA / loop constructs
+    case 'fill':
+      return emitFill(builder, argMappings);
+    case 'loop':
+      return emitLoop(builder, argMappings);
+    case 'again':
+      return emitAgain(builder);
     default:
       return false;
   }
@@ -262,7 +269,7 @@ function emitMultiplyForward(
 
   builder.emitLiteral(17);
   builder.emitOp(OPCODE_MAP.get('push')!);  // R = 17
-  builder.flush();
+  builder.flushWithJump();                   // skip slot 3 (';' would pop R to P)
   const loopAddr = builder.getLocationCounter();
   builder.emitOp(OPCODE_MAP.get('+*')!);
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
@@ -517,10 +524,17 @@ function emitSend(
   const value = args.get('value');
   if (!port || port.literal === undefined || !isKnown(value)) return false;
 
-  emitLoadLiteral(builder, port.literal);
-  builder.emitOp(OPCODE_MAP.get('a!')!);     // A = port address
-  loadArg(builder, value);
-  builder.emitOp(OPCODE_MAP.get('!')!);       // blocking write T to [A]
+  if (port.literal === 0x15D) {
+    // Optimize: B register defaults to 0x15D (IO port) on F18A reset.
+    // Use !b instead of setting up A register — saves 2 words.
+    loadArg(builder, value);
+    builder.emitOp(OPCODE_MAP.get('!b')!);     // write T to [B=0x15D]
+  } else {
+    emitLoadLiteral(builder, port.literal);
+    builder.emitOp(OPCODE_MAP.get('a!')!);     // A = port address
+    loadArg(builder, value);
+    builder.emitOp(OPCODE_MAP.get('!')!);      // blocking write T to [A]
+  }
   return true;
 }
 
@@ -539,5 +553,64 @@ function emitRecv(
   builder.emitOp(OPCODE_MAP.get('a!')!);     // A = port address
   builder.emitOp(OPCODE_MAP.get('@')!);       // blocking read from [A] → T
   if (value?.mapping) emitStore(builder, value.mapping);
+  return true;
+}
+
+// ---- fill{value, count}: fill count pixels to IO register via !b ----
+// Uses B register which defaults to 0x15D (IO port) on F18A reset.
+// Emits a tight next loop: lit value, lit count-1, push, [dup !b, next], drop
+
+function emitFill(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const value = args.get('value');
+  const count = args.get('count');
+  if (!isKnown(value) || !count || count.literal === undefined) return false;
+  if (count.literal <= 0) return true;
+
+  loadArg(builder, value);                           // T = value
+  emitLoadLiteral(builder, count.literal - 1);       // T = count-1, S = value
+  builder.emitOp(OPCODE_MAP.get('push')!);           // R = count-1, T = value
+  builder.flushWithJump();                            // skip slot 3 (';' would pop R to P)
+  const loopAddr = builder.getLocationCounter();
+  builder.emitOp(OPCODE_MAP.get('dup')!);            // T = value, S = value
+  builder.emitOp(OPCODE_MAP.get('!b')!);             // write T to [B=0x15D], pop → T = value
+  builder.flushWithJump();                            // skip slot 3 (';' would pop R to P during loop)
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr); // decrement R, loop if R!=0
+  builder.emitOp(OPCODE_MAP.get('drop')!);           // clean up: pop value
+  return true;
+}
+
+// ---- loop{n}: begin counted loop ----
+// Pushes n-1 to R register and records loop start address.
+// Uses a label stack stored in the CodeBuilder's label system.
+
+const loopStack: number[] = [];
+
+function emitLoop(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const n = args.get('n');
+  if (!n || n.literal === undefined) return false;
+  if (n.literal <= 0) return true;
+
+  emitLoadLiteral(builder, n.literal - 1);           // T = n-1
+  builder.emitOp(OPCODE_MAP.get('push')!);           // R = n-1
+  builder.flushWithJump();                            // skip slot 3 (';' would pop R to P)
+  loopStack.push(builder.getLocationCounter());       // save loop start address
+  return true;
+}
+
+// ---- again{}: end counted loop ----
+// Emits next instruction jumping back to the matching loop start.
+
+function emitAgain(builder: CodeBuilder): boolean {
+  const loopAddr = loopStack.pop();
+  if (loopAddr === undefined) return false;
+
+  builder.flushWithJump();                            // skip slot 3, ensure next gets slot 0 (13-bit addr)
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
   return true;
 }

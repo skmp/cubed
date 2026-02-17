@@ -12,13 +12,14 @@ import { mapVariables } from './varmapper';
 import type { VariableMap } from './varmapper';
 import { emitCode } from './emitter';
 import type { SourceMapEntry } from './emitter';
-import type { CompiledProgram } from '../types';
+import type { CompiledProgram, CompileError } from '../types';
 
 export interface CubeCompileResult extends CompiledProgram {
   symbols?: Map<string, ResolvedSymbol>;
   variables?: VariableMap;
   sourceMap?: SourceMapEntry[];
   nodeCoord?: number;
+  warnings?: CompileError[];
 }
 
 export function compileCube(source: string): CubeCompileResult {
@@ -53,11 +54,12 @@ export function compileCube(source: string): CubeCompileResult {
   const varMap = mapVariables(resolved.variables);
 
   // Emit code
-  const { nodes, warnings, sourceMap } = emitCode(resolved, plan, varMap);
+  const { nodes, errors: emitErrors, warnings, sourceMap } = emitCode(resolved, plan, varMap);
 
   return {
     nodes,
-    errors: warnings,
+    errors: emitErrors,
+    warnings,
     symbols: resolved.symbols,
     variables: varMap,
     sourceMap,

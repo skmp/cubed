@@ -9,6 +9,7 @@ import { EmulatorPanel } from './ui/emulator/EmulatorPanel';
 import { CompileOutputPanel } from './ui/output/CompileOutputPanel';
 import { useEmulator } from './hooks/useEmulator';
 import { readUrlSource, updateUrlSource } from './ui/urlSource';
+import { RecursePanel } from './ui/recurse/RecursePanel';
 
 function App() {
   const {
@@ -45,7 +46,7 @@ function App() {
         compileAndLoad(source);
       }
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [compileAndLoad]);
 
   const handleSourceChange = useCallback((source: string) => {
     editorSourceRef.current = source;
@@ -73,14 +74,20 @@ function App() {
       <CssBaseline />
       <MainLayout
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === 0) setLanguage('recurse');
+        }}
         toolbar={
           <DebugToolbar
             activeCount={snapshot.activeCount}
             totalSteps={snapshot.totalSteps}
             language={language}
             onCompile={handleCompileButton}
-            onSetLanguage={setLanguage}
+            onSetLanguage={(lang) => {
+              setLanguage(lang);
+              setActiveTab(lang === 'recurse' ? 0 : 1);
+            }}
           />
         }
         editorTab={
@@ -112,6 +119,8 @@ function App() {
           <EmulatorPanel
             nodeStates={snapshot.nodeStates}
             nodeCoords={snapshot.nodeCoords}
+            ioWrites={snapshot.ioWrites}
+            ioWriteCount={snapshot.ioWriteCount}
             selectedCoord={selectedCoord}
             selectedNode={snapshot.selectedNode}
             isRunning={isRunning}
@@ -133,6 +142,7 @@ function App() {
             language={language}
           />
         }
+        recurseTab={<RecursePanel />}
       />
     </ThemeProvider>
   );

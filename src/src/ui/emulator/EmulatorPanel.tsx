@@ -9,6 +9,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import FastForwardIcon from '@mui/icons-material/FastForward';
 import { ChipGrid } from '../chip/ChipGrid';
 import { NodeDetailPanel } from '../detail/NodeDetailPanel';
+import { VgaDisplay } from './VgaDisplay';
 import type { NodeState, NodeSnapshot } from '../../core/types';
 import type { SourceMapEntry } from '../../core/cube/emitter';
 
@@ -20,6 +21,8 @@ interface EmulatorPanelProps {
   isRunning: boolean;
   stepsPerFrame: number;
   sourceMap: SourceMapEntry[] | null;
+  ioWrites: number[];
+  ioWriteCount: number;
   onNodeClick: (coord: number) => void;
   onStep: () => void;
   onStepN: (n: number) => void;
@@ -31,7 +34,7 @@ interface EmulatorPanelProps {
 
 export const EmulatorPanel: React.FC<EmulatorPanelProps> = ({
   nodeStates, nodeCoords, selectedCoord, selectedNode,
-  isRunning, stepsPerFrame, sourceMap,
+  isRunning, stepsPerFrame, sourceMap, ioWrites, ioWriteCount,
   onNodeClick, onStep, onStepN, onRun, onStop, onReset, onSetStepsPerFrame,
 }) => {
   return (
@@ -77,11 +80,21 @@ export const EmulatorPanel: React.FC<EmulatorPanelProps> = ({
             value={stepsPerFrame}
             onChange={(_, v) => onSetStepsPerFrame(v as number)}
             min={1}
-            max={1000}
+            max={10000}
             step={1}
             sx={{ py: 0 }}
           />
         </Box>
+      </Box>
+
+      {/* VGA display — always visible in emulator tab */}
+      <Box sx={{
+        flexShrink: 0,
+        borderBottom: '1px solid #333',
+        maxHeight: '50%',
+        overflow: 'auto',
+      }}>
+        <VgaDisplay ioWrites={ioWrites} ioWriteCount={ioWriteCount} />
       </Box>
 
       {/* Main content: chip grid + node detail */}

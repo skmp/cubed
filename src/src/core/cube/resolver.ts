@@ -63,6 +63,10 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   // Port I/O
   send:    ['port', 'value'],  // blocking write to port
   recv:    ['port', 'value'],  // blocking read from port
+  // VGA / loop constructs
+  fill:    ['value', 'count'], // fill count pixels via IO register (uses B=0x15D)
+  loop:    ['n'],              // begin counted loop (push n-1 to R)
+  again:   [],                 // end counted loop (next back to loop start)
 };
 
 // F18A opcode names mapped to clean identifiers

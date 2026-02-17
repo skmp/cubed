@@ -13,7 +13,7 @@ export function useEmulator() {
   const [snapshot, setSnapshot] = useState<GA144Snapshot | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
-  const [stepsPerFrame, setStepsPerFrame] = useState(10);
+  const [stepsPerFrame, setStepsPerFrame] = useState(1000);
   const [language, setLanguage] = useState<EditorLanguage>('cube');
   const [cubeAst, setCubeAst] = useState<CubeProgram | null>(null);
   const [cubeCompileResult, setCubeCompileResult] = useState<CubeCompileResult | null>(null);
@@ -109,7 +109,8 @@ export function useEmulator() {
 
     if (language === 'cube') {
       const result = compileCube(source);
-      setCompileErrors(result.errors);
+      const allDiagnostics = [...result.errors, ...(result.warnings ?? [])];
+      setCompileErrors(allDiagnostics);
       setCubeCompileResult(result.errors.length === 0 ? result : null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {

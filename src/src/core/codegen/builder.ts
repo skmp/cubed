@@ -6,14 +6,21 @@
  *   Slot 0: bits 17-13 (5 bits)
  *   Slot 1: bits 12-8  (5 bits)
  *   Slot 2: bits 7-3   (5 bits)
- *   Slot 3: bits 2-0   (3 bits, opcode >> 1)
+ *   Slot 3: bits 2-0   (3 bits, value << 1 = opcode)
  *
- * All words are XOR-encoded with 0x15555 before storage.
+ * Slot 3 can only encode even opcodes 0-14. There is NO NOP for slot 3.
+ * The default slot 3 value is 0 (';'/return). Use emitJump() to skip
+ * slot 3 when its execution would be harmful.
+ *
+ * All instruction words are XOR-encoded with 0x15555 before storage.
+ * Data words (literals) are stored raw (NOT XOR-encoded).
  */
 import { XOR_ENCODING, WORD_MASK } from '../types';
 import { OPCODE_MAP } from '../constants';
 
-const NOP = 0x1C; // nop opcode
+const NOP = 0x1C; // nop opcode (5-bit slots only, CANNOT fit in slot 3)
+const SLOT3_DEFAULT = 0x00; // slot 3 default: ';' (return, opcode 0)
+const JMP_OPCODE = 2; // jump opcode
 
 export class CodeBuilder {
   private mem: (number | null)[];
@@ -28,7 +35,7 @@ export class CodeBuilder {
     this.mem = new Array(memSize).fill(null);
     this.locationCounter = 0;
     this.slotPointer = 0;
-    this.currentWord = [NOP, NOP, NOP, NOP];
+    this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
     this.labels = new Map();
     this.forwardRefs = [];
     this.extendedArith = 0;
@@ -59,6 +66,12 @@ export class CodeBuilder {
     return raw ^ XOR_ENCODING;
   }
 
+  /**
+   * Flush the current partial word to memory.
+   * WARNING: Unused slot 3 will contain ';' (return), which pops R to P.
+   * For safe flushing, use flushWithJump() instead when slot 3 side effects
+   * would be harmful.
+   */
   flush(): void {
     if (this.slotPointer === 0) return;
     const word = this.assembleWord(this.currentWord);
@@ -67,7 +80,29 @@ export class CodeBuilder {
     }
     this.locationCounter++;
     this.slotPointer = 0;
-    this.currentWord = [NOP, NOP, NOP, NOP];
+    this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
+  }
+
+  /**
+   * Flush the current partial word by inserting a 'jump' to a target address
+   * at the next available slot. This ensures slot 3 is never reached,
+   * avoiding its side effects.
+   *
+   * @param targetAddr - Address to jump to (default: next sequential word)
+   */
+  flushWithJump(targetAddr?: number): void {
+    if (this.slotPointer === 0) return;
+
+    const target = targetAddr ?? (this.locationCounter + 1);
+
+    if (this.slotPointer <= 2) {
+      // Insert jump at current slot to skip remaining slots (including slot 3)
+      this.emitJump(JMP_OPCODE, target);
+    } else {
+      // slotPointer === 3: all 5-bit slots used, can't insert jump.
+      // Fall back to regular flush with ';' at slot 3.
+      this.flush();
+    }
   }
 
   emitOp(opcode: number): void {
@@ -75,8 +110,8 @@ export class CodeBuilder {
       this.flush();
     }
     if (this.slotPointer === 3) {
-      // Slot 3 only has 3 bits: opcode must be even
-      if (opcode % 2 !== 0) {
+      // Slot 3 only has 3 bits: only even opcodes 0-14 can fit
+      if (opcode % 2 !== 0 || opcode > 14) {
         this.flush();
       } else {
         this.currentWord[3] = opcode >> 1;
@@ -115,14 +150,24 @@ export class CodeBuilder {
     }
     this.locationCounter++;
     this.slotPointer = 0;
-    this.currentWord = [NOP, NOP, NOP, NOP];
+    this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
   }
 
+  /**
+   * Emit @p literal: loads a constant value via @p instruction.
+   * Uses emitJump(jump) after @p to skip slot 3, preventing ';' from
+   * corrupting P when the return stack has non-return-address values.
+   */
   emitLiteral(value: number): void {
     this.emitOp(OPCODE_MAP.get('@p')!);
-    this.flush();
+    // Jump past the literal data word to skip slot 3 safely.
+    // After @p reads from P (the data word), P is already at loc+2.
+    // The jump target loc+2 matches P, so it's effectively a no-op for P.
+    const continueAddr = this.locationCounter + 2;
+    this.emitJump(JMP_OPCODE, continueAddr);
+    // Store literal data (NOT XOR-encoded — @p reads raw values)
     if (this.locationCounter < this.mem.length) {
-      this.mem[this.locationCounter] = (value & WORD_MASK) ^ XOR_ENCODING;
+      this.mem[this.locationCounter] = value & WORD_MASK;
     }
     this.locationCounter++;
   }
@@ -130,7 +175,8 @@ export class CodeBuilder {
   emitData(value: number): void {
     this.flush();
     if (this.locationCounter < this.mem.length) {
-      this.mem[this.locationCounter] = (value & WORD_MASK) ^ XOR_ENCODING;
+      // Data words are NOT XOR-encoded
+      this.mem[this.locationCounter] = value & WORD_MASK;
     }
     this.locationCounter++;
   }

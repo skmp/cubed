@@ -32,6 +32,7 @@ interface EmitContext {
   resolved: ResolvedProgram;
   varMap: VariableMap;
   builtinCtx: BuiltinContext;
+  errors: CompileError[];
   warnings: CompileError[];
   sourceMap: SourceMapEntry[];
   /** Label to jump to when the current clause/guard fails */
@@ -50,7 +51,7 @@ export function emitCode(
   resolved: ResolvedProgram,
   plan: AllocationPlan,
   varMap: VariableMap,
-): { nodes: CompiledNode[]; warnings: CompileError[]; sourceMap: SourceMapEntry[] } {
+): { nodes: CompiledNode[]; errors: CompileError[]; warnings: CompileError[]; sourceMap: SourceMapEntry[] } {
   const builder = new CodeBuilder(64);
   const symbols = new Map<string, number>();
 
@@ -63,6 +64,7 @@ export function emitCode(
     resolved,
     varMap,
     builtinCtx: { romDivmodAddr },
+    errors: [],
     warnings: [],
     sourceMap: [],
     labelCounter: 0,
@@ -82,8 +84,13 @@ export function emitCode(
 
   const { mem, len } = builder.build();
 
-  // Warn if code is close to RAM limit
-  if (len > 56) {
+  // Error if code exceeds RAM, warn if close to limit
+  if (len > 64) {
+    ctx.errors.push({
+      line: 0, col: 0,
+      message: `Generated code uses ${len}/64 words of RAM — exceeds limit`,
+    });
+  } else if (len > 56) {
     ctx.warnings.push({
       line: 0, col: 0,
       message: `Generated code uses ${len}/64 words of RAM — close to limit`,
@@ -97,6 +104,7 @@ export function emitCode(
       len,
       symbols,
     }],
+    errors: ctx.errors,
     warnings: ctx.warnings,
     sourceMap: ctx.sourceMap,
   };

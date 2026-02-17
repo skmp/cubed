@@ -42,7 +42,7 @@ const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
 const DEFAULT_CUBE = CUBE_SAMPLES['MD5 Hash'];
 
-export type EditorLanguage = 'arrayforth' | 'cube';
+export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
 interface CodeEditorProps {
   language: EditorLanguage;

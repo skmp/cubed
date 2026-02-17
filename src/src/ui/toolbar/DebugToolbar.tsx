@@ -29,6 +29,9 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
         <ToggleButton value="arrayforth" sx={{ textTransform: 'none', fontSize: '10px', px: 1 }}>
           arrayForth
         </ToggleButton>
+        <ToggleButton value="recurse" sx={{ textTransform: 'none', fontSize: '10px', px: 1 }}>
+          Recurse
+        </ToggleButton>
         <ToggleButton value="cube" sx={{ textTransform: 'none', fontSize: '10px', px: 1 }}>
           CUBE
         </ToggleButton>

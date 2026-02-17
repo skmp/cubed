@@ -52,6 +52,8 @@ export interface GA144Snapshot {
   activeCount: number;
   totalSteps: number;
   selectedNode: NodeSnapshot | null;
+  ioWrites: number[];        // IO register writes (9-bit DAC values for VGA output)
+  ioWriteCount: number;      // Length of ioWrites (for React change detection)
 }
 
 export interface PortHandler {

@@ -1,4 +1,4 @@
--- Blue Rectangle on Green Background (VGA Output)
+-- Blue Rectangle 640x480 VGA Output
 -- Renders a blue rectangle centered on a green background
 -- using the GA144's 9-bit DAC on node 117 for VGA output.
 --
@@ -6,42 +6,48 @@
 --   Green: R=0, G=7, B=0 -> 0b000_111_000 = 56
 --   Blue:  R=0, G=0, B=7 -> 0b000_000_111 = 7
 --
--- Simplified 4x4 grid: rows of green (G) and blue (B):
---   Row 0: G G G G   (all green)
---   Row 1: G B B G   (blue center)
---   Row 2: G B B G   (blue center)
---   Row 3: G G G G   (all green)
+-- Sync signals (upper bits of 18-bit IO write):
+--   bit 17 (0x20000) = hsync (end of scanline)
+--   bit 16 (0x10000) = vsync (end of frame)
+--
+-- Layout: 640x480 with centered 200x200 blue rectangle
+--   Rows 0-139:   all green (640 px) + hsync
+--   Rows 140-339: 220 green + 200 blue + 220 green + hsync
+--   Rows 340-479: all green (640 px) + hsync
+--   vsync at end of frame
+--
+-- Uses fill{} for tight pixel loops and loop{}/again{} for row loops.
+-- B register defaults to 0x15D (IO port) on F18A reset.
 
 node 117
 
 /\
 
--- Send green pixel to IO port
-green = lambda{}.
-  send{port=0x15D, value=56}
+-- Top green margin: 140 rows of 640 green pixels
+loop{n=140}
+/\ fill{value=56, count=640}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
 
 /\
 
--- Send blue pixel to IO port
-blue = lambda{}.
-  send{port=0x15D, value=7}
+-- Rectangle rows: 200 rows (220 green + 200 blue + 220 green)
+loop{n=200}
+/\ fill{value=56, count=220}
+/\ fill{value=7, count=200}
+/\ fill{value=56, count=220}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
 
 /\
 
--- Row 0: all green
-green{} /\ green{} /\ green{} /\ green{}
+-- Bottom green margin: 140 rows of 640 green pixels
+loop{n=140}
+/\ fill{value=56, count=640}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
 
 /\
 
--- Row 1: green-blue-blue-green
-green{} /\ blue{} /\ blue{} /\ green{}
-
-/\
-
--- Row 2: green-blue-blue-green
-green{} /\ blue{} /\ blue{} /\ green{}
-
-/\
-
--- Row 3: all green
-green{} /\ green{} /\ green{} /\ green{}
+-- End of frame
+send{port=0x15D, value=0x10000}
