@@ -52,8 +52,10 @@ export interface GA144Snapshot {
   activeCount: number;
   totalSteps: number;
   selectedNode: NodeSnapshot | null;
-  ioWrites: number[];        // IO register writes (9-bit DAC values for VGA output)
-  ioWriteCount: number;      // Length of ioWrites (for React change detection)
+  ioWrites: number[];        // IO register writes (ring buffer)
+  ioWriteStart: number;      // Start index for ring buffer
+  ioWriteCount: number;      // Number of valid entries in ring buffer
+  ioWriteSeq: number;        // Total writes seen (monotonic sequence)
 }
 
 export interface PortHandler {

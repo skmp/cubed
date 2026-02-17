@@ -17,12 +17,22 @@ interface CompileOutputPanelProps {
   language: EditorLanguage;
   ioWrites: number[];
   ioWriteCount: number;
+  ioWriteStart: number;
+  ioWriteSeq: number;
 }
 
 const cellSx = { fontSize: '11px', py: 0.5, px: 1, fontFamily: 'monospace' };
 const headerSx = { ...cellSx, fontWeight: 'bold', color: '#aaa' };
 
-export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({ cubeResult, compiledProgram, language, ioWrites, ioWriteCount }) => {
+export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
+  cubeResult,
+  compiledProgram,
+  language,
+  ioWrites,
+  ioWriteCount,
+  ioWriteStart,
+  ioWriteSeq,
+}) => {
   const [tab, setTab] = React.useState(0);
 
   if (language === 'recurse') {
@@ -38,7 +48,12 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({ cubeResu
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Box sx={{ flexShrink: 0, borderBottom: '1px solid #333', maxHeight: '50%', overflow: 'auto' }}>
-        <VgaDisplay ioWrites={ioWrites} ioWriteCount={ioWriteCount} />
+        <VgaDisplay
+          ioWrites={ioWrites}
+          ioWriteCount={ioWriteCount}
+          ioWriteStart={ioWriteStart}
+          ioWriteSeq={ioWriteSeq}
+        />
       </Box>
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         {language === 'cube'

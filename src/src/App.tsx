@@ -139,6 +139,8 @@ function App() {
             language={language}
             ioWrites={snapshot.ioWrites}
             ioWriteCount={snapshot.ioWriteCount}
+            ioWriteStart={snapshot.ioWriteStart}
+            ioWriteSeq={snapshot.ioWriteSeq}
           />
         }
       />

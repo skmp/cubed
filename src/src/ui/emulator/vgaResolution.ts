@@ -7,7 +7,14 @@ export interface Resolution {
   hasSyncSignals: boolean;
 }
 
-export function detectResolution(ioWrites: number[], count: number): Resolution & { complete: boolean } {
+export function readIoWrite(ioWrites: number[], start: number, idx: number): number {
+  const cap = ioWrites.length;
+  if (cap === 0) return 0;
+  const pos = start + idx;
+  return ioWrites[pos >= cap ? pos - cap : pos];
+}
+
+export function detectResolution(ioWrites: number[], count: number, start: number = 0): Resolution & { complete: boolean } {
   let x = 0;
   let maxX = 0;
   let y = 0;
@@ -15,7 +22,7 @@ export function detectResolution(ioWrites: number[], count: number): Resolution 
   let frameStarted = false;
 
   for (let i = 0; i < count; i++) {
-    const val = ioWrites[i];
+    const val = readIoWrite(ioWrites, start, i);
     if (val & VSYNC_BIT) {
       hasSyncSignals = true;
       if (frameStarted) {

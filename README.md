@@ -11,6 +11,9 @@ The GA144 packs 144 tiny 18-bit Forth processors into a single chip, communicati
 - **CUBE Compiler** &mdash; experimental compiler for the CUBE 3D visual logic language, targeting F18A nodes with Hindley-Milner type inference
 - **3D Visualization** &mdash; interactive Three.js rendering of CUBE programs as spatial structures (containers, pipes, diamonds)
 - **Node Inspector** &mdash; real-time view of registers, stacks, RAM, and execution state for all 144 nodes
+- **VGA Output Viewer** &mdash; WebGL-backed VGA display with resolution detection
+- **Recurse Panel** &mdash; recursive text/DSL playground for code generation
+- **cubec CLI** &mdash; command-line compiler for CUBE programs
 
 ## Quick Start
 
@@ -30,6 +33,13 @@ npm run build
 ```
 
 Output goes to `src/dist/`. The build includes TypeScript type checking (`tsc -b`) followed by the Vite production bundle.
+
+## Tests
+
+```bash
+cd src
+npm run test
+```
 
 ## Project Structure
 
@@ -69,6 +79,23 @@ Browse the docs at [`docs/index.html`](docs/index.html) or read them directly:
 - [Application Notes](docs/ga144-application-notes.md) &mdash; AN001-AN012
 - [arrayForth Compiler](docs/arrayforth-compiler.md) &mdash; compiler internals
 - [Programming Patterns](docs/programming-patterns.md) &mdash; idiomatic F18A techniques
+- [cubec CLI](docs/cubec.md) &mdash; command-line compiler usage
+- [Architecture Overview](docs/architecture.md) &mdash; emulator and VGA pipeline
+- [VGA Profiling](docs/vga-profiling.md) &mdash; performance measurement guide
+
+## CLI Compiler (cubec)
+
+The CLI compiler lives in `src/` and wraps `cubec.ts`:
+
+```bash
+cd src
+./cubec samples/blue-rectangle.cube
+./cubec samples/md5-hash.cube --verbose
+```
+
+## Samples
+
+Sample programs live under `src/samples/`. See `src/samples/README.md` for descriptions and suggested difficulty.
 
 ## Contributing
 

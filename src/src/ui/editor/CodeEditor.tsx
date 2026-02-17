@@ -24,6 +24,7 @@ import sampleBlueRectangle from '../../../samples/blue-rectangle.cube?raw';
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'Blue Rectangle': sampleBlueRectangle,
   'MD5 Hash': sampleMd5Hash,
   'Feature Demo': sampleFeatureDemo,
   'MD5 Multi-Node': sampleMd5MultiNode,
@@ -35,12 +36,11 @@ const CUBE_SAMPLES: Record<string, string> = {
   'RAM Node': sampleRamNode,
   'I2C Sensor': sampleI2cSensor,
   'Wireframe Sphere': sampleWireframeSphere,
-  'Blue Rectangle': sampleBlueRectangle,
 };
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['MD5 Hash'];
+const DEFAULT_CUBE = CUBE_SAMPLES['Blue Rectangle'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
@@ -58,7 +58,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
   onCompileRef.current = onCompile;
-  const [selectedSample, setSelectedSample] = useState(CUBE_SAMPLE_NAMES[0]);
+  const [selectedSample, setSelectedSample] = useState('Blue Rectangle');
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
