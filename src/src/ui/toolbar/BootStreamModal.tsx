@@ -44,7 +44,7 @@ export const BootStreamModal: React.FC<BootStreamModalProps> = ({ bytes, onClose
 
   const handleDownload = useCallback(() => {
     if (!bytes) return;
-    const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
+    const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
