@@ -82,18 +82,20 @@ export function emitCode(
     ctx.warnings.push({ line: 0, col: 0, message: e.message });
   }
 
-  const { mem, len } = builder.build();
+  const { mem, len, maxAddr } = builder.build();
 
-  // Error if code exceeds RAM, warn if close to limit
-  if (len > 64) {
+  // Error if code exceeds RAM, warn if close to limit.
+  // maxAddr tracks the highest address the compiler attempted to write,
+  // even beyond the 64-word array (which silently truncates).
+  if (maxAddr > 64) {
     ctx.errors.push({
       line: 0, col: 0,
-      message: `Generated code uses ${len}/64 words of RAM — exceeds limit`,
+      message: `Generated code uses ${maxAddr}/64 words of RAM — exceeds limit`,
     });
-  } else if (len > 56) {
+  } else if (maxAddr > 56) {
     ctx.warnings.push({
       line: 0, col: 0,
-      message: `Generated code uses ${len}/64 words of RAM — close to limit`,
+      message: `Generated code uses ${maxAddr}/64 words of RAM — close to limit`,
     });
   }
 

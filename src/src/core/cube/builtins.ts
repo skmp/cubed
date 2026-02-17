@@ -560,7 +560,14 @@ function emitRecv(
 
 // ---- fill{value, count}: fill count pixels to IO register via !b ----
 // Uses B register which defaults to 0x15D (IO port) on F18A reset.
-// Emits a tight next loop: lit value, lit count-1, push, [dup !b, next], drop
+// Uses emitLiteralRef to push a continuation address onto R before the
+// loop count.  When `next` falls through (R=0) and `;` fires, P is
+// set to the continuation address, resuming after the loop.
+//
+// R stack during loop: [count | continuation | ...]
+// When next exits:     R = continuation, `;` → P = continuation
+
+let fillLabelCounter = 0;
 
 function emitFill(
   builder: CodeBuilder,
@@ -571,15 +578,20 @@ function emitFill(
   if (!isKnown(value) || !count || count.literal === undefined) return false;
   if (count.literal <= 0) return true;
 
+  const contLabel = `__fill_cont_${fillLabelCounter++}`;
   loadArg(builder, value);                           // T = value
+  builder.emitLiteralRef(contLabel);                 // T = contAddr (patched), S = value
+  builder.emitOp(OPCODE_MAP.get('push')!);           // R = contAddr, T = value
   emitLoadLiteral(builder, count.literal - 1);       // T = count-1, S = value
-  builder.emitOp(OPCODE_MAP.get('push')!);           // R = count-1, T = value
-  builder.flushWithJump();                            // skip slot 3 (';' would pop R to P)
+  builder.emitOp(OPCODE_MAP.get('push')!);           // R = count-1, rstack = [contAddr, ...]
+  builder.flushWithJump();                            // skip slot 3
   const loopAddr = builder.getLocationCounter();
   builder.emitOp(OPCODE_MAP.get('dup')!);            // T = value, S = value
   builder.emitOp(OPCODE_MAP.get('!b')!);             // write T to [B=0x15D], pop → T = value
-  builder.flushWithJump();                            // skip slot 3 (';' would pop R to P during loop)
+  builder.flushWithJump();                            // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr); // decrement R, loop if R!=0
+  // When next falls through: R = contAddr, `;` → P = contAddr
+  builder.label(contLabel);
   builder.emitOp(OPCODE_MAP.get('drop')!);           // clean up: pop value
   return true;
 }
@@ -619,6 +631,10 @@ function emitAgain(builder: CodeBuilder): boolean {
 
 // ---- delay{n}: burn n cycles in a tight next loop (no IO) ----
 // Loop body matches fill{} timing: dup drop [flushWithJump] next = 2 words/iteration.
+// Pushes continuation address onto R before loop count so that when
+// `next` falls through and ';' fires, P resumes at the correct address.
+
+let delayLabelCounter = 0;
 
 function emitDelay(
   builder: CodeBuilder,
@@ -628,13 +644,18 @@ function emitDelay(
   if (!n || n.literal === undefined) return false;
   if (n.literal <= 0) return true;
 
+  const contLabel = `__delay_cont_${delayLabelCounter++}`;
+  builder.emitLiteralRef(contLabel);                   // T = continuation addr (patched later)
+  builder.emitOp(OPCODE_MAP.get('push')!);             // R = continuation addr
   emitLoadLiteral(builder, n.literal - 1);             // T = n-1
-  builder.emitOp(OPCODE_MAP.get('push')!);             // R = n-1
+  builder.emitOp(OPCODE_MAP.get('push')!);             // R = n-1, rstack has continuation
   builder.flushWithJump();                              // skip slot 3
   const loopAddr = builder.getLocationCounter();
   builder.emitOp(OPCODE_MAP.get('dup')!);              // dup (matches fill timing)
   builder.emitOp(OPCODE_MAP.get('drop')!);             // drop
   builder.flushWithJump();                              // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr); // decrement R, loop
+  // When next falls through: R = continuation addr, ';' sets P = continuation
+  builder.label(contLabel);
   return true;
 }

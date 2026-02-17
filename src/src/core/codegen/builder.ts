@@ -172,6 +172,26 @@ export class CodeBuilder {
     this.locationCounter++;
   }
 
+  /**
+   * Emit @p literal with a forward reference: the data word will be
+   * patched to the resolved label address when resolveForwardRefs runs.
+   * Unlike addForwardRef (which patches XOR-encoded instruction words),
+   * this patches the raw data word directly.
+   */
+  emitLiteralRef(labelName: string): void {
+    this.emitOp(OPCODE_MAP.get('@p')!);
+    const continueAddr = this.locationCounter + 2;
+    this.emitJump(JMP_OPCODE, continueAddr);
+    // Store placeholder data word (will be patched by resolveForwardRefs)
+    const dataAddr = this.locationCounter;
+    if (dataAddr < this.mem.length) {
+      this.mem[dataAddr] = 0;
+    }
+    this.locationCounter++;
+    // Record as a literal forward ref (slot = -1 signals raw data patch)
+    this.forwardRefs.push({ name: labelName, wordAddr: dataAddr, slot: -1 });
+  }
+
   emitData(value: number): void {
     this.flush();
     if (this.locationCounter < this.mem.length) {
@@ -211,17 +231,22 @@ export class CodeBuilder {
     for (const ref of this.forwardRefs) {
       const addr = this.labels.get(ref.name);
       if (addr !== undefined) {
-        const encoded = this.mem[ref.wordAddr];
-        if (encoded !== null) {
-          const raw = encoded ^ XOR_ENCODING;
-          let patched: number;
-          switch (ref.slot) {
-            case 0: patched = (raw & 0x3E000) | (addr & 0x1FFF); break;
-            case 1: patched = (raw & 0x3FF00) | (addr & 0xFF); break;
-            case 2: patched = (raw & 0x3FFF8) | (addr & 0x7); break;
-            default: patched = raw;
+        if (ref.slot === -1) {
+          // Raw data word patch (from emitLiteralRef) — NOT XOR-encoded
+          this.mem[ref.wordAddr] = addr & WORD_MASK;
+        } else {
+          const encoded = this.mem[ref.wordAddr];
+          if (encoded !== null) {
+            const raw = encoded ^ XOR_ENCODING;
+            let patched: number;
+            switch (ref.slot) {
+              case 0: patched = (raw & 0x3E000) | (addr & 0x1FFF); break;
+              case 1: patched = (raw & 0x3FF00) | (addr & 0xFF); break;
+              case 2: patched = (raw & 0x3FFF8) | (addr & 0x7); break;
+              default: patched = raw;
+            }
+            this.mem[ref.wordAddr] = patched ^ XOR_ENCODING;
           }
-          this.mem[ref.wordAddr] = patched ^ XOR_ENCODING;
         }
       } else {
         errors.push({ message: `Unresolved reference: ${ref.name} in ${context}` });
@@ -229,12 +254,15 @@ export class CodeBuilder {
     }
   }
 
-  build(): { mem: (number | null)[]; len: number; labels: Map<string, number> } {
+  build(): { mem: (number | null)[]; len: number; maxAddr: number; labels: Map<string, number> } {
     this.flush();
+    // maxAddr is the highest address the compiler tried to write to,
+    // even if it was beyond the mem array bounds (silent truncation).
+    const maxAddr = this.locationCounter;
     let len = 0;
     for (let j = this.mem.length - 1; j >= 0; j--) {
       if (this.mem[j] !== null) { len = j + 1; break; }
     }
-    return { mem: this.mem, len, labels: this.labels };
+    return { mem: this.mem, len, maxAddr, labels: this.labels };
   }
 }
