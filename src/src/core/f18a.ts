@@ -5,7 +5,7 @@
 import { CircularStack } from './stack';
 import {
   MEM_SIZE, coordToIndex, indexToCoord,
-  isPortAddr, regionIndex, PORT, IO_BITS, NODE_GPIO_PINS,
+  isPortAddr, regionIndex, PORT, IO_BITS, NODE_GPIO_PINS, ANALOG_NODES,
   PortIndex,
 } from './constants';
 import { WORD_MASK, XOR_ENCODING, NodeState } from './types';
@@ -846,12 +846,47 @@ export class F18ANode {
     this.memory[0x1B5] = makeMultiPort([PortIndex.RIGHT, PortIndex.DOWN, PortIndex.LEFT]); // rdl-
     this.memory[0x1A5] = makeMultiPort([PortIndex.RIGHT, PortIndex.DOWN, PortIndex.LEFT, PortIndex.UP]); // rdlu
 
-    // DATA port
-    let dataVal = 0;
-    this.memory[PORT.DATA] = {
-      read: () => { this.fetchedData = dataVal; return true; },
-      write: (v: number) => { dataVal = v; },
-    };
+    // DATA port — on analog nodes this is the VCO-based ADC counter.
+    // The real VCO runs at ~2-4 GHz, driven by input voltage.
+    // We approximate it using Date.now()/performance.now() divided to
+    // produce a realistic 18-bit counter value.
+    //
+    // VCO nominal frequency: ~3 GHz (midpoint of 2-4 GHz range)
+    // 1 ms = 3,000,000 ticks at 3 GHz
+    // 18-bit counter wraps every 262,144 ticks = ~87.4 μs
+    //
+    // performance.now() gives ms with sub-ms precision:
+    //   ticks = performance.now() * 3_000_000
+    //   counter = ticks mod 2^18
+    if (ANALOG_NODES.includes(this.coord)) {
+      const VCO_TICKS_PER_MS = 3_000_000; // 3 GHz
+      this.memory[PORT.DATA] = {
+        read: () => {
+          const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          // Compute total VCO ticks from wall clock.
+          // Use modular arithmetic to avoid floating-point overflow:
+          // (nowMs * 3e6) mod 2^18 = ((nowMs mod (2^18 / 3e6)) * 3e6) mod 2^18
+          // Simpler: use the fractional part of nowMs at a suitable scale.
+          const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
+          const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs; // 0..256 wraps
+          const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
+          // Mix in thermal jitter: temperature shifts VCO frequency slightly
+          const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
+          this.fetchedData = (baseTicks + thermalOffset) & 0x3FFFF;
+          return true;
+        },
+        write: (v: number) => {
+          // Writing to DATA on analog nodes is a no-op for the VCO counter
+          // (real hardware doesn't allow writing the counter)
+        },
+      };
+    } else {
+      let dataVal = 0;
+      this.memory[PORT.DATA] = {
+        read: () => { this.fetchedData = dataVal; return true; },
+        write: (v: number) => { dataVal = v; },
+      };
+    }
   }
 
   // ========================================================================
