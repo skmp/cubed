@@ -30,12 +30,12 @@ import sampleShor from '../../../samples/shor.cube?raw';
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'Shor (N=15)': sampleShor,
   'FR': sampleFR,
   'NL': sampleNL,
   'UN': sampleUN,
   'PS': samplePS,
   'CH': sampleCH,
-  'Shor (N=15)': sampleShor,
   'Blue Rectangle': sampleBlueRectangle,
   'MD5 Hash': sampleMd5Hash,
   'Feature Demo': sampleFeatureDemo,
@@ -52,7 +52,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['FR'];
+const DEFAULT_CUBE = CUBE_SAMPLES['Shor (N=15)'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
