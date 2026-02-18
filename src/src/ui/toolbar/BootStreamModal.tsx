@@ -11,6 +11,7 @@ interface SerialPortOptions { baudRate: number }
 interface WebSerialPort {
   open(options: SerialPortOptions): Promise<void>;
   close(): Promise<void>;
+  setSignals(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
   writable: WritableStream<Uint8Array> | null;
 }
 interface Serial {
@@ -62,11 +63,16 @@ export const BootStreamModal: React.FC<BootStreamModalProps> = ({ bytes, onClose
       port = await serial.requestPort();
       await port.open({ baudRate });
 
+      // Reset target chip via RTS (active low on EVB002 J22 pins 3-4)
+      setSerialState({ status: 'sending', progress: 0 });
+      await port.setSignals({ requestToSend: true });
+      await new Promise(r => setTimeout(r, 50));
+      await port.setSignals({ requestToSend: false });
+      await new Promise(r => setTimeout(r, 100));
+
       const writer = port.writable!.getWriter();
       const total = bytes.length;
       let sent = 0;
-
-      setSerialState({ status: 'sending', progress: 0 });
 
       while (sent < total) {
         const end = Math.min(sent + CHUNK_SIZE, total);
