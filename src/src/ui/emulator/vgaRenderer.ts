@@ -26,6 +26,13 @@ export interface VgaRenderState {
   lastDrawnSeq: number;
   forceFullRedraw: boolean;
   lastHasSyncSignals: boolean | null;
+  /** Accumulated channel values for current pixel (persisted across incremental calls) */
+  pendingR: number;
+  pendingG: number;
+  pendingB: number;
+  hasR: boolean;
+  hasG: boolean;
+  hasB: boolean;
 }
 
 export function createRenderState(): VgaRenderState {
@@ -35,6 +42,12 @@ export function createRenderState(): VgaRenderState {
     lastDrawnSeq: 0,
     forceFullRedraw: false,
     lastHasSyncSignals: null,
+    pendingR: 0,
+    pendingG: 0,
+    pendingB: 0,
+    hasR: false,
+    hasG: false,
+    hasB: false,
   };
 }
 
@@ -94,6 +107,8 @@ export function renderIoWrites(
     cursor.x = 0;
     cursor.y = 0;
     state.forceFullRedraw = false;
+    state.pendingR = 0; state.pendingG = 0; state.pendingB = 0;
+    state.hasR = false; state.hasG = false; state.hasB = false;
     if (streamReset) {
       state.hasReceivedSignal = false;
       fillNoise(texData);
@@ -120,13 +135,16 @@ export function renderIoWrites(
     }
   }
 
-  // Accumulate R/G/B from the 3 DAC nodes
-  let pendingR = 0, pendingG = 0, pendingB = 0;
+  // Accumulate R/G/B from the 3 DAC nodes.
+  // Track which channels have been received for the current pixel.
+  // Emit the pixel when all three channels have arrived, regardless of order.
+  // These are persisted in state for incremental rendering.
+  let { pendingR, pendingG, pendingB, hasR, hasG, hasB } = state;
   // Timestamp-based HSYNC deferral: when HSYNC arrives, we record its
-  // timestamp and defer the line break. On the next R write, if it shares
-  // the same timestamp as the HSYNC, the R write belongs to the current
-  // line (they were produced in the same global step). Otherwise the HSYNC
-  // is a real line boundary.
+  // timestamp and defer the line break. On the next pixel emit, if the
+  // last DAC write shares the same timestamp as the HSYNC, the pixel
+  // belongs to the current line (they were produced in the same global step).
+  // Otherwise the HSYNC is a real line boundary.
   let pendingHsyncTs = -1; // timestamp of deferred HSYNC (-1 = none)
 
   for (; seq < ioWriteSeq; seq++) {
@@ -140,11 +158,12 @@ export function renderIoWrites(
       if (isVsync(tagged)) {
         cursor.y = 0; cursor.x = 0;
         pendingHsyncTs = -1;
+        hasR = false; hasG = false; hasB = false;
         continue;
       }
       if (isHsync(tagged)) {
         if (ioWriteTimestamps) {
-          // Defer — we'll resolve when we see the next R write
+          // Defer — we'll resolve when we see the next pixel emit
           pendingHsyncTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
         } else if (cursor.x > 0) {
           // No timestamps available — immediate HSYNC
@@ -161,21 +180,24 @@ export function renderIoWrites(
         clearToBlack(texData);
       }
       pendingR = DAC_TO_8BIT[decodeDac(val)];
+      hasR = true;
     } else if (coord === VGA_NODE_G) {
       pendingG = DAC_TO_8BIT[decodeDac(val)];
+      hasG = true;
     } else if (coord === VGA_NODE_B) {
       pendingB = DAC_TO_8BIT[decodeDac(val)];
+      hasB = true;
     } else {
       continue;
     }
 
-    // Emit pixel on R channel write (R is the timing master)
-    if (coord === VGA_NODE_R) {
+    // Emit pixel when all three channels have arrived
+    if (hasR && hasG && hasB) {
       // Resolve deferred HSYNC using timestamps
       if (pendingHsyncTs >= 0 && ioWriteTimestamps) {
-        const rTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
-        if (rTs === pendingHsyncTs) {
-          // Same step — R belongs to the line before HSYNC.
+        const dacTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
+        if (dacTs === pendingHsyncTs) {
+          // Same step — pixel belongs to the line before HSYNC.
           // Emit pixel on current line, then advance.
           if (cursor.y < texH && cursor.x < texW) {
             const texOff = (cursor.y * texW + cursor.x) * 4;
@@ -187,9 +209,10 @@ export function renderIoWrites(
           cursor.x++;
           cursor.y++; cursor.x = 0;
           pendingHsyncTs = -1;
+          hasR = false; hasG = false; hasB = false;
           continue;
         } else {
-          // Different step — HSYNC precedes this R write.
+          // Different step — HSYNC precedes this pixel.
           // Apply line break first, then emit pixel on new line.
           if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
           pendingHsyncTs = -1;
@@ -205,8 +228,17 @@ export function renderIoWrites(
       }
       cursor.x++;
       if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
+      hasR = false; hasG = false; hasB = false;
     }
   }
+
+  // Persist channel accumulation state for next incremental call
+  state.pendingR = pendingR;
+  state.pendingG = pendingG;
+  state.pendingB = pendingB;
+  state.hasR = hasR;
+  state.hasG = hasG;
+  state.hasB = hasB;
 
   state.lastDrawnSeq = ioWriteSeq;
   return true;

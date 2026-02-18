@@ -23,11 +23,15 @@ import sampleBlueRectangle from '../../../samples/blue-rectangle.cube?raw';
 import sampleCH from '../../../samples/CH.cube?raw';
 import samplePS from '../../../samples/PS.cube?raw';
 import sampleFR from '../../../samples/FR.cube?raw';
+import sampleNL from '../../../samples/NL.cube?raw';
+import sampleUN from '../../../samples/UN.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
   'FR': sampleFR,
+  'NL': sampleNL,
+  'UN': sampleUN,
   'PS': samplePS,
   'CH': sampleCH,
   'Blue Rectangle': sampleBlueRectangle,

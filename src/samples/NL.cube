@@ -1,26 +1,22 @@
--- French Flag (FR) VGA Output (EVB002 7-node architecture)
--- Renders the French tricolour on a 640x480 framebuffer.
--- Three vertical stripes: blue (left), white (center), red (right).
+-- Dutch Flag (NL) VGA Output (EVB002 7-node architecture)
+-- Renders the flag of the Netherlands on a 640x480 framebuffer.
+-- Three horizontal stripes: red (top), white (middle), blue (bottom).
 --
--- Architecture: feeder-relay pipeline (same as CH.cube / PS.cube).
+-- Architecture: feeder-relay pipeline (same as FR.cube / CH.cube / PS.cube).
 --   Feeder nodes (116, 616, 716) generate pixel data via fill{}
 --   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
 --   DAC relay nodes (117, 617, 717) read from west and write to IO.
 --   R relay (117) signals sync node (217) after each row for HSYNC.
 --
 -- Flag layout (640x480, full frame):
---   Blue stripe:  columns 0-213   (214 px)
---   White stripe: columns 214-426 (213 px)
---   Red stripe:   columns 427-639 (213 px)
+--   Red stripe:   rows 0-159   (160 rows)
+--   White stripe: rows 160-319 (160 rows)
+--   Blue stripe:  rows 320-479 (160 rows)
 --
 -- Color breakdown per channel:
---   R: blue=0, white=max, red=max  -> 214 zero + 213 max + 213 max
---   G: blue=0, white=max, red=0    -> 214 zero + 213 max + 213 zero
---   B: blue=max, white=max, red=0  -> 214 max  + 213 max + 213 zero
---
--- IMPORTANT: All three feeders must have the same number of fill{}
--- calls per row so they stay in sync (each fill{} compiles to a loop
--- with overhead, so mismatched counts cause channel drift).
+--   R: red=max, white=max, blue=0    -> 160 rows max + 160 rows max + 160 rows zero
+--   G: red=0,   white=max, blue=0    -> 160 rows zero + 160 rows max + 160 rows zero
+--   B: red=0,   white=max, blue=max  -> 160 rows zero + 160 rows max + 160 rows max
 --
 -- DAC XOR encoding:
 --   Zero output: 0x155, Max output: 0x0AA
@@ -65,8 +61,7 @@ loop{n=480}
 -- ============================================================
 -- RED FEEDER (node 116)
 -- ============================================================
--- R = 0 for blue stripe, max for white + red stripes.
--- Split into 3 fills to match green feeder's 3 fills per row.
+-- R = max for red + white stripes, 0 for blue stripe.
 
 node 116
 
@@ -76,16 +71,25 @@ setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x155, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x0AA, count=213}
+-- Red stripe (top): R = max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- White stripe (middle): R = max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- Blue stripe (bottom): R = 0
+loop{n=160}
+/\ fill{value=0x155, count=640}
 /\ again{}
 
 -- ============================================================
 -- GREEN FEEDER (node 616)
 -- ============================================================
--- G = 0 for blue stripe, max for white, 0 for red.
+-- G = 0 for red, max for white, 0 for blue.
 
 node 616
 
@@ -95,17 +99,25 @@ setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x155, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x155, count=213}
+-- Red stripe (top): G = 0
+loop{n=160}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- White stripe (middle): G = max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- Blue stripe (bottom): G = 0
+loop{n=160}
+/\ fill{value=0x155, count=640}
 /\ again{}
 
 -- ============================================================
 -- BLUE FEEDER (node 716)
 -- ============================================================
--- B = max for blue + white stripes, 0 for red.
--- Split into 3 fills to match green feeder's 3 fills per row.
+-- B = 0 for red, max for white + blue stripes.
 
 node 716
 
@@ -115,10 +127,19 @@ setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x0AA, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x155, count=213}
+-- Red stripe (top): B = 0
+loop{n=160}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- White stripe (middle): B = max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- Blue stripe (bottom): B = max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
 /\ again{}
 
 -- ============================================================

@@ -1,0 +1,187 @@
+-- United Nations Flag (UN) VGA Output (EVB002 7-node architecture)
+-- Renders a simplified UN flag on a 640x480 framebuffer.
+-- UN blue background with a centered white disc (rectangle approximation).
+--
+-- The actual UN emblem (world map + olive branches) is too complex for
+-- 64-word F18A RAM, so we render a white filled circle approximated as
+-- a centered rectangle — the recognizable "white on UN blue" motif.
+--
+-- Architecture: feeder-relay pipeline (same as CH.cube / FR.cube).
+--   Feeder nodes (116, 616, 716) generate pixel data via fill{}
+--   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
+--   DAC relay nodes (117, 617, 717) read from west and write to IO.
+--   R relay (117) signals sync node (217) after each row for HSYNC.
+--
+-- Layout (640x480):
+--   White disc: 180x180 centered at (320, 240)
+--   Disc bounds: x=[230,410), y=[150,330)
+--
+-- Row breakdown (480 rows):
+--   Rows 0-149:   UN blue (150 rows)
+--   Rows 150-329: 230px blue + 180px white + 230px blue (180 rows)
+--   Rows 330-479: UN blue (150 rows)
+--
+-- UN Blue (9-bit DAC values):
+--   RGB8 ≈ (75, 146, 219) → RGB9 ≈ (150, 292, 438)
+--   R: 150 ^ 0x155 = 0x1C3    G: 292 ^ 0x155 = 0x071    B: 438 ^ 0x155 = 0x043
+-- White: 0x1FF ^ 0x155 = 0x0AA
+--
+-- DAC XOR encoding:
+--   Zero output: 0x155, Max output: 0x0AA
+
+-- ============================================================
+-- RED DAC RELAY (node 117)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- R: UN blue bg = 0x1C3 (150/511), white disc = 0x0AA (max)
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Top blue: 150 rows
+loop{n=150}
+/\ fill{value=0x1C3, count=640}
+/\ again{}
+
+/\
+
+-- Disc rows: 180 rows (230 blue + 180 white + 230 blue)
+loop{n=180}
+/\ fill{value=0x1C3, count=230}
+/\ fill{value=0x0AA, count=180}
+/\ fill{value=0x1C3, count=230}
+/\ again{}
+
+/\
+
+-- Bottom blue: 150 rows
+loop{n=150}
+/\ fill{value=0x1C3, count=640}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+-- G: UN blue bg = 0x071 (292/511), white disc = 0x0AA (max)
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Top blue: 150 rows
+loop{n=150}
+/\ fill{value=0x071, count=640}
+/\ again{}
+
+/\
+
+-- Disc rows: 180 rows (230 blue + 180 white + 230 blue)
+loop{n=180}
+/\ fill{value=0x071, count=230}
+/\ fill{value=0x0AA, count=180}
+/\ fill{value=0x071, count=230}
+/\ again{}
+
+/\
+
+-- Bottom blue: 150 rows
+loop{n=150}
+/\ fill{value=0x071, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE FEEDER (node 716)
+-- ============================================================
+-- B: UN blue bg = 0x043 (438/511), white disc = 0x0AA (max)
+
+node 716
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Top blue: 150 rows
+loop{n=150}
+/\ fill{value=0x043, count=640}
+/\ again{}
+
+/\
+
+-- Disc rows: 180 rows (230 blue + 180 white + 230 blue)
+loop{n=180}
+/\ fill{value=0x043, count=230}
+/\ fill{value=0x0AA, count=180}
+/\ fill{value=0x043, count=230}
+/\ again{}
+
+/\
+
+-- Bottom blue: 150 rows
+loop{n=150}
+/\ fill{value=0x043, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}
