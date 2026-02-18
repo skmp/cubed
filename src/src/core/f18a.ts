@@ -875,9 +875,8 @@ export class F18ANode {
           this.fetchedData = (baseTicks + thermalOffset) & 0x3FFFF;
           return true;
         },
-        write: (v: number) => {
+        write: (_v: number) => {
           // Writing to DATA on analog nodes is a no-op for the VCO counter
-          // (real hardware doesn't allow writing the counter)
         },
       };
     } else {
