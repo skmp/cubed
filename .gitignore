@@ -1,0 +1,3 @@
+*.o
+gsplat
+frame_*.ppm
