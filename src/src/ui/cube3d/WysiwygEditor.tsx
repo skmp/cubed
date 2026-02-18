@@ -21,7 +21,6 @@ import { ContextMenu3D } from './ContextMenu3D';
 import { sceneGraphToSVG } from './svgExport';
 import {
   addConjunctionItem,
-  removeConjunctionItem,
   replaceConjunctionItem,
   createApplication,
 } from '../../core/cube/ast-mutations';

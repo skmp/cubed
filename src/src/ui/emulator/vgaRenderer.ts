@@ -163,6 +163,10 @@ export function renderIoWrites(
   const bBuf = state.channelBBuf;
   let emitted = state.channelEmitted; // pixels already emitted for current row
   let pendingHsyncTs = -1;
+  // Track G/B count at the time HSYNC arrived, so we can identify
+  // writes that arrived after HSYNC (belonging to the next row).
+  let hsyncGCount = -1;
+  let hsyncBCount = -1;
 
   /** Emit all pixels where we have all three channel values */
   const flushPixels = () => {
@@ -179,6 +183,29 @@ export function renderIoWrites(
       emitted++;
       if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
     }
+  };
+
+  /** Start a new row, preserving G/B writes that arrived after HSYNC */
+  const startNewRow = () => {
+    // G/B writes between HSYNC and now belong to the new row.
+    // Copy them to the start of the buffer.
+    let newG = 0, newB = 0;
+    if (hsyncGCount >= 0) {
+      for (let i = hsyncGCount; i < gCount && newG < gBuf.length; i++) {
+        gBuf[newG++] = gBuf[i];
+      }
+    }
+    if (hsyncBCount >= 0) {
+      for (let i = hsyncBCount; i < bCount && newB < bBuf.length; i++) {
+        bBuf[newB++] = bBuf[i];
+      }
+    }
+    rCount = 0;
+    gCount = newG;
+    bCount = newB;
+    emitted = 0;
+    hsyncGCount = -1;
+    hsyncBCount = -1;
   };
 
   for (; seq < ioWriteSeq; seq++) {
@@ -199,10 +226,14 @@ export function renderIoWrites(
       if (isHsync(tagged)) {
         if (ioWriteTimestamps) {
           pendingHsyncTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
+          // Record current G/B counts so we know which writes arrived after HSYNC
+          hsyncGCount = gCount;
+          hsyncBCount = bCount;
         } else {
           flushPixels();
           if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
           rCount = 0; gCount = 0; bCount = 0; emitted = 0;
+          hsyncGCount = -1; hsyncBCount = -1;
         }
         continue;
       }
@@ -225,14 +256,14 @@ export function renderIoWrites(
           rCount++;
           flushPixels();
           cursor.y++; cursor.x = 0;
-          rCount = 0; gCount = 0; bCount = 0; emitted = 0;
+          startNewRow();
           pendingHsyncTs = -1;
           continue;
         } else {
           // Different step — HSYNC precedes this R write.
           flushPixels();
           if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
-          rCount = 0; gCount = 0; bCount = 0; emitted = 0;
+          startNewRow();
           pendingHsyncTs = -1;
         }
       }

@@ -4,8 +4,8 @@
  * structural position in the tree, enabling stable SceneNode IDs.
  */
 import type {
-  CubeProgram, Conjunction, ConjunctionItem, PredicateDef, TypeDef,
-  Application, Unification, Term, ArgBinding,
+  CubeProgram, Conjunction, ConjunctionItem,
+  Term, ArgBinding,
 } from './ast';
 
 /** Encode a conjunction item index. */

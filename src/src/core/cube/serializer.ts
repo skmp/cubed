@@ -7,7 +7,7 @@
  */
 import type {
   CubeProgram, Conjunction, ConjunctionItem, PredicateDef, TypeDef,
-  ParamDecl, VariantDef, FieldDecl, TypeExpr,
+  ParamDecl, VariantDef, TypeExpr,
   Application, Unification, Term, ArgBinding,
 } from './ast';
 

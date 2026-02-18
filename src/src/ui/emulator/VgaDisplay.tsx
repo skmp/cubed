@@ -7,6 +7,7 @@ import {
 import {
   renderIoWrites,
   fillNoise,
+  createRenderState,
   type VgaRenderState,
 } from './vgaRenderer';
 
@@ -132,7 +133,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   const texDataRef = useRef<Uint8Array>(new Uint8Array(0));
   const texWRef = useRef(0);
   const texHRef = useRef(0);
-  const renderStateRef = useRef<VgaRenderState>({ cursor: { x: 0, y: 0 }, hasReceivedSignal: false, lastDrawnSeq: 0, forceFullRedraw: false, lastHasSyncSignals: null });
+  const renderStateRef = useRef<VgaRenderState>(createRenderState());
   const dirtyRef = useRef(true);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
