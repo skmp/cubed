@@ -13,26 +13,26 @@
 --      gcd(7^(r/2) + 1, N) = gcd(7^2 + 1, 15) = gcd(50, 15) = 5
 --   Result: 15 = 3 × 5 ✓
 --
--- Entropy source: Node 717 (B DAC relay) is an analog node with a
--- VCO-based ADC counter at the DATA port (0x141). The counter runs
--- at ~3 GHz driven by real wall-clock time via performance.now.
--- For maximum bandwidth, the B channel reads the VCO counter on
--- EVERY pixel — relay{port=0x141} reads DATA 640 times per row,
--- producing per-pixel analog noise on the blue channel.
+-- Noise input: R and G relay nodes (117, 617) are analog nodes with
+-- VCO-based ADC counters at the DATA port (0x141). The noiserelay{}
+-- builtin XORs each pixel from the feeder with a fresh VCO sample,
+-- making the Shor band values noise-modulated on every pixel.
+-- B relay node (717) reads VCO directly for per-pixel blue noise.
+-- All three DAC channels are thus seeded by analog VCO entropy.
 --
 -- Architecture: feeder-relay pipeline (same as CH.cube / FR.cube).
 --   R/G feeder nodes (116, 616) generate pixel data via fill{}
 --   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
---   R/G DAC relay nodes (117, 617) read from west and write to IO.
+--   R/G DAC relay nodes (117, 617) XOR feeder data with VCO noise.
 --   B relay node (717) reads directly from its own DATA port (VCO).
 --   R relay (117) signals sync node (217) after each row for HSYNC.
 --
--- VGA output (640x480): 5 horizontal intensity bands
---   Band 1 (rows 0-95):    7^1 mod 15 = 7   (yellow ~47%)
---   Band 2 (rows 96-191):  7^2 mod 15 = 4   (yellow ~27%)
---   Band 3 (rows 192-287): 7^3 mod 15 = 13  (yellow ~87%)
---   Band 4 (rows 288-383): 7^4 mod 15 = 1   (yellow ~7%) ← period!
---   Band 5 (rows 384-479): Factors 3×5       (bright green)
+-- VGA output (640x480): 5 horizontal intensity bands (noise-modulated)
+--   Band 1 (rows 0-95):    7^1 mod 15 = 7   (yellow ~47% + noise)
+--   Band 2 (rows 96-191):  7^2 mod 15 = 4   (yellow ~27% + noise)
+--   Band 3 (rows 192-287): 7^3 mod 15 = 13  (yellow ~87% + noise)
+--   Band 4 (rows 288-383): 7^4 mod 15 = 1   (yellow ~7% + noise)
+--   Band 5 (rows 384-479): Factors 3×5       (bright green + noise)
 -- Blue channel: per-pixel VCO noise across all bands.
 --
 -- DAC XOR encoding: level ^ 0x155. Zero=0x155, Max=0x0AA.
@@ -41,7 +41,7 @@
 --   v=13: 443 ^ 0x155 = 0x04E    v=1:  34  ^ 0x155 = 0x177
 
 -- ============================================================
--- RED DAC RELAY (node 117)
+-- RED DAC RELAY (node 117, analog — VCO noise XOR)
 -- ============================================================
 
 node 117
@@ -49,12 +49,12 @@ node 117
 /\
 
 loop{n=480}
-/\ relay{port=0x1D5, count=640}
+/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
 /\ send{port=0x145, value=0}
 /\ again{}
 
 -- ============================================================
--- GREEN DAC RELAY (node 617)
+-- GREEN DAC RELAY (node 617, analog — VCO noise XOR)
 -- ============================================================
 
 node 617
@@ -62,7 +62,7 @@ node 617
 /\
 
 loop{n=480}
-/\ relay{port=0x1D5, count=640}
+/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
 /\ again{}
 
 -- ============================================================

@@ -137,6 +137,8 @@ export function emitBuiltin(
       return emitSetB(builder, argMappings);
     case 'relay':
       return emitRelay(builder, argMappings);
+    case 'noiserelay':
+      return emitNoiseRelay(builder, argMappings);
     default:
       return false;
   }
@@ -686,6 +688,56 @@ function emitRelay(
   builder.emitOp(OPCODE_MAP.get('@')!);                 // blocking read from [A=port] → T
   builder.emitOp(OPCODE_MAP.get('!b')!);                // write T to [B=0x15D (IO)], pop
   builder.flushWithJump();                               // skip slot 3
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+  return true;
+}
+
+// ---- noiserelay{port, noiseport, count}: relay XORed with noise ----
+// Reads from `port` (e.g. feeder neighbor), reads from `noiseport` (e.g. VCO DATA),
+// XORs them together, writes result to IO via !b.
+// Both nodes on the relay side must be analog for noiseport=DATA to work.
+//
+// Inner loop per iteration:
+//   @          read feeder → T            (A = port)
+//   lit(noiseport) a!   switch A to noise source
+//   @          read noise → T, S = feeder_val
+//   or         T = feeder_val XOR noise   (F18A 'or' = XOR)
+//   !b         write to IO
+//   lit(port) a!   restore A to feeder port
+//   next
+
+function emitNoiseRelay(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const port = args.get('port');
+  const noiseport = args.get('noiseport');
+  const count = args.get('count');
+  if (!port || port.literal === undefined) return false;
+  if (!noiseport || noiseport.literal === undefined) return false;
+  if (!count || count.literal === undefined) return false;
+  if (count.literal <= 0) return true;
+
+  // Setup: A = feeder port, R = count-1
+  emitLoadLiteral(builder, port.literal);               // T = port address
+  builder.emitOp(OPCODE_MAP.get('a!')!);                // A = port address
+  emitLoadLiteral(builder, count.literal - 1);           // T = count-1
+  builder.emitOp(OPCODE_MAP.get('push')!);               // R = count-1
+  builder.flushWithJump();                                // skip slot 3
+
+  const loopAddr = builder.getLocationCounter();
+  // Read feeder value
+  builder.emitOp(OPCODE_MAP.get('@')!);                  // T = feeder_val (blocking read from [A])
+  // Switch A to noise port and read
+  emitLoadLiteral(builder, noiseport.literal);            // T = noiseport addr, S = feeder_val
+  builder.emitOp(OPCODE_MAP.get('a!')!);                  // A = noiseport, T = feeder_val
+  builder.emitOp(OPCODE_MAP.get('@')!);                   // T = noise, S = feeder_val
+  builder.emitOp(OPCODE_MAP.get('or')!);                  // T = feeder_val XOR noise
+  builder.emitOp(OPCODE_MAP.get('!b')!);                  // write to [B=IO], pop
+  // Restore A to feeder port for next iteration
+  emitLoadLiteral(builder, port.literal);                  // T = port addr
+  builder.emitOp(OPCODE_MAP.get('a!')!);                   // A = port addr, pop
+  builder.flushWithJump();                                  // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
   return true;
 }
