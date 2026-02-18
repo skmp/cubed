@@ -84,11 +84,13 @@ export function useEmulator() {
     updateSnapshot();
   }, [ga144, stop, updateSnapshot]);
 
-  const compileAndLoad = useCallback((source: string, options?: { download?: boolean }) => {
+  const compileAndLoad = useCallback((source: string, options?: { download?: boolean; asLanguage?: EditorLanguage }) => {
     stop();
     ga144.reset();
 
-    if (language === 'cube') {
+    const effectiveLang = options?.asLanguage ?? language;
+
+    if (effectiveLang === 'cube') {
       // Parse AST for 3D renderer before full compilation
       const { tokens, errors: tokErrors } = tokenizeCube(source);
       if (tokErrors.length === 0) {
@@ -101,7 +103,7 @@ export function useEmulator() {
       setCubeAst(null);
     }
 
-    if (language === 'cube') {
+    if (effectiveLang === 'cube') {
       const result = compileCube(source);
       const allDiagnostics = [...result.errors, ...(result.warnings ?? [])];
       setCompileErrors(allDiagnostics);

@@ -30,6 +30,17 @@
  *   @cube_again()                    /\ again{}
  *   @cube_hsync()                    /\ send{port=0x15D, value=0x20000}
  *   @cube_vsync()                    send{port=0x15D, value=0x10000}
+ *   @cube_setb(addr)                  setb{addr=A}
+ *   @cube_relay(port, count)           /\ relay{port=P, count=N}
+ *   @cube_recv(port)                   /\ recv{port=P}
+ *   @cube_conj()                       /\ (conjunction separator)
+ *   @xor_enc(value)                    XOR-encode a 9-bit DAC value
+ *   @dac_zero()                        0x155 (DAC zero)
+ *   @dac_max()                         0x0AA (DAC max)
+ *   @cube_flag(stripe_defs, triangle_defs)
+ *                                    complete feeder-relay flag generator
+ *                                    stripe_defs: "rows r g b" per line
+ *                                    triangle_defs: "width r g b" per line
  *   @cube_rect(node, x, y, w, h, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)
  *                                    full VGA rectangle renderer
  *   @cube_gradient(node, screen_w, screen_h)
@@ -357,6 +368,149 @@ function callFunc(
       const port = args[0] ?? '0x15D';
       const value = args[1] ?? '0';
       return `/\\ send{port=${port}, value=${value}}`;
+    }
+
+    case 'cube_setb': {
+      const addr = args[0] ?? '0x15D';
+      return `setb{addr=${addr}}`;
+    }
+
+    case 'cube_relay': {
+      const port = args[0] ?? '0x1D5';
+      const count = args[1] ?? '640';
+      return `/\\ relay{port=${port}, count=${count}}`;
+    }
+
+    case 'cube_recv': {
+      const port = args[0] ?? '0x145';
+      return `/\\ recv{port=${port}}`;
+    }
+
+    case 'cube_conj': {
+      return '/\\';
+    }
+
+    case 'xor_enc': {
+      // XOR-encode a 9-bit DAC value (0=0x155, max=0x0AA)
+      const val = parseInt(args[0] ?? '0', 10);
+      return `0x${((val ^ 0x155) & 0x1FF).toString(16).toUpperCase()}`;
+    }
+
+    case 'dac_zero': {
+      return '0x155';
+    }
+
+    case 'dac_max': {
+      return '0x0AA';
+    }
+
+    case 'cube_flag': {
+      // Generate a complete flag using the feeder-relay architecture.
+      // Args: stripe_defs, triangle_defs
+      // Supports both newline-separated and /-separated formats.
+      //
+      // stripe_defs format: "rows r g b" per entry (/ or newline separated)
+      //   rows = number of scanlines, r/g/b = 0 or 1 (off/max)
+      // triangle_defs format: "width r g b" per entry (/ or newline separated)
+      //   width = triangle pixel width for this stripe, r/g/b = 0 or 1
+      //
+      // Generates 7 nodes: 116(R feed), 616(G feed), 716(B feed),
+      //   117(R DAC), 617(G DAC), 717(B DAC), 217(sync)
+
+      const splitEntries = (s: string) =>
+        s.trim().split(/[\/\n]/).map(l => l.trim()).filter(l => l.length > 0);
+      const stripeDefs = splitEntries(args[0] ?? '');
+      const triangleDefs = splitEntries(args[1] ?? '');
+
+      const SCREEN_W = 640;
+      const totalRows = stripeDefs.reduce((sum, s) => sum + parseInt(s.split(/\s+/)[0], 10), 0);
+      const DAC_ZERO = '0x155';
+      const DAC_MAX = '0x0AA';
+
+      interface Stripe { rows: number; r: number; g: number; b: number; }
+      interface Triangle { width: number; r: number; g: number; b: number; }
+
+      const stripes: Stripe[] = stripeDefs.map(s => {
+        const p = s.split(/\s+/).map(Number);
+        return { rows: p[0], r: p[1], g: p[2], b: p[3] };
+      });
+      const triangles: Triangle[] = triangleDefs.map(s => {
+        const p = s.split(/\s+/).map(Number);
+        return { width: p[0], r: p[1], g: p[2], b: p[3] };
+      });
+
+      const lines: string[] = [];
+
+      // Helper: generate feeder node for one channel
+      function genFeeder(nodeCoord: number, channel: 'r' | 'g' | 'b') {
+        lines.push(`-- ${channel.toUpperCase()} FEEDER (node ${nodeCoord})`);
+        lines.push(`node ${nodeCoord}`);
+        lines.push('/\\');
+        lines.push('setb{addr=0x1D5}');
+
+        for (let i = 0; i < stripes.length; i++) {
+          const st = stripes[i];
+          const tri = triangles[i]; // may be undefined
+          const chVal = st[channel]; // 0 or 1
+          const dacBg = chVal ? DAC_MAX : DAC_ZERO;
+
+          lines.push('/\\');
+          lines.push(`-- Stripe ${i}: ${st.rows} rows`);
+          lines.push(`loop{n=${st.rows}}`);
+
+          if (tri && tri.width > 0) {
+            const triChVal = tri[channel];
+            const dacTri = triChVal ? DAC_MAX : DAC_ZERO;
+            if (dacTri !== dacBg) {
+              lines.push(`/\\ fill{value=${dacTri}, count=${tri.width}}`);
+              lines.push(`/\\ fill{value=${dacBg}, count=${SCREEN_W - tri.width}}`);
+            } else {
+              lines.push(`/\\ fill{value=${dacBg}, count=${SCREEN_W}}`);
+            }
+          } else {
+            lines.push(`/\\ fill{value=${dacBg}, count=${SCREEN_W}}`);
+          }
+          lines.push('/\\ again{}');
+        }
+        lines.push('');
+      }
+
+      // Helper: generate DAC relay node
+      function genRelay(nodeCoord: number, withSync: boolean) {
+        lines.push(`-- DAC RELAY (node ${nodeCoord})`);
+        lines.push(`node ${nodeCoord}`);
+        lines.push('/\\');
+        lines.push(`loop{n=${totalRows}}`);
+        lines.push(`/\\ relay{port=0x1D5, count=${SCREEN_W}}`);
+        if (withSync) {
+          lines.push('/\\ send{port=0x145, value=0}');
+        }
+        lines.push('/\\ again{}');
+        lines.push('');
+      }
+
+      // Generate relay nodes
+      genRelay(117, true);   // R relay with sync signal
+      genRelay(617, false);  // G relay
+      genRelay(717, false);  // B relay
+
+      // Generate feeder nodes
+      genFeeder(116, 'r');
+      genFeeder(616, 'g');
+      genFeeder(716, 'b');
+
+      // Sync node
+      lines.push('-- SYNC (node 217)');
+      lines.push('node 217');
+      lines.push('/\\');
+      lines.push(`loop{n=${totalRows}}`);
+      lines.push('/\\ recv{port=0x145}');
+      lines.push('/\\ send{port=0x15D, value=0x20000}');
+      lines.push('/\\ again{}');
+      lines.push('/\\');
+      lines.push('send{port=0x15D, value=0x30000}');
+
+      return lines.join('\n');
     }
 
     case 'cube_rect': {

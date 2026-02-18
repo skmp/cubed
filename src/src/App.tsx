@@ -83,6 +83,10 @@ function App() {
     }
   }, [compileAndLoad]);
 
+  const handleRecurseOutput = useCallback((output: string) => {
+    compileAndLoad(output, { asLanguage: 'cube' });
+  }, [compileAndLoad]);
+
   if (!snapshot) return null;
 
   const sourceMap = cubeCompileResult?.sourceMap ?? null;
@@ -119,7 +123,7 @@ function App() {
         }
         editorTab={
           language === 'recurse' ? (
-            <RecursePanel />
+            <RecursePanel onOutputChange={handleRecurseOutput} />
           ) : (
             <>
               {language === 'cube' && (

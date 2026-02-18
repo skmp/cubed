@@ -3,12 +3,14 @@ import { Box, Typography } from '@mui/material';
 import { evaluate } from './dsl';
 import { encodeSource, decodeSource } from '../urlSource';
 
-const STARTER = `CUBE VGA Rectangle Generator
-This program generates a blue-rectangle.cube sample!
-Edit the parameters below to change the output.
+const STARTER = `Palestine Flag — self-referential CUBE VGA generator
+The flag is defined by two data lines below, referenced via $line():
+STRIPES:  160 0 0 0 / 160 1 1 1 / 160 0 1 0
+TRIANGLE: 64 1 0 0 / 192 1 0 0 / 64 1 0 0
+  Black(160 rows), White(160), Green(160) + red triangle overlay.
+  Edit the data above and the generated CUBE code updates live!
 
-Generate a centered blue rectangle on green background:
-@cube_rect(117, 220, 140, 200, 200, 0, 0, 7, 0, 7, 0)`;
+-- @cube_flag(@slice($line(3), 10), @slice($line(4), 10))`;
 
 type ViewMode = 'split' | 'editor' | 'output';
 const VIEW_MODES: ViewMode[] = ['split', 'editor', 'output'];
@@ -40,7 +42,11 @@ const DEFAULT_METRICS: Metrics = {
   darkTheme: true,
 };
 
-export const RecursePanel: React.FC = () => {
+interface RecursePanelProps {
+  onOutputChange?: (output: string) => void;
+}
+
+export const RecursePanel: React.FC<RecursePanelProps> = ({ onOutputChange }) => {
   const [source, setSource] = useState(STARTER);
   const [output, setOutput] = useState('');
   const [errors, setErrors] = useState(0);
@@ -62,7 +68,8 @@ export const RecursePanel: React.FC = () => {
     setOutput(result.output);
     setErrors(result.errors);
     setEvalTime(Math.round((t1 - t0) * 100) / 100);
-  }, []);
+    onOutputChange?.(result.output);
+  }, [onOutputChange]);
 
   // Debounced evaluation
   useEffect(() => {
