@@ -1,8 +1,8 @@
 Palestine Flag — self-referential CUBE VGA generator
-The flag is defined by two data lines below, referenced via $line():
+Flag data is on lines 3 and 4, code on line 8 reads them via line ref
 STRIPES:  160 0 0 0 / 160 1 1 1 / 160 0 1 0
 TRIANGLE: 64 1 0 0 / 192 1 0 0 / 64 1 0 0
   Black(160 rows), White(160), Green(160) + red triangle overlay.
-  Edit the data above and the generated CUBE code updates live!
+  Edit the stripe/triangle data above — output updates live!
 
 -- @cube_flag(@slice($line(3), 10), @slice($line(4), 10))
