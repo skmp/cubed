@@ -100,6 +100,7 @@ export const VGA_NODE_R = 117;
 export const VGA_NODE_G = 617;
 export const VGA_NODE_B = 717;
 export const VGA_NODE_SYNC = 217;
+export const SERIAL_NODE = 317;
 export const SERDES_NODES = [1, 701];
 export const BOOT_NODES = [1, 200, 300, 701, 705, 708];
 export const SYNC_BOOT_NODES = [300];

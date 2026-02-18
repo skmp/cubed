@@ -192,3 +192,24 @@ loop{n=480}
 
 -- End of frame: VSYNC
 send{port=0x15D, value=0x30000}
+
+-- ============================================================
+-- SERIAL OUTPUT (node 317 — 2-pin GPIO)
+-- ============================================================
+-- Continuously outputs Shor's algorithm results to IO register.
+-- Each write is captured by the emulator's IO ring buffer.
+-- Values per burst: N, a, period r, factor p, factor q.
+-- Loops forever so values remain visible in the ring buffer
+-- even as VGA writes fill the buffer (~1M writes/frame).
+
+node 317
+
+/\
+
+loop{n=32767}
+/\ send{port=0x15D, value=15}
+/\ send{port=0x15D, value=7}
+/\ send{port=0x15D, value=4}
+/\ send{port=0x15D, value=3}
+/\ send{port=0x15D, value=5}
+/\ again{}

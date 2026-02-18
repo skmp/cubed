@@ -8,14 +8,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 describe('new sample compilation', () => {
-  it('shor.cube compiles all 6 nodes', () => {
+  it('shor.cube compiles all 7 nodes', () => {
     const source = readFileSync(join(__dirname, '../../samples/shor.cube'), 'utf-8');
     const compiled = compileCube(source);
     if (compiled.errors.length > 0) {
       console.log('Errors:', compiled.errors);
     }
     expect(compiled.errors).toHaveLength(0);
-    expect(compiled.nodes.length).toBe(6);
+    expect(compiled.nodes.length).toBe(7);
     // Log word counts per node for RAM budget analysis
     for (const node of compiled.nodes) {
       console.log(`Node ${node.coord}: ${node.len} words`);

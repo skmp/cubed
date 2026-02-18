@@ -10,6 +10,7 @@ import type { EditorLanguage } from '../editor/CodeEditor';
 import { OPCODES } from '../../core/constants';
 import { XOR_ENCODING } from '../../core/types';
 import { VgaDisplay } from '../emulator/VgaDisplay';
+import { SerialOutput } from '../emulator/SerialOutput';
 
 interface CompileOutputPanelProps {
   cubeResult: CubeCompileResult | null;
@@ -53,6 +54,12 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
         <VgaDisplay
           ioWrites={ioWrites}
           ioWriteTimestamps={ioWriteTimestamps}
+          ioWriteCount={ioWriteCount}
+          ioWriteStart={ioWriteStart}
+          ioWriteSeq={ioWriteSeq}
+        />
+        <SerialOutput
+          ioWrites={ioWrites}
           ioWriteCount={ioWriteCount}
           ioWriteStart={ioWriteStart}
           ioWriteSeq={ioWriteSeq}
