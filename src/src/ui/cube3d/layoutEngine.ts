@@ -43,6 +43,8 @@ export interface SceneNode {
   opacity: number;
   parentId?: string;
   ports: PortInfo[];
+  /** AST path for stable identity (e.g., "i0", "i2.c1.i0") */
+  astPath?: string;
 }
 
 export interface PipeInfo {
@@ -56,9 +58,20 @@ export interface PipeInfo {
   toNodeId?: string;
 }
 
+export interface GridCellInfo {
+  col: number;
+  row: number;
+  x: number;      // cell left edge X
+  y: number;      // cell bottom edge Y
+  width: number;
+  height: number;
+}
+
 export interface SceneGraph {
   nodes: SceneNode[];
   pipes: PipeInfo[];
+  /** Grid cell positions for multi-node programs (used for placeholder rendering). */
+  gridCells?: GridCellInfo[];
 }
 
 // ---- Color palette ----
@@ -227,8 +240,39 @@ const PORT_SIZE = 0.25;
 // ---- Main entry point ----
 
 // GA144 grid layout: node groups positioned by chip coordinate (YXX)
-const GRID_CELL_X = 4.0; // horizontal spacing per GA144 column
-const GRID_CELL_Y = 3.0; // vertical spacing per GA144 row
+const GRID_GAP = 1.0; // gap between grid cells
+const MIN_CELL_X = 4.0; // minimum horizontal cell size
+const MIN_CELL_Y = 3.0; // minimum vertical cell size
+
+/** Compute bounding box for a set of scene nodes. */
+function computeBounds(groupNodes: SceneNode[]): { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const n of groupNodes) {
+    const [px, py, pz] = n.position;
+    const [sx, sy, sz] = n.size;
+    minX = Math.min(minX, px - sx / 2);
+    maxX = Math.max(maxX, px + sx / 2);
+    minY = Math.min(minY, py - sy / 2);
+    maxY = Math.max(maxY, py + sy / 2);
+    minZ = Math.min(minZ, pz - sz / 2);
+    maxZ = Math.max(maxZ, pz + sz / 2);
+  }
+  return { minX, maxX, minY, maxY, minZ, maxZ };
+}
+
+/** Translate scene nodes and pipes by an offset vector. */
+function translateGroup(groupNodes: SceneNode[], groupPipes: PipeInfo[], dx: number, dy: number, dz: number) {
+  for (const n of groupNodes) {
+    n.position = [n.position[0] + dx, n.position[1] + dy, n.position[2] + dz];
+    for (const p of n.ports) {
+      p.worldPos = [p.worldPos[0] + dx, p.worldPos[1] + dy, p.worldPos[2] + dz];
+    }
+  }
+  for (const p of groupPipes) {
+    p.from = [p.from[0] + dx, p.from[1] + dy, p.from[2] + dz];
+    p.to = [p.to[0] + dx, p.to[1] + dy, p.to[2] + dz];
+  }
+}
 
 export function layoutAST(program: CubeProgram): SceneGraph {
   idCounter = 0;
@@ -278,20 +322,34 @@ export function layoutAST(program: CubeProgram): SceneGraph {
     return { nodes, pipes };
   }
 
-  // Multiple node groups: position by GA144 grid coordinate (X=col, Y=row, Z=depth)
+  // --- Two-pass layout for multi-node programs ---
+  //
+  // Pass 1: Lay out each group at the origin to measure actual size.
+  // Pass 2: Compute per-column widths and per-row heights from actual
+  //          bounding boxes, then position groups on the grid.
+
+  interface LayoutResult {
+    group: typeof groups[0];
+    col: number;
+    row: number;
+    groupId: string;
+    groupNodes: SceneNode[];
+    groupPipes: PipeInfo[];
+    bounds: ReturnType<typeof computeBounds>;
+    width: number;  // padded width
+    height: number; // padded height
+  }
+
+  const pad = 0.8;
+  const layoutResults: LayoutResult[] = [];
+
   for (const group of groups) {
     if (group.items.length === 0) continue;
 
-    // Compute grid origin from GA144 coordinate (YXX format)
-    let originX = 0, originY = 0;
+    let col = 0, row = -1; // default for unnamed group
     if (group.coord !== null) {
-      const col = group.coord % 100;
-      const row = Math.floor(group.coord / 100);
-      originX = col * GRID_CELL_X;
-      originY = row * GRID_CELL_Y;
-    } else {
-      // Unnamed group (items before first __node): place below grid
-      originY = -GRID_CELL_Y;
+      col = group.coord % 100;
+      row = Math.floor(group.coord / 100);
     }
 
     const groupId = nextId('nodegroup');
@@ -299,35 +357,81 @@ export function layoutAST(program: CubeProgram): SceneGraph {
     const groupPipes: PipeInfo[] = [];
     const conj: Conjunction = { kind: 'conjunction', items: group.items, loc: program.conjunction.loc };
 
-    layoutConjunction(conj, [originX, originY, 0], groupNodes, groupPipes, holderPositions, holderNodeIds, groupId, constructorNames, true);
+    // Layout at origin (0,0,0) — we'll translate later
+    layoutConjunction(conj, [0, 0, 0], groupNodes, groupPipes, holderPositions, holderNodeIds, groupId, constructorNames, true);
 
-    // Compute bounding box of group nodes for the container
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const n of groupNodes) {
-      const [px, py, pz] = n.position;
-      const [sx, sy, sz] = n.size;
-      minX = Math.min(minX, px - sx / 2);
-      maxX = Math.max(maxX, px + sx / 2);
-      minY = Math.min(minY, py - sy / 2);
-      maxY = Math.max(maxY, py + sy / 2);
-      minZ = Math.min(minZ, pz - sz / 2);
-      maxZ = Math.max(maxZ, pz + sz / 2);
-    }
+    const bounds = computeBounds(groupNodes);
+    const width = Math.max((bounds.maxX - bounds.minX) + pad * 2, MIN_CELL_X);
+    const height = Math.max((bounds.maxY - bounds.minY) + pad * 2, MIN_CELL_Y);
 
-    const pad = 0.8;
-    const gw = (maxX - minX) + pad * 2;
-    const gh = (maxY - minY) + pad * 2;
-    const gd = (maxZ - minZ) + pad * 2;
+    layoutResults.push({ group, col, row, groupId, groupNodes, groupPipes, bounds, width, height });
+  }
+
+  // Compute per-column widths and per-row heights
+  const colWidths = new Map<number, number>();
+  const rowHeights = new Map<number, number>();
+
+  for (const r of layoutResults) {
+    colWidths.set(r.col, Math.max(colWidths.get(r.col) ?? MIN_CELL_X, r.width));
+    rowHeights.set(r.row, Math.max(rowHeights.get(r.row) ?? MIN_CELL_Y, r.height));
+  }
+
+  // Sort columns and rows to build cumulative offsets
+  const sortedCols = [...colWidths.keys()].sort((a, b) => a - b);
+  const sortedRows = [...rowHeights.keys()].sort((a, b) => a - b);
+
+  // Build cumulative X positions: each column starts after the previous one ends
+  const colStart = new Map<number, number>();
+  let xCursor = 0;
+  for (const c of sortedCols) {
+    colStart.set(c, xCursor);
+    xCursor += colWidths.get(c)! + GRID_GAP;
+  }
+
+  // Build cumulative Y positions: each row starts after the previous one ends
+  const rowStart = new Map<number, number>();
+  let yCursor = 0;
+  for (const r of sortedRows) {
+    rowStart.set(r, yCursor);
+    yCursor += rowHeights.get(r)! + GRID_GAP;
+  }
+
+  // Pass 2: translate each group to its grid cell and build containers
+  for (const r of layoutResults) {
+    const cellX = colStart.get(r.col) ?? 0;
+    const cellY = rowStart.get(r.row) ?? 0;
+    const cellW = colWidths.get(r.col) ?? MIN_CELL_X;
+    const cellH = rowHeights.get(r.row) ?? MIN_CELL_Y;
+
+    // Center the group content within its cell.
+    // Content was laid out at origin — shift it so its bbox center aligns with cell center.
+    const contentCenterX = (r.bounds.minX + r.bounds.maxX) / 2;
+    const contentCenterY = (r.bounds.minY + r.bounds.maxY) / 2;
+    const contentCenterZ = (r.bounds.minZ + r.bounds.maxZ) / 2;
+    const targetCenterX = cellX + cellW / 2;
+    const targetCenterY = cellY + cellH / 2;
+
+    const dx = targetCenterX - contentCenterX;
+    const dy = targetCenterY - contentCenterY;
+    const dz = -contentCenterZ; // center Z at 0
+
+    translateGroup(r.groupNodes, r.groupPipes, dx, dy, dz);
+
+    // Recompute bounds after translation
+    const finalBounds = computeBounds(r.groupNodes);
+    const gw = (finalBounds.maxX - finalBounds.minX) + pad * 2;
+    const gh = (finalBounds.maxY - finalBounds.minY) + pad * 2;
+    const gd = (finalBounds.maxZ - finalBounds.minZ) + pad * 2;
 
     // Node group container
     nodes.push({
-      id: groupId,
+      id: r.groupId,
       type: 'plane',
-      label: group.label ?? 'global',
+      label: r.group.label ?? 'global',
       position: [
-        (minX + maxX) / 2,
-        (minY + maxY) / 2,
-        (minZ + maxZ) / 2,
+        (finalBounds.minX + finalBounds.maxX) / 2,
+        (finalBounds.minY + finalBounds.maxY) / 2,
+        (finalBounds.minZ + finalBounds.maxZ) / 2,
       ],
       size: [gw, gh, gd],
       color: '#224444',
@@ -336,11 +440,24 @@ export function layoutAST(program: CubeProgram): SceneGraph {
       ports: [],
     });
 
-    nodes.push(...groupNodes);
-    pipes.push(...groupPipes);
+    nodes.push(...r.groupNodes);
+    pipes.push(...r.groupPipes);
   }
 
-  return { nodes, pipes };
+  // Build grid cell info for placeholder rendering
+  const gridCells: GridCellInfo[] = [];
+  for (const [col, x] of colStart) {
+    for (const [row, y] of rowStart) {
+      gridCells.push({
+        col, row,
+        x, y,
+        width: colWidths.get(col) ?? MIN_CELL_X,
+        height: rowHeights.get(row) ?? MIN_CELL_Y,
+      });
+    }
+  }
+
+  return { nodes, pipes, gridCells };
 }
 
 // ---- Conjunction layout ----

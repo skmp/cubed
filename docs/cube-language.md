@@ -465,3 +465,20 @@ node groups to the GA144's physical 18x8 grid:
 
 This makes inter-node port communication (pipes) visible as spatial connections
 between neighboring grid cells, reflecting the chip's physical topology.
+
+### Visual Editing
+
+The 3D Editor tab provides a WYSIWYG structural editor for CUBE programs.
+Edits in the 3D view are synchronized bidirectionally with the text editor.
+
+| 3D Operation | AST Equivalent |
+|-------------|----------------|
+| Right-click → Add Application | `addConjunctionItem(ast, path, app)` |
+| Right-click → Delete | `removeConjunctionItem(ast, path)` |
+| Double-click label → edit text | `updateNodeLabel(ast, path, name)` |
+| Right-click → Edit Value (literal) | `updateLiteralValue(ast, path, val)` |
+| Right-click → Duplicate | Deep-clone item, insert after |
+| Ctrl+Z / Ctrl+Y | Undo/redo via editorStore history stack |
+
+The serializer (`src/src/core/cube/serializer.ts`) provides the round-trip
+guarantee: `parse(serialize(ast))` produces a structurally equivalent AST.

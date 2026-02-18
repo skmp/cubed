@@ -5,6 +5,7 @@ import { MainLayout } from './ui/layout/MainLayout';
 import { CodeEditor } from './ui/editor/CodeEditor';
 import { DebugToolbar } from './ui/toolbar/DebugToolbar';
 import { CubeRenderer } from './ui/cube3d/CubeRenderer';
+import { WysiwygEditor } from './ui/cube3d/WysiwygEditor';
 import { EmulatorPanel } from './ui/emulator/EmulatorPanel';
 import { CompileOutputPanel } from './ui/output/CompileOutputPanel';
 import { useEmulator } from './hooks/useEmulator';
@@ -13,6 +14,7 @@ import { RecursePanel } from './ui/recurse/RecursePanel';
 import { BootStreamModal } from './ui/toolbar/BootStreamModal';
 import { ArrayForthViewer } from './ui/arrayforth/ArrayForthViewer';
 import { decompile } from './core/decompiler';
+import { useEditorStore } from './stores/editorStore';
 
 function App() {
   const {
@@ -38,10 +40,32 @@ function App() {
     setLanguage,
   } = useEmulator();
 
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(1); // Default to Editor tab (index 1 now)
   const [urlSource, setUrlSource] = useState<string | null>(null);
   const editorSourceRef = useRef<string>('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync cubeAst to editorStore when text changes produce a new AST
+  const editorStoreSource = useEditorStore(s => s.source);
+  const editorStoreMutationSource = useEditorStore(s => s.mutationSource);
+
+  useEffect(() => {
+    if (cubeAst && language === 'cube') {
+      // Only update store from text if the mutation didn't originate from 3D
+      if (editorStoreMutationSource !== '3d') {
+        useEditorStore.getState().setAstFromText(cubeAst, editorSourceRef.current);
+      }
+    }
+  }, [cubeAst, language, editorStoreMutationSource]);
+
+  // When 3D editor mutates the AST, recompile
+  useEffect(() => {
+    if (editorStoreMutationSource === '3d' && editorStoreSource) {
+      compileAndLoad(editorStoreSource, { asLanguage: 'cube' });
+      editorSourceRef.current = editorStoreSource;
+      updateUrlSource(editorStoreSource);
+    }
+  }, [editorStoreSource, editorStoreMutationSource, compileAndLoad]);
 
   // Load source from URL ?src= on mount
   useEffect(() => {
@@ -111,7 +135,7 @@ function App() {
             onCompile={handleCompileButton}
             onSetLanguage={(lang) => {
               setLanguage(lang);
-              if (lang === 'recurse') setActiveTab(0);
+              if (lang === 'recurse') setActiveTab(1);
             }}
             onStep={step}
             onStepN={stepN}
@@ -120,6 +144,9 @@ function App() {
             onReset={reset}
             onSetStepsPerFrame={setStepsPerFrame}
           />
+        }
+        wysiwygTab={
+          <WysiwygEditor />
         }
         editorTab={
           language === 'recurse' ? (

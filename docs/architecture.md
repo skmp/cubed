@@ -39,6 +39,31 @@ For multi-node programs (with `node NNN` directives), node groups are positioned
 a grid matching the GA144's 18x8 physical layout: X = column, Y = row, Z = code depth.
 Single-node programs use a flat layout without grid mapping.
 
+## WYSIWYG 3D Editor
+
+The WYSIWYG editor (`src/src/ui/cube3d/WysiwygEditor.tsx`) provides bidirectional
+structural editing of CUBE programs. It is the first tab ("3D Editor") in the layout.
+
+**Architecture:**
+- A Zustand store (`src/src/stores/editorStore.ts`) holds the canonical AST, source
+  text, undo/redo history, selection state, and context menu state.
+- The AST serializer (`src/src/core/cube/serializer.ts`) converts AST back to CUBE source.
+- AST path system (`src/src/core/cube/ast-path.ts`) provides stable, deterministic
+  node identity (e.g., `i0`, `i2.c1.i0`) for mapping between SceneNode IDs and AST nodes.
+- Immutable mutation helpers (`src/src/core/cube/ast-mutations.ts`) provide add/remove/
+  replace/update operations that never modify the original AST.
+
+**Bidirectional sync:**
+1. Text edits (Monaco) → parse → `setAstFromText()` → 3D view updates.
+2. 3D edits (context menu, inline editing) → `applyMutation()` → serialize → recompile.
+3. A `mutationSource` flag ('text' | '3d') prevents infinite loops.
+
+**Editing capabilities:**
+- Right-click context menu: add/delete/duplicate/rename applications, edit values
+- Inline text editing via `EditableLabel` (double-click labels in 3D)
+- Undo/Redo (Ctrl+Z / Ctrl+Y) with bounded history stack
+- Keyboard shortcuts: Delete, F2 (rename), Escape
+
 ## Error Handling
 
 WebGL initialization is guarded with compile/link checks.
