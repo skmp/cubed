@@ -35,4 +35,21 @@ describe('new sample compilation', () => {
     expect(compiled.errors).toHaveLength(0);
     expect(compiled.nodes.length).toBe(7);
   });
+
+  it('RSX.cube compiles all 9 nodes', () => {
+    const source = readFileSync(join(__dirname, '../../samples/RSX.cube'), 'utf-8');
+    const compiled = compileCube(source);
+    if (compiled.errors.length > 0) {
+      console.log('Errors:', compiled.errors);
+    }
+    if (compiled.warnings.length > 0) {
+      console.log('Warnings:', compiled.warnings);
+    }
+    expect(compiled.errors).toHaveLength(0);
+    expect(compiled.nodes.length).toBe(9);
+    // Log word counts per node for RAM budget analysis
+    for (const node of compiled.nodes) {
+      console.log(`Node ${node.coord}: ${node.len} words`);
+    }
+  });
 });

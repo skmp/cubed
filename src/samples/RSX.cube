@@ -1,0 +1,225 @@
+-- RSX: Real Shor's Algorithm — GA144 Implementation
+-- Factors N=15 using VCO thermal noise for random base selection.
+--
+-- Unlike the static shor.cube which displays precomputed results,
+-- RSX performs actual modular exponentiation and period finding
+-- at runtime. Each run selects a different random base 'a' using
+-- thermal noise from a free-running counter on an adjacent node.
+--
+-- Shor's algorithm for N=15:
+--   1. Pick random a coprime to N=15
+--   2. Find period r of f(x) = a^x mod 15
+--   3. If r is even, compute gcd(a^(r/2) - 1, 15) to get factor p
+--   4. q = 15 / p
+--
+-- Valid bases and their periods:
+--   a=2: r=4, a²%15=4,  p=3, q=5
+--   a=4: r=2, a¹%15=4,  p=3, q=5
+--   a=7: r=4, a²%15=4,  p=3, q=5
+--   a=8: r=4, a²%15=4,  p=3, q=5
+--   Non-coprime bases (3,5,6,9) are detected and retried.
+--
+-- Noise source: node 416 runs a free-running increment counter,
+-- sending values east to the compute node. The counter value at
+-- the moment of read depends on thermal timing jitter (~2% at
+-- steady state), making each run nondeterministic.
+--
+-- Architecture: 9 nodes total
+--   VGA: 117 (R relay), 617 (G relay), 717 (B noise),
+--        116 (R feeder), 616 (G feeder), 217 (sync)
+--   Compute: 416 (noise counter) → 417 (Shor's algorithm)
+--   Serial: 317 (IO output)
+
+-- ============================================================
+-- RED DAC RELAY (node 117, analog — VCO noise XOR)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617, analog — VCO noise XOR)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC — VCO NOISE SOURCE (node 717, analog)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x141, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- Decorative VGA bands showing modular exponentiation concept.
+-- Same pattern as shor.cube (a=7 precomputed values).
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Band 1: 7^1 mod 15 = 7 (yellow ~47%)
+loop{n=96}
+/\ fill{value=0x1BB, count=640}
+/\ again{}
+
+/\
+
+-- Band 2: 7^2 mod 15 = 4 (yellow ~27%)
+loop{n=96}
+/\ fill{value=0x1DD, count=640}
+/\ again{}
+
+/\
+
+-- Band 3: 7^3 mod 15 = 13 (yellow ~87%)
+loop{n=96}
+/\ fill{value=0x04E, count=640}
+/\ again{}
+
+/\
+
+-- Band 4: 7^4 mod 15 = 1 (yellow ~7%, period found!)
+loop{n=96}
+/\ fill{value=0x177, count=640}
+/\ again{}
+
+/\
+
+-- Band 5: Factors 3×5 (green only, R=0)
+loop{n=96}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Band 1: 7^1 mod 15 = 7
+loop{n=96}
+/\ fill{value=0x1BB, count=640}
+/\ again{}
+
+/\
+
+-- Band 2: 7^2 mod 15 = 4
+loop{n=96}
+/\ fill{value=0x1DD, count=640}
+/\ again{}
+
+/\
+
+-- Band 3: 7^3 mod 15 = 13
+loop{n=96}
+/\ fill{value=0x04E, count=640}
+/\ again{}
+
+/\
+
+-- Band 4: 7^4 mod 15 = 1
+loop{n=96}
+/\ fill{value=0x177, count=640}
+/\ again{}
+
+/\
+
+-- Band 5: Factors 3×5 (bright green)
+loop{n=96}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}
+
+-- ============================================================
+-- NOISE COUNTER (node 416 — free-running)
+-- ============================================================
+-- Increments a counter and sends it east to node 417.
+-- The send blocks until 417 reads; thermal timing jitter means
+-- the counter value at each read is nondeterministic.
+
+node 416
+
+/\
+
+x = 0
+
+/\
+
+loop{n=32767}
+/\ plus{a=x, b=1, c=x}
+/\ send{port=0x1D5, value=x}
+/\ again{}
+
+-- ============================================================
+-- SHOR'S COMPUTE (node 417 — 1-pin GPIO)
+-- ============================================================
+-- Reads noise from west (node 416), computes Shor's factoring
+-- of N=15, sends results south to node 317 for serial output.
+-- Uses ROM multiply (+*) and ROM divmod for modular arithmetic.
+
+node 417
+
+/\
+
+shor15{noise_port=0x1D5, out_port=0x145}
+
+-- ============================================================
+-- SERIAL OUTPUT (node 317 — 1-pin GPIO)
+-- ============================================================
+-- Relays 5 values from north (node 417) to IO register.
+-- Values: N=15, a, r, p, q — captured by emulator ring buffer.
+
+node 317
+
+/\
+
+loop{n=32767}
+/\ relay{port=0x145, count=5}
+/\ again{}

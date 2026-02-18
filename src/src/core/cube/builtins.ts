@@ -139,6 +139,8 @@ export function emitBuiltin(
       return emitRelay(builder, argMappings);
     case 'noiserelay':
       return emitNoiseRelay(builder, argMappings);
+    case 'shor15':
+      return emitShor15(builder, argMappings, ctx);
     default:
       return false;
   }
@@ -739,5 +741,168 @@ function emitNoiseRelay(
   builder.emitOp(OPCODE_MAP.get('a!')!);                   // A = port addr, pop
   builder.flushWithJump();                                  // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+  return true;
+}
+
+// ---- shor15{noise_port, out_port}: Real Shor's algorithm for N=15 ----
+//
+// Emits a self-contained infinite loop that factors N=15:
+//   1. Reads noise from noise_port, derives random base a ∈ [2..9]
+//   2. Computes a^2 mod 15 to find period; if a²≡1 → r=2, else r=4
+//   3. Verifies coprimality via a^4 ≡ 1 check; retries if not coprime
+//   4. Outputs N=15, a, r, p=3, q=5 via !b to out_port
+//
+// All coprime bases for N=15 in [2..9] yield factors 3 and 5 (since
+// 15 = 3×5 and the GCD extraction always gives {3,5}), so we hardcode
+// the factor output to save ~30 words of GCD computation.
+//
+// The multiply-mod-15 routine is emitted once as a callable subroutine
+// and called 3 times, saving ~30 words vs inlining.
+//
+// RAM: [0]=a.  B=out_port throughout.
+// ROM divmod required (basic/analog nodes: 0x2d6).
+// Total: ~53 words.
+//
+// Stack state is annotated as [T, S, deeper...] R=[rstack]
+
+function emitShor15(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+  ctx: BuiltinContext,
+): boolean {
+  const noisePort = args.get('noise_port');
+  const outPort = args.get('out_port');
+  if (!noisePort || noisePort.literal === undefined) return false;
+  if (!outPort || outPort.literal === undefined) return false;
+  if (ctx.romDivmodAddr === undefined) return false;
+
+  const op = (name: string) => OPCODE_MAP.get(name)!;
+  const lit = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj = () => builder.flushWithJump();
+
+  const divmod = ctx.romDivmodAddr;
+
+  // === SETUP: B = out_port ===
+  lit(outPort.literal);
+  emit('b!');
+  fwj();
+
+  const mainLoop = builder.getLocationCounter();
+
+  // === 1. Read noise, derive a ∈ [2..9] ===
+  lit(noisePort.literal);
+  emit('a!'); emit('@');           // [noise]
+  lit(7);
+  emit('and');                     // [noise & 7]  (0..7)
+  lit(2);
+  emit('.'); emit('+');            // [a]  (2..9)
+
+  // === 2. Store a to RAM[0], keep copy on stack ===
+  // dup lit(0) a! ! → RAM[0]=a, T=a (! pops T, S becomes new T = dup's copy)
+  emit('dup');                     // [a, a]
+  lit(0);
+  emit('a!'); emit('!');           // RAM[0]=a, [a]
+  fwj();
+
+  // === 3. Compute a² mod 15 via subroutine ===
+  builder.addForwardRef('__shor_mulmod');
+  jmp('call', 0);                 // [a²%15]
+
+  // === 4. Period check: a² ≡ 1 (mod 15)? ===
+  // Keep a²%15 on stack for period-4 path via dup.
+  emit('dup');                     // [a²%15, a²%15]
+  lit(1);
+  emit('or');                      // [a²%15 XOR 1, a²%15]
+  // 'if' pops T. If T=0 (a²≡1) → period 2, jump over period-4 jump.
+  // After 'if' pops: T = S = a²%15 in both branches.
+  const period2Addr = builder.getLocationCounter() + 2;
+  jmp('if', period2Addr);         // T=0 → skip to period 2 code
+  builder.addForwardRef('__shor_p4');
+  jmp('jump', 0);                 // T≠0 → period 4 path
+
+  // === PERIOD 2 PATH ===
+  // After 'if' jumped here: T = a²%15 (from S). Don't need it.
+  emit('drop');                    // discard a²%15
+  lit(2);                          // [2]  (r=2)
+  builder.addForwardRef('__shor_output');
+  jmp('jump', 0);                 // → output
+
+  // === PERIOD 4 PATH ===
+  builder.label('__shor_p4');
+  // After 'if' didn't jump, then jump brought us here: T = a²%15
+  // Compute a⁴ = (a²)² by multiplying a²%15 by a, twice more:
+  // a³ = a² × a, then a⁴ = a³ × a.
+  builder.addForwardRef('__shor_mulmod');
+  jmp('call', 0);                 // [a³%15]
+  builder.addForwardRef('__shor_mulmod');
+  jmp('call', 0);                 // [a⁴%15]
+
+  // Coprime check: a⁴ ≡ 1 (mod 15)?
+  lit(1);
+  emit('or');                      // [a⁴%15 XOR 1]
+  // If T=0 → coprime, continue. If T≠0 → not coprime, retry.
+  const p4okAddr = builder.getLocationCounter() + 2;
+  jmp('if', p4okAddr);            // T=0 → coprime
+  jmp('jump', mainLoop);          // not coprime → retry
+
+  // p4ok: coprime confirmed, r=4
+  lit(4);                          // [4]  (r=4)
+
+  // === OUTPUT: N=15, a, r, p=3, q=5 ===
+  builder.label('__shor_output');
+  // T=r. Output 5 values via !b.
+  emit('push');                    // R=r
+  lit(15);
+  emit('!b');                      // output N=15
+  lit(0);
+  emit('a!'); emit('@');           // [a]  (load from RAM[0])
+  fwj();
+  emit('!b');                      // output a
+  emit('pop');                     // [r]
+  fwj();
+  emit('!b');                      // output r
+  lit(3);
+  emit('!b');                      // output p=3
+  lit(5);
+  emit('!b');                      // output q=5
+  jmp('jump', mainLoop);          // loop forever
+
+  // === SUBROUTINE: mulmod15 ===
+  // Pre:  T = multiplier, RAM[0] = a
+  // Post: T = (multiplier × a) mod 15
+  // Clobbers: A, S, R (return addr handled by call/;)
+  builder.label('__shor_mulmod');
+  emit('push');                    // R = [ret_addr, ...], save multiplier... wait
+  // Actually 'call' already pushed return addr to R. So R = [ret_addr].
+  // We need to save the multiplier somewhere. Use R-stack:
+  // At entry: T=multiplier, R=[ret_addr]
+  // push: R=[multiplier, ret_addr], T=S, S=deeper
+  // But we need multiplier back later. And we need A=a.
+  // Load a from RAM[0] into A:
+  lit(0);
+  emit('a!'); emit('@');           // [a, ...] R=[multiplier, ret_addr]
+  emit('a!');                      // A=a. [S_old, ...] R=[multiplier, ret_addr]
+  lit(0);                          // [0, S_old, ...] R=[multiplier, ret_addr]
+  emit('pop');                     // [multiplier, 0, ...] R=[ret_addr]
+  // Setup for +*: A=multiplicand(a), T=multiplier, S=0
+  lit(17);
+  emit('push');                    // R=[17, ret_addr]
+  fwj();                           // skip slot 3 ';' (would pop 17 as P!)
+  const mulLoop = builder.getLocationCounter();
+  emit('+*');
+  jmp('next', mulLoop);           // 18 iterations of +*
+  // T = product (low 18 bits). Now mod 15.
+  lit(15);                         // [15, product]
+  jmp('call', divmod);            // [quotient] S=remainder
+  emit('drop');                    // [remainder] = (multiplier × a) mod 15
+  // Return: ';' at slot 3 pops ret_addr from R to P.
+  builder.flush();                 // flush with ';' at slot 3 → return
+
+  // Resolve forward references within this builtin
+  const refErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(refErrors, 'shor15');
+
   return true;
 }
