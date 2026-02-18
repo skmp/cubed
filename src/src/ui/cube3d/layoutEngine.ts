@@ -226,7 +226,9 @@ const PORT_SIZE = 0.25;
 
 // ---- Main entry point ----
 
-const NODE_GROUP_SPACING_X = 5.0; // horizontal gap between node groups
+// GA144 grid layout: node groups positioned by chip coordinate (YXX)
+const GRID_CELL_X = 4.0; // horizontal spacing per GA144 column
+const GRID_CELL_Y = 3.0; // vertical spacing per GA144 row
 
 export function layoutAST(program: CubeProgram): SceneGraph {
   idCounter = 0;
@@ -248,8 +250,8 @@ export function layoutAST(program: CubeProgram): SceneGraph {
   // Split top-level items into groups by __node directives.
   // Items before the first __node go into an unnamed group.
   // Each __node starts a new group with that node number as label.
-  const groups: { label: string | null; items: ConjunctionItem[] }[] = [];
-  let currentGroup: { label: string | null; items: ConjunctionItem[] } = { label: null, items: [] };
+  const groups: { label: string | null; coord: number | null; items: ConjunctionItem[] }[] = [];
+  let currentGroup: { label: string | null; coord: number | null; items: ConjunctionItem[] } = { label: null, coord: null, items: [] };
 
   for (const item of program.conjunction.items) {
     if (item.kind === 'application' && item.functor === '__node') {
@@ -257,8 +259,9 @@ export function layoutAST(program: CubeProgram): SceneGraph {
       if (currentGroup.items.length > 0 || currentGroup.label !== null) {
         groups.push(currentGroup);
       }
-      const nodeNum = item.args[0]?.value.kind === 'literal' ? String(item.args[0].value.value) : '?';
-      currentGroup = { label: `node ${nodeNum}`, items: [] };
+      const coordVal = item.args[0]?.value.kind === 'literal' ? item.args[0].value.value : null;
+      const nodeNum = coordVal !== null ? String(coordVal) : '?';
+      currentGroup = { label: `node ${nodeNum}`, coord: coordVal, items: [] };
     } else {
       currentGroup.items.push(item);
     }
@@ -275,17 +278,28 @@ export function layoutAST(program: CubeProgram): SceneGraph {
     return { nodes, pipes };
   }
 
-  // Multiple node groups: lay each group along X, items within each group along Z
-  let xCursor = 0;
+  // Multiple node groups: position by GA144 grid coordinate (X=col, Y=row, Z=depth)
   for (const group of groups) {
     if (group.items.length === 0) continue;
+
+    // Compute grid origin from GA144 coordinate (YXX format)
+    let originX = 0, originY = 0;
+    if (group.coord !== null) {
+      const col = group.coord % 100;
+      const row = Math.floor(group.coord / 100);
+      originX = col * GRID_CELL_X;
+      originY = row * GRID_CELL_Y;
+    } else {
+      // Unnamed group (items before first __node): place below grid
+      originY = -GRID_CELL_Y;
+    }
 
     const groupId = nextId('nodegroup');
     const groupNodes: SceneNode[] = [];
     const groupPipes: PipeInfo[] = [];
     const conj: Conjunction = { kind: 'conjunction', items: group.items, loc: program.conjunction.loc };
 
-    layoutConjunction(conj, [xCursor, 0, 0], groupNodes, groupPipes, holderPositions, holderNodeIds, groupId, constructorNames, true);
+    layoutConjunction(conj, [originX, originY, 0], groupNodes, groupPipes, holderPositions, holderNodeIds, groupId, constructorNames, true);
 
     // Compute bounding box of group nodes for the container
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -324,8 +338,6 @@ export function layoutAST(program: CubeProgram): SceneGraph {
 
     nodes.push(...groupNodes);
     pipes.push(...groupPipes);
-
-    xCursor += gw + NODE_GROUP_SPACING_X;
   }
 
   return { nodes, pipes };

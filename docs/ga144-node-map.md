@@ -165,3 +165,10 @@ For a node at position (Y, XX):
 - **Left neighbor**: (Y, XX-1) — if XX > 0
 
 Edge nodes missing a neighbor on one side have GPIO pins instead of that port. Reading/writing to a non-existent neighbor port accesses the external pin circuitry.
+
+## 3D Visualization Mapping
+
+In the CUBE 3D visualization, multi-node programs use the YXX coordinate to position
+each node group on a grid matching the physical chip layout. The X axis maps to the
+column (0-17), Y axis to the row (0-7), and Z axis represents code depth within each
+node. See `docs/cube-language.md` section 12 for details.

@@ -32,6 +32,13 @@ The IO write stream is stored as a ring buffer with a monotonic sequence counter
 When a new VSYNC arrives, the buffer advances to keep only the most recent frame.
 If the UI falls behind and data is overwritten, the display forces a full redraw.
 
+## 3D CUBE Visualization
+
+The CUBE 3D renderer (`src/src/ui/cube3d/`) uses Three.js to display program structure.
+For multi-node programs (with `node NNN` directives), node groups are positioned on
+a grid matching the GA144's 18x8 physical layout: X = column, Y = row, Z = code depth.
+Single-node programs use a flat layout without grid mapping.
+
 ## Error Handling
 
 WebGL initialization is guarded with compile/link checks.

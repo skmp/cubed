@@ -451,3 +451,17 @@ architecture:
 | Predicate definitions with multiple clauses | Multi-node programs with role assignment |
 | Holder cubes (logic variables) | Node-local memory (64 words RAM) |
 | Pipes as implicit communication | Neighbor-to-neighbor port communication |
+
+### Spatial Mapping to GA144
+
+When a CUBE program contains `node NNN` directives, the 3D visualization maps
+node groups to the GA144's physical 18x8 grid:
+
+| Axis | Semantic |
+|------|----------|
+| **X** | GA144 column (0-17, left to right) |
+| **Y** | GA144 row (0-7, bottom to top) |
+| **Z** | Code depth (definitions and operations within each node) |
+
+This makes inter-node port communication (pipes) visible as spatial connections
+between neighboring grid cells, reflecting the chip's physical topology.
