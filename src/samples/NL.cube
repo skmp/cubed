@@ -76,10 +76,14 @@ loop{n=160}
 /\ fill{value=0x0AA, count=640}
 /\ again{}
 
+/\
+
 -- White stripe (middle): R = max
 loop{n=160}
 /\ fill{value=0x0AA, count=640}
 /\ again{}
+
+/\
 
 -- Blue stripe (bottom): R = 0
 loop{n=160}
@@ -104,10 +108,14 @@ loop{n=160}
 /\ fill{value=0x155, count=640}
 /\ again{}
 
+/\
+
 -- White stripe (middle): G = max
 loop{n=160}
 /\ fill{value=0x0AA, count=640}
 /\ again{}
+
+/\
 
 -- Blue stripe (bottom): G = 0
 loop{n=160}
@@ -132,10 +140,14 @@ loop{n=160}
 /\ fill{value=0x155, count=640}
 /\ again{}
 
+/\
+
 -- White stripe (middle): B = max
 loop{n=160}
 /\ fill{value=0x0AA, count=640}
 /\ again{}
+
+/\
 
 -- Blue stripe (bottom): B = max
 loop{n=160}

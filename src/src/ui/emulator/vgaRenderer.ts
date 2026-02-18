@@ -19,9 +19,6 @@ for (let i = 0; i < 512; i++) {
   DAC_TO_8BIT[i] = (i * 255 / 511) | 0;
 }
 
-// Maximum pixels per row for per-channel indexing buffers
-const MAX_ROW_WIDTH = 1024;
-
 /** Mutable state carried across incremental render calls. */
 export interface VgaRenderState {
   cursor: { x: number; y: number };
@@ -29,20 +26,6 @@ export interface VgaRenderState {
   lastDrawnSeq: number;
   forceFullRedraw: boolean;
   lastHasSyncSignals: boolean | null;
-  /** Last-seen channel values (fallback when buffer index is out of range) */
-  pendingR: number;
-  pendingG: number;
-  pendingB: number;
-  /** Per-row channel write counts */
-  channelRowR: number;
-  channelRowG: number;
-  channelRowB: number;
-  /** Pixels already emitted for current row */
-  channelEmitted: number;
-  /** Per-row indexed buffers for R, G, B channel values */
-  channelRBuf: Uint8Array;
-  channelGBuf: Uint8Array;
-  channelBBuf: Uint8Array;
 }
 
 export function createRenderState(): VgaRenderState {
@@ -52,16 +35,6 @@ export function createRenderState(): VgaRenderState {
     lastDrawnSeq: 0,
     forceFullRedraw: false,
     lastHasSyncSignals: null,
-    pendingR: 0,
-    pendingG: 0,
-    pendingB: 0,
-    channelRowR: 0,
-    channelRowG: 0,
-    channelRowB: 0,
-    channelEmitted: 0,
-    channelRBuf: new Uint8Array(MAX_ROW_WIDTH),
-    channelGBuf: new Uint8Array(MAX_ROW_WIDTH),
-    channelBBuf: new Uint8Array(MAX_ROW_WIDTH),
   };
 }
 
@@ -85,12 +58,14 @@ export function clearToBlack(data: Uint8Array): void {
 
 /**
  * Render IO writes into an RGBA texture buffer.
- * This is the core rendering logic extracted from VgaDisplay's useEffect.
  *
- * When timestamps are provided, HSYNC deferral uses timestamp comparison:
- * if an R write has the same timestamp as the HSYNC, they happened in the
- * same global step, so the R write belongs to the line before the HSYNC.
- * Without timestamps, falls back to immediate HSYNC with cursor.x > 0 guard.
+ * Two-pass approach for multi-channel sync:
+ * 1. First pass: collect per-channel write arrays (R[], G[], B[]) ignoring sync signals
+ * 2. Second pass: combine by index — pixel N = (R[N], G[N], B[N]) — and lay out rows
+ *    using HSYNC/VSYNC R-count boundaries.
+ *
+ * This handles channels arriving in any order and at different rates, since each
+ * channel's writes are indexed independently by their per-channel sequence number.
  *
  * Returns true if the texture was modified (dirty).
  */
@@ -121,14 +96,10 @@ export function renderIoWrites(
     cursor.x = 0;
     cursor.y = 0;
     state.forceFullRedraw = false;
-    state.pendingR = 0; state.pendingG = 0; state.pendingB = 0;
-    state.channelRowR = 0; state.channelRowG = 0; state.channelRowB = 0;
-    state.channelEmitted = 0;
     if (streamReset) {
       state.hasReceivedSignal = false;
       fillNoise(texData);
     } else if (state.hasReceivedSignal) {
-      // Only clear to black if there is subsequent pixel data
       let hasSubsequentDacWrite = false;
       for (let lookSeq = seq + 1; lookSeq < ioWriteSeq; lookSeq++) {
         const lookOffset = lookSeq - startSeq;
@@ -150,66 +121,18 @@ export function renderIoWrites(
     }
   }
 
-  // Per-channel indexing: R, G, B relays may produce writes at different rates.
-  // G and B can run ahead of R due to R's sync signal overhead, or R can arrive
-  // first in the initial row. We buffer all three channels by index and emit
-  // pixels when the minimum of all three counts advances.
-  let { pendingR, pendingG, pendingB } = state;
-  let rCount = state.channelRowR;
-  let gCount = state.channelRowG;
-  let bCount = state.channelRowB;
-  const rBuf = state.channelRBuf;
-  const gBuf = state.channelGBuf;
-  const bBuf = state.channelBBuf;
-  let emitted = state.channelEmitted; // pixels already emitted for current row
+  // Pass 1: Collect all R, G, B values into per-channel arrays.
+  // Also collect HSYNC/VSYNC positions (by R-write index) for row layout.
+  const rVals: number[] = [];
+  const gVals: number[] = [];
+  const bVals: number[] = [];
+  // Row boundaries: rIndex at which each HSYNC occurs
+  const hsyncAtR: number[] = [];
+  let vsyncAtR = -1;
   let pendingHsyncTs = -1;
-  // Track G/B count at the time HSYNC arrived, so we can identify
-  // writes that arrived after HSYNC (belonging to the next row).
-  let hsyncGCount = -1;
-  let hsyncBCount = -1;
 
-  /** Emit all pixels where we have all three channel values */
-  const flushPixels = () => {
-    const ready = Math.min(rCount, gCount, bCount);
-    while (emitted < ready) {
-      if (cursor.y < texH && cursor.x < texW) {
-        const texOff = (cursor.y * texW + cursor.x) * 4;
-        texData[texOff]     = emitted < rBuf.length ? rBuf[emitted] : 0;
-        texData[texOff + 1] = emitted < gBuf.length ? gBuf[emitted] : 0;
-        texData[texOff + 2] = emitted < bBuf.length ? bBuf[emitted] : 0;
-        texData[texOff + 3] = 255;
-      }
-      cursor.x++;
-      emitted++;
-      if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
-    }
-  };
-
-  /** Start a new row, preserving G/B writes that arrived after HSYNC */
-  const startNewRow = () => {
-    // G/B writes between HSYNC and now belong to the new row.
-    // Copy them to the start of the buffer.
-    let newG = 0, newB = 0;
-    if (hsyncGCount >= 0) {
-      for (let i = hsyncGCount; i < gCount && newG < gBuf.length; i++) {
-        gBuf[newG++] = gBuf[i];
-      }
-    }
-    if (hsyncBCount >= 0) {
-      for (let i = hsyncBCount; i < bCount && newB < bBuf.length; i++) {
-        bBuf[newB++] = bBuf[i];
-      }
-    }
-    rCount = 0;
-    gCount = newG;
-    bCount = newB;
-    emitted = 0;
-    hsyncGCount = -1;
-    hsyncBCount = -1;
-  };
-
-  for (; seq < ioWriteSeq; seq++) {
-    const offset = seq - startSeq;
+  for (let s = seq; s < ioWriteSeq; s++) {
+    const offset = s - startSeq;
     if (offset < 0 || offset >= ioWriteCount) continue;
     const tagged = readIoWrite(ioWrites, ioWriteStart, offset);
     const coord = taggedCoord(tagged);
@@ -217,81 +140,96 @@ export function renderIoWrites(
 
     if (hasSyncSignals) {
       if (isVsync(tagged)) {
-        flushPixels();
-        cursor.y = 0; cursor.x = 0;
+        vsyncAtR = rVals.length;
         pendingHsyncTs = -1;
-        rCount = 0; gCount = 0; bCount = 0; emitted = 0;
         continue;
       }
       if (isHsync(tagged)) {
         if (ioWriteTimestamps) {
           pendingHsyncTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
-          // Record current G/B counts so we know which writes arrived after HSYNC
-          hsyncGCount = gCount;
-          hsyncBCount = bCount;
         } else {
-          flushPixels();
-          if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
-          rCount = 0; gCount = 0; bCount = 0; emitted = 0;
-          hsyncGCount = -1; hsyncBCount = -1;
+          hsyncAtR.push(rVals.length);
         }
         continue;
       }
     }
 
-    // DAC channel writes — decode and buffer by per-channel index
     if (coord === VGA_NODE_R) {
       if (!state.hasReceivedSignal) {
         state.hasReceivedSignal = true;
         clearToBlack(texData);
       }
-
-      // Resolve deferred HSYNC before processing this R write
+      // Resolve deferred HSYNC
       if (pendingHsyncTs >= 0 && ioWriteTimestamps) {
         const rTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
         if (rTs === pendingHsyncTs) {
-          // Same step — this R belongs to the line before HSYNC.
-          // Buffer the R, flush, then advance line.
-          if (rCount < rBuf.length) rBuf[rCount] = DAC_TO_8BIT[decodeDac(val)];
-          rCount++;
-          flushPixels();
-          cursor.y++; cursor.x = 0;
-          startNewRow();
+          // Same step — R belongs to the line before HSYNC
+          rVals.push(DAC_TO_8BIT[decodeDac(val)]);
+          hsyncAtR.push(rVals.length);
           pendingHsyncTs = -1;
           continue;
         } else {
-          // Different step — HSYNC precedes this R write.
-          flushPixels();
-          if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
-          startNewRow();
+          // Different step — HSYNC was a real line break before this R
+          hsyncAtR.push(rVals.length);
           pendingHsyncTs = -1;
         }
       }
-
-      if (rCount < rBuf.length) rBuf[rCount] = DAC_TO_8BIT[decodeDac(val)];
-      rCount++;
+      rVals.push(DAC_TO_8BIT[decodeDac(val)]);
     } else if (coord === VGA_NODE_G) {
-      if (gCount < gBuf.length) gBuf[gCount] = DAC_TO_8BIT[decodeDac(val)];
-      gCount++;
+      gVals.push(DAC_TO_8BIT[decodeDac(val)]);
     } else if (coord === VGA_NODE_B) {
-      if (bCount < bBuf.length) bBuf[bCount] = DAC_TO_8BIT[decodeDac(val)];
-      bCount++;
-    } else {
-      continue;
+      bVals.push(DAC_TO_8BIT[decodeDac(val)]);
     }
-
-    // Try to emit completed pixels
-    flushPixels();
   }
 
-  // Persist state for next incremental call
-  state.pendingR = pendingR;
-  state.pendingG = pendingG;
-  state.pendingB = pendingB;
-  state.channelRowR = rCount;
-  state.channelRowG = gCount;
-  state.channelRowB = bCount;
-  state.channelEmitted = emitted;
+  // Pass 2: Render pixels by combining R, G, B arrays by index.
+  // Use HSYNC boundaries to determine row breaks.
+  let rIdx = 0;
+  let hsyncIdx = 0;
+
+  // Handle VSYNC: reset cursor if present
+  if (vsyncAtR >= 0 && vsyncAtR === 0) {
+    cursor.x = 0;
+    cursor.y = 0;
+  }
+
+  for (rIdx = 0; rIdx < rVals.length; rIdx++) {
+    // Check for VSYNC at this R index
+    if (vsyncAtR >= 0 && rIdx === vsyncAtR) {
+      cursor.x = 0;
+      cursor.y = 0;
+    }
+
+    // Check for HSYNC at this R index
+    while (hsyncIdx < hsyncAtR.length && hsyncAtR[hsyncIdx] === rIdx) {
+      if (cursor.x > 0) {
+        cursor.y++;
+        cursor.x = 0;
+      }
+      hsyncIdx++;
+    }
+
+    // Combine R, G, B by index
+    const r = rVals[rIdx];
+    const g = rIdx < gVals.length ? gVals[rIdx] : 0;
+    const b = rIdx < bVals.length ? bVals[rIdx] : 0;
+
+    if (cursor.y < texH && cursor.x < texW) {
+      const texOff = (cursor.y * texW + cursor.x) * 4;
+      texData[texOff]     = r;
+      texData[texOff + 1] = g;
+      texData[texOff + 2] = b;
+      texData[texOff + 3] = 255;
+    }
+    cursor.x++;
+    if (!hasSyncSignals && cursor.x >= texW) { cursor.x = 0; cursor.y++; }
+  }
+
+  // Handle trailing HSYNC after last pixel
+  while (hsyncIdx < hsyncAtR.length && hsyncAtR[hsyncIdx] === rVals.length) {
+    if (cursor.x > 0) { cursor.y++; cursor.x = 0; }
+    hsyncIdx++;
+  }
 
   state.lastDrawnSeq = ioWriteSeq;
   return true;

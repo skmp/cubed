@@ -309,6 +309,16 @@ describe('FR.cube French flag sample', () => {
       snap.ioWriteTimestamps,
     );
 
+    // Verify first 5 rows individually
+    for (let y = 0; y < 5; y++) {
+      const row: string[] = [];
+      for (const x of [0, 1, 2, 213, 214, 427, 639]) {
+        const off = (y * texW + x) * 4;
+        row.push(`x=${x}(${texData[off]},${texData[off+1]},${texData[off+2]})`);
+      }
+      console.log(`Row ${y}: ${row.join(' ')}`);
+    }
+
     // Check pixels in the blue stripe (x=100, y=240 — middle of frame)
     const checkPixel = (x: number, y: number) => {
       const off = (y * texW + x) * 4;

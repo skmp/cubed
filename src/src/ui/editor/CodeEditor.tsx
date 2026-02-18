@@ -25,6 +25,7 @@ import samplePS from '../../../samples/PS.cube?raw';
 import sampleFR from '../../../samples/FR.cube?raw';
 import sampleNL from '../../../samples/NL.cube?raw';
 import sampleUN from '../../../samples/UN.cube?raw';
+import sampleShor from '../../../samples/shor.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
@@ -34,6 +35,7 @@ const CUBE_SAMPLES: Record<string, string> = {
   'UN': sampleUN,
   'PS': samplePS,
   'CH': sampleCH,
+  'Shor (N=15)': sampleShor,
   'Blue Rectangle': sampleBlueRectangle,
   'MD5 Hash': sampleMd5Hash,
   'Feature Demo': sampleFeatureDemo,

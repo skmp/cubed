@@ -1,0 +1,201 @@
+-- Shor's Algorithm (Classical Core) — GA144 VGA Visualization
+-- Factors N=15 using modular exponentiation + period finding + GCD.
+--
+-- Shor's algorithm for N=15, a=7:
+--   1. Pick a=7 coprime to N=15
+--   2. Find period r of f(x) = 7^x mod 15:
+--      7^1 ≡ 7  (mod 15)
+--      7^2 ≡ 4  (mod 15)
+--      7^3 ≡ 13 (mod 15)
+--      7^4 ≡ 1  (mod 15) → period r = 4
+--   3. Since r=4 is even, compute factors:
+--      gcd(7^(r/2) - 1, N) = gcd(7^2 - 1, 15) = gcd(48, 15) = 3
+--      gcd(7^(r/2) + 1, N) = gcd(7^2 + 1, 15) = gcd(50, 15) = 5
+--   Result: 15 = 3 × 5 ✓
+--
+-- The modular exponentiation sequence and factors are rendered as
+-- intensity bars on VGA. Each band's brightness encodes the value.
+--
+-- Architecture: feeder-relay pipeline (same as CH.cube / FR.cube).
+--   Feeder nodes (116, 616, 716) generate pixel data via fill{}
+--   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
+--   DAC relay nodes (117, 617, 717) read from west and write to IO.
+--   R relay (117) signals sync node (217) after each row for HSYNC.
+--
+-- VGA output (640x480): 5 horizontal intensity bands
+--   Band 1 (rows 0-95):    7^1 mod 15 = 7   (yellow ~47%)
+--   Band 2 (rows 96-191):  7^2 mod 15 = 4   (yellow ~27%)
+--   Band 3 (rows 192-287): 7^3 mod 15 = 13  (yellow ~87%)
+--   Band 4 (rows 288-383): 7^4 mod 15 = 1   (yellow ~7%) ← period!
+--   Band 5 (rows 384-479): Factors 3×5       (bright green)
+--
+-- DAC XOR encoding: level ^ 0x155. Zero=0x155, Max=0x0AA.
+-- Intensity for value v: DAC = floor(v * 511 / 15) ^ 0x155
+--   v=7:  238 ^ 0x155 = 0x1BB    v=4:  136 ^ 0x155 = 0x1DD
+--   v=13: 443 ^ 0x155 = 0x04E    v=1:  34  ^ 0x155 = 0x177
+
+-- ============================================================
+-- RED DAC RELAY (node 117)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- Yellow bands (R+G): R intensity encodes a^x mod 15 values.
+-- Factor band: R = 0 (green only).
+-- 4 period bands of 96 rows + 1 factor band of 96 rows = 480.
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Band 1: 7^1 mod 15 = 7 (yellow ~47%)
+loop{n=96}
+/\ fill{value=0x1BB, count=640}
+/\ again{}
+
+/\
+
+-- Band 2: 7^2 mod 15 = 4 (yellow ~27%)
+loop{n=96}
+/\ fill{value=0x1DD, count=640}
+/\ again{}
+
+/\
+
+-- Band 3: 7^3 mod 15 = 13 (yellow ~87%)
+loop{n=96}
+/\ fill{value=0x04E, count=640}
+/\ again{}
+
+/\
+
+-- Band 4: 7^4 mod 15 = 1 (yellow ~7%, period found!)
+loop{n=96}
+/\ fill{value=0x177, count=640}
+/\ again{}
+
+/\
+
+-- Band 5: Factors 3×5 (green only, R=0)
+loop{n=96}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+-- Yellow bands: G = same as R. Factor band: G = max.
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Band 1: 7^1 mod 15 = 7
+loop{n=96}
+/\ fill{value=0x1BB, count=640}
+/\ again{}
+
+/\
+
+-- Band 2: 7^2 mod 15 = 4
+loop{n=96}
+/\ fill{value=0x1DD, count=640}
+/\ again{}
+
+/\
+
+-- Band 3: 7^3 mod 15 = 13
+loop{n=96}
+/\ fill{value=0x04E, count=640}
+/\ again{}
+
+/\
+
+-- Band 4: 7^4 mod 15 = 1
+loop{n=96}
+/\ fill{value=0x177, count=640}
+/\ again{}
+
+/\
+
+-- Band 5: Factors 3×5 (bright green)
+loop{n=96}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE FEEDER (node 716)
+-- ============================================================
+-- All bands: B = 0 (yellow = R+G, green = G only).
+
+node 716
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+loop{n=480}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}

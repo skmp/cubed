@@ -315,9 +315,6 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     rs.cursor.y = 0;
     rs.lastDrawnSeq = 0;
     rs.hasReceivedSignal = false;
-    rs.pendingR = 0; rs.pendingG = 0; rs.pendingB = 0;
-    rs.channelRowR = 0; rs.channelRowG = 0; rs.channelRowB = 0;
-    rs.channelEmitted = 0;
     fillNoise(texDataRef.current);
     dirtyRef.current = true;
     // Reset resolution tracking state — necessary to sync with ref reset above
