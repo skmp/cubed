@@ -13,8 +13,8 @@
  *   GA144 (SerDes) -> splat_store -> project -> sort -> rasterize -> /dev/fb0
  */
 
-#define SCREEN_W  640
-#define SCREEN_H  480
+#define DEFAULT_W  640
+#define DEFAULT_H  480
 #define MAX_SPLATS 50000
 
 /* Tile-based rasterizer settings.
@@ -22,8 +22,6 @@
  * instead of thrashing DDR3 on every pixel blend. */
 #define TILE_W    32
 #define TILE_H    32
-#define TILES_X   (SCREEN_W / TILE_W)   /* 20 */
-#define TILES_Y   (SCREEN_H / TILE_H)   /* 15 */
 
 /* ---- Raw splat as stored / received from GA144 ---- */
 typedef struct {
@@ -62,6 +60,10 @@ typedef struct {
 typedef struct {
     /* mmap'd /dev/fb0 - RGB565 (16bpp) or ARGB8888 (32bpp) */
     void     *pixels;
+    int       width;    /* render width in pixels */
+    int       height;   /* render height in pixels */
+    int       tiles_x;  /* width / TILE_W */
+    int       tiles_y;  /* height / TILE_H */
     int       stride;   /* bytes per line (from fix_screeninfo) */
     int       bpp;      /* bits per pixel: 16 or 32 */
     int       fd;
@@ -95,7 +97,7 @@ void store_init(splat_store_t *store);
 int  store_add(splat_store_t *store, const splat_3d_t *splat);
 
 /* Pipeline */
-void project_splats(splat_store_t *store, const camera_t *cam);
+void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t *fb);
 void sort_splats(splat_store_t *store);
 void rasterize_splats(const splat_store_t *store, framebuf_t *fb);
 
@@ -105,7 +107,7 @@ int  serdes_recv_splats(int fd, splat_store_t *store);
 void serdes_close(int fd);
 
 /* Camera helpers */
-void cam_init(camera_t *cam, float fov_deg);
+void cam_init(camera_t *cam, float fov_deg, int width, int height);
 void cam_lookat(camera_t *cam, float *eye, float *target, float *up);
 
 /* Test / debug */

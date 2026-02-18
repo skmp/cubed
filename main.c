@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     store_init(store);
 
     camera_t cam;
-    cam_init(&cam, 60.0f);
+    cam_init(&cam, 60.0f, fb.width, fb.height);
 
     /* ---- Load data ---- */
     int serdes_fd = -1;
@@ -116,8 +116,8 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "%d splats, %dx%d, tiles %dx%d (%dx%d px)\n",
-            store->count, SCREEN_W, SCREEN_H,
-            TILES_X, TILES_Y, TILE_W, TILE_H);
+            store->count, fb.width, fb.height,
+            fb.tiles_x, fb.tiles_y, TILE_W, TILE_H);
 
     /* ---- Render loop ---- */
     int frame = 0;
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
         /* TODO: poll serdes_fd and double-buffer store */
 
         double t1 = now_ms();
-        project_splats(store, &cam);
+        project_splats(store, &cam, &fb);
         double t2 = now_ms();
         sort_splats(store);
         double t3 = now_ms();

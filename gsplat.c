@@ -67,9 +67,8 @@ static inline float fast_gauss(float d2)
  * FRAMEBUFFER - MiSTer /dev/fb0
  *
  * MiSTer's Linux framebuffer is typically set up by the MiSTer
- * binary. Default is often 720x480 but can vary. We query it
- * and adapt. If the resolution doesn't match SCREEN_W/H, we
- * render at our target res and blit to the center.
+ * binary. We query it and render at the native resolution
+ * (rounded down to tile-aligned).
  * ================================================================ */
 
 int fb_init(framebuf_t *fb)
@@ -84,9 +83,13 @@ int fb_init(framebuf_t *fb)
         perror("open /dev/fb0");
         fprintf(stderr, "No framebuffer - will dump PPM files\n");
         fb->fd = -1;
+        fb->width = DEFAULT_W;
+        fb->height = DEFAULT_H;
         fb->bpp = 32;
-        fb->stride = SCREEN_W * 4;
-        fb->mmap_size = fb->stride * SCREEN_H;
+        fb->stride = fb->width * 4;
+        fb->mmap_size = fb->stride * fb->height;
+        fb->tiles_x = fb->width / TILE_W;
+        fb->tiles_y = fb->height / TILE_H;
         fb->pixels = calloc(1, fb->mmap_size);
         init_exp_lut();
         return 0;
@@ -96,8 +99,15 @@ int fb_init(framebuf_t *fb)
     ioctl(fb->fd, FBIOGET_FSCREENINFO, &finfo);
 
     fb->bpp = vinfo.bits_per_pixel;
-    fprintf(stderr, "MiSTer FB: %dx%d @ %d bpp, stride=%d\n",
-            vinfo.xres, vinfo.yres, fb->bpp, finfo.line_length);
+    /* Round down to tile-aligned resolution */
+    fb->width = (vinfo.xres / TILE_W) * TILE_W;
+    fb->height = (vinfo.yres / TILE_H) * TILE_H;
+    fb->tiles_x = fb->width / TILE_W;
+    fb->tiles_y = fb->height / TILE_H;
+
+    fprintf(stderr, "MiSTer FB: %dx%d @ %d bpp, stride=%d (render %dx%d)\n",
+            vinfo.xres, vinfo.yres, fb->bpp, finfo.line_length,
+            fb->width, fb->height);
 
     if (fb->bpp != 16 && fb->bpp != 32) {
         fprintf(stderr, "ERROR: unsupported %d bpp (need 16 or 32)\n", fb->bpp);
@@ -159,6 +169,7 @@ void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
 {
     int x0 = tile_x * TILE_W;
     int y0 = tile_y * TILE_H;
+    int screen_h = fb->height;
 
     if (fb->bpp == 32) {
         /* ---- ARGB8888 (32bpp) path ---- */
@@ -166,7 +177,7 @@ void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
 
         for (int ty = 0; ty < TILE_H; ty++) {
             int sy = y0 + ty;
-            if (sy >= SCREEN_H) break;
+            if (sy >= screen_h) break;
 
             uint32_t *dst = (uint32_t *)fb->pixels + sy * stride_pixels + x0;
             float *src = &fb->tile_buf[(ty * TILE_W) * 4];
@@ -229,7 +240,7 @@ void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
 
         for (int ty = 0; ty < TILE_H; ty++) {
             int sy = y0 + ty;
-            if (sy >= SCREEN_H) break;
+            if (sy >= screen_h) break;
 
             uint16_t *dst = (uint16_t *)fb->pixels + sy * stride_pixels + x0;
             float *src = &fb->tile_buf[(ty * TILE_W) * 4];
@@ -291,12 +302,12 @@ void fb_dump_ppm(framebuf_t *fb, const char *path)
 {
     FILE *f = fopen(path, "wb");
     if (!f) return;
-    fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
+    fprintf(f, "P6\n%d %d\n255\n", fb->width, fb->height);
 
     if (fb->bpp == 32) {
         int stride_pixels = fb->stride / 4;
-        for (int y = 0; y < SCREEN_H; y++) {
-            for (int x = 0; x < SCREEN_W; x++) {
+        for (int y = 0; y < fb->height; y++) {
+            for (int x = 0; x < fb->width; x++) {
                 uint32_t p = ((uint32_t *)fb->pixels)[y * stride_pixels + x];
                 uint8_t rgb[3] = {
                     (uint8_t)((p >> 16) & 0xFF),
@@ -308,8 +319,8 @@ void fb_dump_ppm(framebuf_t *fb, const char *path)
         }
     } else {
         int stride_pixels = fb->stride / 2;
-        for (int y = 0; y < SCREEN_H; y++) {
-            for (int x = 0; x < SCREEN_W; x++) {
+        for (int y = 0; y < fb->height; y++) {
+            for (int x = 0; x < fb->width; x++) {
                 uint16_t p = ((uint16_t *)fb->pixels)[y * stride_pixels + x];
                 uint8_t rgb[3] = {
                     (uint8_t)(((p >> 11) & 0x1F) * 255 / 31),
@@ -344,13 +355,13 @@ int store_add(splat_store_t *store, const splat_3d_t *splat)
  * CAMERA
  * ================================================================ */
 
-void cam_init(camera_t *cam, float fov_deg)
+void cam_init(camera_t *cam, float fov_deg, int width, int height)
 {
     float fov_rad = fov_deg * (float)(M_PI / 180.0);
-    cam->fy = (SCREEN_H / 2.0f) / tanf(fov_rad / 2.0f);
+    cam->fy = (height / 2.0f) / tanf(fov_rad / 2.0f);
     cam->fx = cam->fy;
-    cam->cx = SCREEN_W / 2.0f;
-    cam->cy = SCREEN_H / 2.0f;
+    cam->cx = width / 2.0f;
+    cam->cy = height / 2.0f;
 
     memset(cam->view, 0, sizeof(cam->view));
     cam->view[0] = cam->view[5] = cam->view[10] = cam->view[15] = 1.0f;
@@ -397,9 +408,11 @@ void cam_lookat(camera_t *cam, float *eye, float *target, float *up)
  * PROJECTION (EWA splatting)
  * ================================================================ */
 
-void project_splats(splat_store_t *store, const camera_t *cam)
+void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t *fb)
 {
     const float *m = cam->view;
+    int screen_w = fb->width;
+    int screen_h = fb->height;
 
     for (int i = 0; i < store->count; i++) {
         splat_3d_t *s3 = &store->splats_3d[i];
@@ -484,8 +497,8 @@ void project_splats(splat_store_t *store, const camera_t *cam)
 
         s2->bbox_x0 = (int16_t)fmaxf(0, s2->sx - rx);
         s2->bbox_y0 = (int16_t)fmaxf(0, s2->sy - ry);
-        s2->bbox_x1 = (int16_t)fminf(SCREEN_W - 1, s2->sx + rx);
-        s2->bbox_y1 = (int16_t)fminf(SCREEN_H - 1, s2->sy + ry);
+        s2->bbox_x1 = (int16_t)fminf(screen_w - 1, s2->sx + rx);
+        s2->bbox_y1 = (int16_t)fminf(screen_h - 1, s2->sy + ry);
 
         /* Pre-convert color to float for blending */
         s2->rf = s3->r / 255.0f;
@@ -684,10 +697,10 @@ static inline void rasterize_splat_tile(
 
 void rasterize_splats(const splat_store_t *store, framebuf_t *fb)
 {
-    for (int tile_y = 0; tile_y < TILES_Y; tile_y++) {
+    for (int tile_y = 0; tile_y < fb->tiles_y; tile_y++) {
         int tpy = tile_y * TILE_H;
 
-        for (int tile_x = 0; tile_x < TILES_X; tile_x++) {
+        for (int tile_x = 0; tile_x < fb->tiles_x; tile_x++) {
             int tpx = tile_x * TILE_W;
 
             /* Clear tile */
