@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { theme } from './ui/theme';
 import { MainLayout } from './ui/layout/MainLayout';
@@ -11,6 +11,8 @@ import { useEmulator } from './hooks/useEmulator';
 import { readUrlSource, updateUrlSource } from './ui/urlSource';
 import { RecursePanel } from './ui/recurse/RecursePanel';
 import { BootStreamModal } from './ui/toolbar/BootStreamModal';
+import { ArrayForthViewer } from './ui/arrayforth/ArrayForthViewer';
+import { decompile } from './core/decompiler';
 
 function App() {
   const {
@@ -84,6 +86,10 @@ function App() {
   if (!snapshot) return null;
 
   const sourceMap = cubeCompileResult?.sourceMap ?? null;
+  const arrayforthSource = useMemo(
+    () => compiledProgram?.nodes ? decompile(compiledProgram.nodes) : '( no compiled program )',
+    [compiledProgram]
+  );
 
   return (
     <ThemeProvider theme={theme}>
@@ -138,6 +144,9 @@ function App() {
               </Box>
             </>
           )
+        }
+        arrayforthTab={
+          <ArrayForthViewer source={arrayforthSource} />
         }
         emulatorTab={
           <EmulatorPanel
