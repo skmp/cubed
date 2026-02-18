@@ -132,6 +132,7 @@ describe('serializer round-trip on sample files', () => {
     'blue-rectangle.cube',
     'CH.cube',
     'PS.cube',
+    'FR.cube',
   ];
 
   for (const file of sampleFiles) {

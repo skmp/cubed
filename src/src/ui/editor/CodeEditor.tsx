@@ -22,10 +22,12 @@ import sampleWireframeSphere from '../../../samples/wireframe-sphere.cube?raw';
 import sampleBlueRectangle from '../../../samples/blue-rectangle.cube?raw';
 import sampleCH from '../../../samples/CH.cube?raw';
 import samplePS from '../../../samples/PS.cube?raw';
+import sampleFR from '../../../samples/FR.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'FR': sampleFR,
   'PS': samplePS,
   'CH': sampleCH,
   'Blue Rectangle': sampleBlueRectangle,
@@ -44,7 +46,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['PS'];
+const DEFAULT_CUBE = CUBE_SAMPLES['FR'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
@@ -65,7 +67,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  const [selectedSample, setSelectedSample] = useState('PS');
+  const [selectedSample, setSelectedSample] = useState('FR');
 
   useEffect(() => {
     onCompileRef.current = onCompile;

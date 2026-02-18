@@ -1,0 +1,132 @@
+-- French Flag (FR) VGA Output (EVB002 7-node architecture)
+-- Renders the French tricolour on a 640x480 framebuffer.
+-- Three vertical stripes: blue (left), white (center), red (right).
+--
+-- Architecture: feeder-relay pipeline (same as CH.cube / PS.cube).
+--   Feeder nodes (116, 616, 716) generate pixel data via fill{}
+--   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
+--   DAC relay nodes (117, 617, 717) read from west and write to IO.
+--   R relay (117) signals sync node (217) after each row for HSYNC.
+--
+-- Flag layout (640x480, full frame):
+--   Blue stripe:  columns 0-213   (214 px)
+--   White stripe: columns 214-426 (213 px)
+--   Red stripe:   columns 427-639 (213 px)
+--
+-- Color breakdown per channel:
+--   R: blue=0, white=max, red=max  -> 214 zero + 426 max
+--   G: blue=0, white=max, red=0    -> 214 zero + 213 max + 213 zero
+--   B: blue=max, white=max, red=0  -> 427 max + 213 zero
+--
+-- DAC XOR encoding:
+--   Zero output: 0x155, Max output: 0x0AA
+
+-- ============================================================
+-- RED DAC RELAY (node 117)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- R = 0 for blue stripe, max for white + red stripes.
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+loop{n=480}
+/\ fill{value=0x155, count=214}
+/\ fill{value=0x0AA, count=426}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+-- G = 0 for blue stripe, max for white, 0 for red.
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+loop{n=480}
+/\ fill{value=0x155, count=214}
+/\ fill{value=0x0AA, count=213}
+/\ fill{value=0x155, count=213}
+/\ again{}
+
+-- ============================================================
+-- BLUE FEEDER (node 716)
+-- ============================================================
+-- B = max for blue + white stripes, 0 for red.
+
+node 716
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+loop{n=480}
+/\ fill{value=0x0AA, count=427}
+/\ fill{value=0x155, count=213}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}
