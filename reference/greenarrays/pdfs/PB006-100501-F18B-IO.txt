@@ -1,0 +1,233 @@
+FEATURES
+
+OVERVIEW
+
+ Software Defined I/O
+
+The F18B computer's I/O repertoire consists of four classes of pins with peripheral
+
+ High impedance (<3pF, >200M) inputs  Low power outputs  ESD protection 10KV HBM  Single io control and status register
+Y  General purpose digital I/O pins
+ Pin wakeup returning an instruction  Analog Input and Output  High speed SERDES
+R  18-bit Parallel Bus
+IMPROVEMENTS in F18B
+A  Smoother DAC with optional load
+ ADC multiplexor can select DAC pin for
+IN calibration or as a second input
+ HBM ESD protection increased  New pin wakeup polarity management
+shortens and simplifies code  Reading a pin returns an instruction,
+shortening and simplifying code.
+IM APPLICATIONS
+ Simple digital input and output points
+L  Simple communications PHY such as  Asynchronous RS232 framing  Synchronous, clock and data E  High speed async >10 Mbit/sec  High speed sync 450 Mbit/sec  Low speed USB, 10baseT
+R  Complex interfaces such as  SRAM/SDRAM control  SPI bus master or slave
+P  Real world interfaces such as
+
+circuitry: General Purpose programmable digital I/O, Analog I/O, 18-bit parallel buses, and a high speed serializer/deserializer (SERDES). Chips may be created with any practical combination of these classes connected to selected edge nodes; the actual functions of the pins are defined by software running in the nodes.
+I/O PINS IN GENERAL: When used for input, our pins are designed to represent highimpedance loads with little capacitance. For output, we design for driving small, capacitive loads, to minimize I/O energy consumption. Some pins are capable of higher power modes of operation. Each pin has ESD protection diodes which begin conducting (.1µA) when the voltage at a pin reaches Vdd+160mV or Vss-100mV. TLP testing of prototype chips indicates Human Body Model ESD protection on the order of 10KV.
+THE IO REGISTER: An 18-bit control and status register, named io and diagrammed below, is each F18B's interface with its I/O circuitry (if any) and comm port handshake lines. In the "READ" line of the table below, the green background indicates signals that, if they exist, come from other nodes or the world outside. If not, they are treated like
+
+BIT 17 16 15 14 13 12 11 10 9 8
+
+reset 0 1 0 1 0 1 0 1 0 1
+
+WRITE
+
+pin 17
+
+ctl
+
+Alt write SR
+
+vco ctl DB
+
+READ
+
+pin 17
+
+Rr-
+
+Rw
+
+Dr- Dw
+
+Lr-
+
+Lw
+
+Ur- Uw
+
+76543210
+
+01010101
+
+pin 5
+
+ctl
+
+pin 3
+
+ctl
+
+pin 1
+
+ctl
+
+9 bit D/A val (155 xor)
+
+pin
+
+pin
+
+pin
+
+5
+
+3
+
+1
+
+the blank bits and simply read the inverse of the last value written to that bit position in io . Read bit Rr- means right port read handshake when 0; Rw means right port write when 1. The adjacent bit pairs apply to the down , left , and up ports. Side nodes lack left , while top and bottom row nodes lack up comm ports. The writable bits of io are initialized, on reset, as though the value shown in the "reset" line had been written into the register. The values shown in "WRITE" pertain to general purpose digital I/O pins, if any; the values in "Alt write" are defined by specific peripherals.
+GENERAL PURPOSE DIGITAL I/O (GPIO) PINS: If a node has such pins, they are identified by the bit position in io at which their state is read. Normal configuration procedures assign pin 17 first, followed by pins 1, 3, and 5 if a node has more than one
+
+ Temperature sensors
+
+pin of this type. State is set by writing a value into the two control bits for a pin. All pins
+
+ LEDs and photodetectors
+
+00 High impedance (tristate)
+
+reset to weak pulldown. The input bit reads the actual
+
+ Shaft encoders
+
+01 Weak pulldown 47 K
+
+present voltage on the pin, 1 if high, regardless of the
+
+ Stepper or DC motors  Low band software defined radio
+
+10 Lo: Sink 22mA to Vss
+
+selected pin state; the computer is fast enough to
+
+11 Hi: Source 22mA from Vdd directly observe the effects of RLC load circuits.
+
+ Human neurons  Novel systems approaches, such as
+ Software operated resonant devices  Software TDR  A wealth of applications not yet
+
+PIN WAKEUP: When a side node reads its left port address, or a top/bottom node its up , the read is suspended while the pin state is the same as it was the last time io was read. The data from the read is an instruction word @b ; . . The pin may be included in any multiport read or execute operation.
+
+imagined or explored
+
+ Featured in GreenArrays GA4-1.2
+
+Two F18B GPIO Pads
+
+Vdd
+
+ANALOG INPUT: The F18B analog to digital converter (ADC) is a high speed, free running counter that can be
+
+Drive hi (11)
+
+read as up or left using a special protocol. Its count
+
+Input
+
+GPIO
+
+down frequency varies between 3.6GHz for Vdd input
+
+and 5.7GHz for Vss, as shown in the typical transfer
+
+function at right. The vco ctl field of io selects mode
+
+as below, with counter disabled on reset to save power.
+
+00 DAC pad
+Y 01 Vdd Calibration
+
+A voltage is measured in the operating range (750mV to 1.3v) by calculating the difference between two
+
+10 Counter disabled 11 ADC pad
+
+readings separated by a known time interval. To assist distribution of a time base for sampling and for driving
+
+R digital signal processing operations, a node with an ADC is supplied with a phantom
+
+wakeup pin, always in input mode, used in cooperation with another node.
+
+ANALOG OUTPUT: The digital to analog converter (DAC) is a programmable current
+A source that can be used to generate a voltage across a resistance
+to ground, or to source an op-amp. By writing the xor of a desired value and hex 155 into the low nine bits of io that value
+IN controls the DAC output. The value 1FF (written as 0AA) sets the
+DAC for maximum current; a value of 0 (written as 155, the reset state) sets minimum current, high impedance output. The typical DAC transfer functions, in mV versus DAC values, into 75, 50, 37.5 and 8 Ohms are shown at right; as the resistance decreases, the voltage decreases and the function becomes
+IM more linear. The S-shaped transfer function is loaded by the internal termination
+transistor (bit T in io zero).
+
+SERDES AND PARALLEL BUS have not been laid out or prototyped yet for F18B. The
+L following descriptions for F18A may be changed upon implementation.
+
+SERDES: The serializer/deserializer peripheral is a high speed (450 Mbit/second) transceiver for 18-bit frames using a half duplex two wire medium (clock and data). On reset the SERDES
+E is in input mode. Writing 1 to bit SR in io sets transmit mode. When in transmit mode,
+writing a word to up is suspended until the previous word has been sent and then begins transmission of the new word. The clock stops if there are no data to transmit. When in receive mode, reading up is suspended until data are available. By jumping to up a node
+R can execute code received via the SERDES. Additional rules apply for initializing the SERDES
+and for management of T and S.
+
+P 18-BIT PARALLEL BUS: This peripheral consists of an 18-bit read/write register addressed as
+
+Drive low (10) Weak PD (01)
+
+pad
+Vss
+
+Pin and pad capacitance 2.95 pF Input leakage 7.5 nA (240 M) Short circuit source 23 mA, sink 22 mA Weak Pulldown 38 µA in saturation
+
+mux
+sel
+
+Vss
+ADC pad
+
+run vco
+
+counter io
+current 9 source
+
+DAC pad
+RL
+
+term
+
+Analog I/O Peripherals
+
+Input
+
+Vdd
+GPIO pad
+
+RS232 input ±12V
+5.1 K
+
+up or left such that each bit corresponds to an I/O pin. The DB bit in io controls bus
+
+direction: 1, its reset state, for output; 0 is tristate (high impedance) input. Unlike general
+
+Vss
+
+purpose pins, reading the port in output mode gives no useful information. A node with this peripheral usually has at least one GPIO pin, or a phantom equivalent, for timing
+
+Protection diodes are useful
+
+synchronization. In this case, operations on the up port wait for pin wakeup while data operates immediately regardless of pin state.
+
+in an RS232 signal receiver
+
+For more information, visit www.GreenArrayChips.com
+© 2010 GreenArrays, Incorporated. Doc PB006-100501. Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
+
+GreenArrays, Inc. 774 Mays Blvd #10 PMB 320 Incline Village, NV 89451
+(775) 298-4748 voice (775) 548-8547 fax sales@GreenArrayChips.com
+
+

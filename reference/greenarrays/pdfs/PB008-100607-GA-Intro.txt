@@ -1,0 +1,66 @@
+Our Mission: To use our unique, proven design tools and a simple, green architecture to develop and market fine granularity, low-power solutions for problems difficult to solve using conventional technology.
+
+PRODUCTS and SERVICES
+ Chip production and sales  Custom design services  Collaboration in product development  Support and education
+ADVANTAGES
+ Save time and money in development  Use these enabling technologies
+ Powerful computing  Small size  Low energy  Low cost  Affordable massive parallelism  Agility through software  Reduced bill of material  Minimize cost with customized chips  Utilize our versatile design assistance
+CHARACTER
+ Frugal with resources  Generous with support  Team has solid record of success  We match your commitment to use our
+technology with ours to support it
+Harris RTX2010 aboard Cassini exploring Saturn's magnetosphere
+
+FOR OUR BUSINESS PARTNERS
+GreenArrays, Inc. is a Nevada Corporation founded in February 2009 to develop innovative multi-computer chips and apply them to challenging problems. We serve you by providing our chips, by assisting in your R&D for leading-edge products including wafer scale electronic or microelectromechanical systems (MEMS), and by collaborating to help you develop commanding products in your market spaces using our technology. We offer a broad range of support and educational services.
+PEOPLE: Our company is the brainchild of Charles H. (Chuck) Moore and his colleagues of many years. We employ an all-star team of scientists and engineers, many cross trained in development of silicon, circuits, application software, and design tools for our chips. Between our internal staff and a long-standing network of affiliated companies and consultants, we can mobilize for your service unbeatable teams of experts with established track records of practical success in product design and development.
+EFFICIENCY, the essence of everything we have to offer you, is what brought us all together beginning in the 1970s with Chuck Moore's invention of a revolutionary new paradigm called Forth for rapidly defining, developing, and testing computer software. Adopters of this paradigm have enjoyed significant competitive advantages ever since. Their solutions require far less code and resources, contain far fewer bugs, take less time and labor to build, and cost less money both initially and through their life cycles than those developed by competing methods. Efficiency of development changes the cost/benefit balance between software creation and re-use; as a result adopters have enjoyed more freedom to work from first principles when appropriate, carefully defining each problem and developing software that directly and succinctly solves it.
+In the 1980s, Chuck expanded the scope of this paradigm by applying first principles to the design of computers, accepting only that level of complexity necessary for practical usefulness. This began with the Novix NC4000 chip which became the Harris RTX2000, and led through evolutionary steps to the full custom silicon designs we offer you today.
+CAPITAL EFFICIENCY is a natural result of our methods. We accomplish our goals with less time and money than do our competitors. We developed our own CAD software, gaining complete design control and agility while eliminating huge costs per designer. We develop full custom silicon for a much lower investment than do others by keeping things simple. Our hardware architects are experienced programmers who expend resources only on essential features. Our chips are well suited for practical use. You will find our prices attractive when compared with other companies of our size because we do not need to wait for the economies of scale to amortize fabulous development costs.
+LONG TERM VIEW: Because we are offering you opportunities that depend on revolutionary products, we owe you a long term commitment to deliver and support those products. Therefore, we intend our company to outlive its founders. Our personnel policies encourage long term employment and continual refreshment of our staff to compensate for aging, and we plan to provide for second sources as we develop suitable relationships.
+IN CONCLUSION, the multi-computer chips from GreenArrays offer an unrivaled combination of great computing power, small size, low energy, and low cost. They are simple and practical. They change the game, enabling new applications in a massively parallel world. If you plan to develop products that could leverage this combination into a commanding position in your market, we exist to help you reach your goal. Please see the reverse side for an outline of the available business relationships.
+
+PROGRESS IN CHIP DESIGN
+
+1985: Novix NC4000P One 8 MIPS CPU External memory & I/O External clock
+
+STRUCTURE OF THE COMPANY:
+GreenArrays
+
+R&D Silicon & Software
+
+Chip Production and Sales
+
+Support Group
+
+Educational Group
+
+Technology Customers
+
+Chip Customers
+
+Schools
+
+Investor Group
+
+Application Partners
+
+Business Collaboration
+Primary Service
+
+GreenArrays has four main operating units to serve the needs of our customers.
+The R&D ORGANIZATION is the heart of our business. This group creates silicon designs and uses them to solve application problems through novel approaches in problem definition, application software and external circuitry. Our technical staff offers custom design services to our Technology Customers, integrating our hardware and software into their silicon, up to wafer scale integration, as well as product definition, design and development using our chips.
+The CHIP PRODUCTION AND SALES unit manages production and delivery of chips and of board level products such as evaluation kits.
+The SUPPORT GROUP maintains and develops libraries of software, documentation, application notes and training materials, making them available as part of its fundamental duties in customer support and training for all customers.
+APPLICATION PARTNERS are independent enterprises formed by outside entrepreneurs who have sound expertise in their market spaces. We will assist in prototype development; product planning, design, and testing; and supplying chips and/or technology to encourage and foster these businesses. We will assist them in finding investors, and envision this as a synergic effort from which our partners will develop lucrative business and GreenArrays will gain chip or license sales as well as revenue from minority equity positions in these enterprises.
+We believe that empowerment and employment of our youth is a sacred duty of all American companies in the 21st century. The EDUCATIONAL GROUP is part of our plan for giving something of value back to Nevada and America by developing and offering packaged courses at Trade School, Junior College, and perhaps even Secondary School levels, covering such subject matter as parallel computing (with hands on programming of our chips), and digital silicon design (with hands on design and actual creation of personal test chips using a subset of our CAD tools).
+For more information, visit www.GreenArrayChips.com
+© 2010 GreenArrays, Incorporated. Doc PB008-100607. Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
+
+2009: GreenArrays GA144 144 complete 666 MIPS computers Integrated memory and I/O; no clock
+SELECTED ACHIEVEMENTS BY OUR STAFF AND AFFILIATES
+High-reliability large-scale networks
+Industrial control
+Radiotelescope control
+GreenArrays, Inc. 774 Mays Blvd #10 PMB 320 Incline Village, NV 89451 (775) 298-4748 voice (775) 548-8547 fax sales@GreenArrayChips.com
+
+

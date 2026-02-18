@@ -1,0 +1,150 @@
+GreenArraysTM
+AN005 Using SchmartBoard with G144A12 Chips
+Application Note AN005 Revised 9/26/11
+
+Using SchmartBoardTM
+SchmartBoard|ezTM P/N 202-0048-01
+with G144A12 Chips
+
+If you don't want to prototype your project on an Evaluation Board, you will generally need to design and fabricate a Printed Circuit Board (PCB) and then assemble the GA144 onto it using reflow solder techniques. This is what we recommend you do since it allows you to employ best practices in heat dissipation, power distribution and decoupling, and signal impedance control as well as producing prototypes that are very near the production article.
+If you are working on a small budget this may still be feasible for you. There are some inexpensive Internet tools for layout and fabrication of PCBs, but if you choose to assemble an SMT board yourself this requires a reflow oven or hot plate, a stencil, solder paste, squeegee and so on. Some uncommonly versatile and determined people have been able to bring this off at home.
+Most of us are not among those hardy souls, and our prospects for bread-boarding SMT parts with small contacts are generally grim. "Dead bug" soldering is all too often literally true as even tack soldering to a QFN pin is tricky to do without melting the package. Now, however, thanks to SchmartBoard and its wonderful "Electronics for Everyone" philosophy, we have been able to arrange a viable alternative.
+GreenArrays deeply appreciates the enthusiastic support of SchmartBoard, Inc. in helping us bring their useful technology to our customers, and we are proud to be a SchmartBoard|ez OEM Partner. This App Note documents our project to validate use of the new SchmartBoard|ez made to fit our 10x10mm QFN-88, 0.4mm pitch package.
+
+Contents
+
+1.
+
+Work Area, Tools and Preparation ..................................................... 2
+
+1.1
+
+Recommended Working Area .................................................................................... 2
+
+2.
+
+Planning for Use ................................................................................ 2
+
+2.1
+
+Connections / headers ............................................................................................... 2
+
+2.2
+
+Power and decoupling ............................................................................................... 3
+
+2.3
+
+Signals for Programming ........................................................................................... 3
+
+3.
+
+Soldering GA144 to the SchmartBoard ...............................................3
+
+4.
+
+Assembly ........................................................................................... 5
+
+5.
+
+Results............................................................................................... 6
+
+5.1
+
+Suggestions ............................................................................................................... 6
+
+AN005 Using SchmartBoard with G144A12 Chips
+1. Work Area, Tools and Preparation
+We recommend that you find a soldering iron with the smallest, narrowest-taper tip you can get (1/64" is almost too big) and a temperature of at least 750 F. You will also need a water soluble solder flux pen such as the Kester 2331-zx. We have found that a magnifier is very useful for small work like this; bench lamps with built-in magnifiers are good, as are head mounted "goggles". We used a Celestron USB microscope for inspection. The best system we have ever used for fine work, though, is to do the work under a binocular microscope.
+We cannot overemphasize the importance of going to the SchmartBoard website, reading all the relevant tutorials, and watching the relevant videos. Watch them repeatedly until you are sure you understand and can imitate the techniques shown. This will help you avoid ruining chips and boards.
+1.1 Recommended Working Area
+You should set up a working area to protect the chips against Electrostatic Discharge (ESD) from your body. We recommend, as a basic precaution, that you use an antistatic mat connected to a single-point earth ground in common with any other equipment in use, and that you wear a wrist strap, as shown in the adjacent photo, while handling chips and throughout all stages of assembling and using your board. Note that these things are available from SchmartBoard.
+If you have any questions about correct procedures, please check our website or contact the hotline for more information
+2. Planning for Use
+Mark Smeder, the man who carried out this exercise, decided that our validation project would be to add a third GA144 to an EVB001 Evaluation Board and to do it in a "worst case" way electrically. This led to some decisions for this particular exercise that may differ from what is appropriate for you. We recommend that you go through the same sort of planning process before you start assembly, so that you don't "paint yourself into a corner."
+2.1 Connections / headers
+Our Evaluation Board's prototyping area is paved with a grid of plated through holes on 0.1" centers. All of the chip pins on each side of the chip are brought to a double row of 0.1" holes on the corresponding side of the SchmartBoard. Since Mark felt it important to prove we could bring all the chip's pins down to the Evaluation Board for use, it seemed logical that he should do this with a square pattern of double row 0.1" headers.
+However, while the double row on the top edge of the SchmartBoard lines up with those on the bottom on a 0.1" grid, and while the double row on the left edge lines up similarly with the double row on the right, the top/bottom sides are offset from the left/right sides by 1/20" in both axes. This is reasonable since it is consistent with the way in which all of the SchmartBoard|ez boards have always been built.
+Since Mark was determined to mount the SchmartBoard directly to our prototyping area, he decided to do whatever was necessary to make that happen. Your requirements may be different and so you may be able to define your problem such that you don't have to do as much work as he did. Note that SchmartBoard has its own method of assembling multiple boards into a project and it is not vertical stacking as such, so this will not likely be a problem for you.
+
+2
+
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+
+AN005 Using SchmartBoard with G144A12 Chips
+2.2 Power and decoupling
+The SchmartBoard|ez is a generic design for any chip in a package like ours. Accordingly it is not optimized for any particular configuration of power and ground pins.
+Ideally, power connections are decoupled to a ground plane as near the chip as the layout permits. As you will see when you examine the Schmartboard, it is infeasible to bypass our sixteen power pins (four on each side) any nearer than 1 cm from the chip best case, or about 1.5 cm worst case, and those distances are all along traces at roughly the usual 1 nH per mm. See the SchmartBoard paper Adding a Decoupling Capacitor for recommended methods of bypassing power pins on the SchmartBoard|ez. We use high quality broadband 0.1F decoupling capacitors from American Technical Ceramics, P/N ATC530L104KT16T, on our own PCBs. Depending on your application you may be able to use something similar.
+In this project, Mark chose to add no decoupling capacitors whatsoever (other than the 10 nF of extremely high quality decoupling capacitors built into the core power distribution grid inside each GA144) in order to show how well the chip will work in that limit condition. We do not recommend that you run this way; as we will see later, hard use of all 144 computers will require decoupling, and considering that the GA144 can switch on the order of 2 amps on its I/O pins when all are taken together, the heavier the loads you use the more important it will become to decouple the power on the SchmartBoard.
+2.3 Signals for Programming
+Mark decided to use simple twisted pair connections for node 708 asynchronous boot, node 300 synchronous boot, and the reset pin between the SchmartBoard and the stake pins on which the Evaluation Board could provide signals to boot and exercise the chip on the SchmartBoard.
+3. Soldering GA144 to the SchmartBoard
+Now that Mark had defined the problem, he was ready to attempt soldering a GA144 chip to the SchmartBoard. We all had good feelings about this because we'd previously tested some of SchmartBoard's claims for its patented SMT hand soldering system. During those tests, Ingrid Bailey, 15, had successfully soldered the pins on one side of an 0.5mm pitch QFP package and Axel Bailey, 13, had successfully soldered another side of that chip, both using a nice OKI iron under a magnifier. Since neither had ever operated a soldering iron before, and since this was the first and only attempt either made at soldering on a SchmartBoard, we were mightily impressed with the system and concluded that the claims were not exaggerated.
+We knew from this experiment that QFN packages were trickier than QFP, particularly in that it was easy to misalign the QFN; the fact that a child can do the soldering does not mean that clumsiness or inattention will yield a working board. So Mark watched the videos carefully, paid attention to details when assembling the boards, and yet still experienced mishaps his first couple of tries. Take it easy, don't get frustrated if your first attempt is not perfect, and learn the techniques by practical application.
+Look at your SchmartBoard. The top side has a central depression in which the die attach paddle on the bottom of the chip will rest. Knowing that after soldering all the pins he would have to solder the die attach paddle to the ground and heat dissipating metal on the bottom of the board, Mark prudently applied some flux around the top edge of the large plated through hole. Not a big smear all over the top of the board, just a coating on the lip of the hole so that solder would later flow better onto the die attach paddle. This proved to be a worthwhile step taken in advance.
+Mark then located pin 1 by the corresponding dots on chip and board, and proceeded to follow SchmartBoard's instructions for aligning the chip with the contact grooves. This is a time when magnification pays off. Mark concluded that using a thin piece of tape helped because it gave him more opportunities to double-check the alignment, which has a habit of shifting as tape is applied. You can't check this too often, and make very certain that the alignment is perfect on all four sides and that the chip is taped down stably before starting to push solder toward the pins.
+
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+
+3
+
+AN005 Using SchmartBoard with G144A12 Chips
+The first attempt was made using an Oki PS800 station with an SFV-CNB04A (0.016, 0.40mm) tip. This was just a little bit large for the grooves and made a mess of things, mixing burnt solder mask residue with the solder. With the wider tip, it seemed to work better with the tip more vertical than horizontal.
+The next attempt was done with an old Weller TC-202 soldering station using a PTS7 (0.015", 0.38mm) tip. That worked better except that the tip had been previously bent and it was therefore hard to keep a desired angle to the board. Mark tried a more vertical angle as had helped with the Oki tip but that did not work as well as it did when he later tried a more horizontal hold. We found another PTS7 tip that was not bent and it worked like a charm, again with a very horizontal / oblique angle to the board. Apparently it is not only important that the tip itself be small, but that the taper behind the tip be narrow; the OKI taper was broader and that is probably why it needed to be more vertical.
+So it seems that the Weller PTS7 is workable, although next time we may try an Oki PS-900 station using the PS-CA1 coil and the PHT-752017 (0.01", 0.25mm) tip, which appears to be nicely tapered.
+Mark felt he'd made an unsightly mess of the first chip and board working out the best combination of soldering tip and angle that he started work on a second to do it right. Unfortunately, even though he felt he had been checking the chip alignment, by the time he got to the last side the pins were misaligned by nearly half a groove. None of the pins appeared to be shorted but he felt this was not yet a good demonstration.
+The third try was the charm; Mark double and triple checked alignment as he added tape to stabilize the chip before pushing solder. Alignment was fine and the solder joints all looked good, as you will see from these photos taken through the Celestron USB microscope.
+That took care of the signals and the power connections. Turning the board over and using a larger soldering tip through the large hole in the center of the board, Mark simultaneously heated the GA144's exposed die attach pad and the square of exposed metal surrounding the hole, feeding solder in after the metal had begun heating. When the metal reached a high enough temperature for the solder to flow outside the diameter of the hole and onto the exposed pad, there was a noticeable drop in the surface of the solder in the hole. He took this as a good time to stop heating, and then a little while later added more solder for more surface area. The result looked like the photograph to the right.
+Next, because the exposed pad is not only a heat sink but is also the single point power and signal ground for the GA144, Mark felt the central metal should be better connected to its surrounding ground plane. So he scraped off about 1.5mm of green solder mask covering the ground plane, as shown here, then soldered it to the central pad. A narrower band of exposed metal did not work well; the solder wanted to wick back onto the central pad. Also, the darker green of the FASTPCB logo seems to be thicker and it appears easy to scrape the ground plane off along with the solder mask when removing the logo, and so we recommend you stop there as shown in this photo.
+
+4
+
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+
+AN005 Using SchmartBoard with G144A12 Chips
+4. Assembly
+The next step was to cut traces on the top side of the board, solder in the male 0.1" headers as seen on the underside of the board above, and add jumpers on the top side of the board so that the headers on all four sides line up with a 0.1" hole grid in both axes. To the right is a photo of the top side of the SchmartBoard after this has been done.
+After the SchmartBoard itself was completed, Mark then tack soldered the female double row headers to the Evaluation Board's prototyping area and verified that everything fit. Now it was time to connect power buses.
+The detail image to the right and the overview image below show the way Mark chose to do this. The solid wire covered by red heat shrink brings VDD from one of the power pins at the periphery of the prototype area and buses it to all 16 power pins. Green heatshrink covered solid wires bring ground in from four points surrounding the proto area, using the three ground plane contact pins in each corner of the SchmartBoard.
+
+For preliminary testing, Mark simply co-opted USB port A to talk to the new chip. He did this by removing the top two jumpers of J23, opening the connections between Port A and node 708 of the Eval Board's Host chip. He also removed the jumper between pins 1 and 3 of J20, so that the reset signal from USB port A would not go to the Host chip either. RESET- to the SchmartBoard was then connected to J20 pin 3, 708.17 to J23 pin 1, and 708.1 to J23 pin 3, with the ground wire of each twisted pair connected to the nearest handy ground stake. (Port B or C could have been used just as readily had he chosen to do so.) In this photo, the lines from SchmartBoard 300.17 and .1 have also been connected to J35 and J34 pins 1.
+
+Finally, Mark arranged for five signal and ground pairs connecting to GA144 pins 708.17 and 708.1 for asynch boot and to 300.17 and 300.1 for synchronous boot, with one more pair to pin 88 for RESET-. These pairs were secured and terminated with Berg pins crimped to the ends of the stranded wires and surrounded by short pieces of heat shrinkable tubing. The resulting modified Evaluation Board is shown below.
+
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+
+5
+
+AN005 Using SchmartBoard with G144A12 Chips
+5. Results
+Mark then connected power very briefly to make sure there were no shorts. (This is actually a safer way to check for shorts than to use an ohmmeter in general, since many ohmmeters will put a higher voltage across the supply rails than many chips can handle; it is however a poor way to check for having power polarity inverted so don't do that!). Satisfied that there were no shorts, Mark proceeded to run the single chip selftest on the Schmartboard and much to our delight the chip passed all tests repeatedly!
+He then gave the chip other exercises with the IDE, and finally decided to run the stress test designed to verify that the chip will survive having all nodes busy running the same compute bound program for five minutes or so, and that all nodes thus involved get the right answer. This test has passed on all of our custom PCBs. However, as we expected, it did not pass on the un-bypassed SchmartBoard with all 144 nodes busy. It did pass at 80 nodes, and it failed at 100 nodes, so somewhere in between there is enough dynamic activity on the power buses that more than 10 nF would be required to keep them quiet.
+This is quite encouraging enough for us. 80 active nodes means more than 50 billion instructions per second peak, and to be able to do that on a hand soldered board with no decoupling capacitors added yet is satisfyingly amazing.
+When we have time to work on this again, we'll give the synchronous communications some exercise, but that may turn out to be more of a test of the twisted pair at the synchronous communication speed of >7.25 Mbits/second than of the SchmartBoard. And, as indicated earlier, we will probably try the very narrow OKI soldering tip.
+5.1 Suggestions
+We can certainly recommend the SchmartBoard|ez for experimentation with our GA144 chips, particularly if decoupling capacitors are added. We'd like to see 0.1F caps on at least three of the Core Power pins, at least three I/O power pins, and the Analog Power pin. There is plenty of room for experimentation here since there will be more LC action than we usually see on a dedicated PCB; approach high power I/O in steps and be prepared to add more decoupling as you do.
+For free-standing use you will need to arrange for 1.8v asynchronous serial communications; the trivial circuit on our Evaluation Board may serve you for this but make sure something on your 1.8v supply is pulling enough current to consume the extra charge being placed on the power rails by the GA144 protection diodes. This could simply be code running in the GA144 but if there is no load at all on VDD then VDD may go overvoltage unless you are using a power supply that has an onboard load. That is not unusual for linear regulators since some of those will not work at all without a minimal load. More to explore; for those who don't wish to do this, Maxim makes an RS232 to 1.8v chip that needs an external inductor and a 1.8v hex inverter, required because the Maxim chip inverts all the RS232 signals.
+As always, we strongly recommend that you check our website http://www.greenarraychips.com for the most up-todate documentation before starting work with our chips! Please contact SchmartBoard at info@schmartboard.com or by telephone at (925) 362-0799 for questions about the board.
+
+6
+
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+
+GreenArraysTM
+Application Note AN005 Revised 9/26/11
+IMPORTANT NOTICE
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
+GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
+GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
+Reproduction of GAI information in GAI data books or data sheets is permissible only if reproduction is without alteration and is accompanied by all associated warranties, conditions, limitations, and notices. Reproduction of this information with alteration is an unfair and deceptive business practice. GAI is not responsible or liable for such altered documentation. Information of third parties may be subject to additional restrictions.
+Resale of GAI products or services with statements different from or beyond the parameters stated by GAI for that product or service voids all express and any implied warranties for the associated GAI product or service and is an unfair and deceptive business practice. GAI is not responsible or liable for any such statements.
+GAI products are not authorized for use in safety-critical applications (such as life support) where a failure of the GAI product would reasonably be expected to cause severe personal injury or death, unless officers of the parties have executed an agreement specifically governing such use. Buyers represent that they have all necessary expertise in the safety and regulatory ramifications of their applications, and acknowledge and agree that they are solely responsible for all legal, regulatory and safetyrelated requirements concerning their products and any use of GAI products in such safety-critical applications, notwithstanding any applications-related information or support that may be provided by GAI. Further, Buyers must fully indemnify GAI and its representatives against any damages arising out of the use of GAI products in such safety-critical applications.
+GAI products are neither designed nor intended for use in military/aerospace applications or environments unless the GAI products are specifically designated by GAI as military-grade or "enhanced plastic." Only products designated by GAI as militarygrade meet military specifications. Buyers acknowledge and agree that any such use of GAI products which GAI has not designated as military-grade is solely at the Buyer's risk, and that they are solely responsible for compliance with all legal and regulatory requirements in connection with such use.
+GAI products are neither designed nor intended for use in automotive applications or environments unless the specific GAI products are designated by GAI as compliant with ISO/TS 16949 requirements. Buyers acknowledge and agree that, if they use any non-designated products in automotive applications, GAI will not be responsible for any failure to meet such requirements.
+The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
+For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
+Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
+
+

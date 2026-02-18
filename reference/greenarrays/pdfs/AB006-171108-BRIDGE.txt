@@ -1,0 +1,100 @@
+GreenArraysTM Application Brief AB006 Revised 11/08/17
+
+Transparent Port Bridge
+Emulating a COM Port Connecting Two Chips
+
+Early on, we developed a method of connecting two chips by their synchronous boot pins 300.1 and 300.17 using dedicated code in node 300 of both chips. The goal was to make it appear to node 400 of each chip that its UP port connected directly to the UP port of node 10400 (for second chip in extended node numbering notation). This allowed our basic tools such as boot streams, the IDE and the Ganglia to traverse the gap between two chips without having to change anything in the low level code. Everyone who has used the word autotest on an Evaluation Board has employed this tool. The key difference between this mechanism and a real port is that IO in node 400 can't be used to learn if the port is ready for us to write. This version waits for an acknowledgment from the other chip's node 300, signifying that the other chip has written the data to its UP port, before considering a read of its own UP port again. This implements full flow control which, if one does not read IO, behaves identically with a low speed COM port. All other rules governing COM ports apply.
+When running, the following code resides in both 300 and 10300:
+
+0 Transparent bridge between two chips' node 400 UP ports using 1 nodes 300 for the connection. 18-bit data move MSB first 2 on pin 1 on falling clock edges, flow ctl by ack of readiness 3 for more: receiver drives clk hi after disposing word. 4 5 ?lo spins till clock line is low, stack destroyed. 6 dly waits about 88ns and writes a new value to io. 7 1bt given io value, sends bit with clk hi then drives clk lo. 8 wpd sets weak pull-down on both lines; zro delays first. 9 18o transmits an 18-bit word, MSB first, lines left in WPD.
+10 18i rcvs a word by setting lines hi-z, reading bits on falling 11 clk edges. Delivers to node 400 and acks by spiking clk hi. 12 idl waits for a word from up (400) or a high clock on line then 13 moves one word, with flow control, in proper direction. 14 The RAM load includes a boot frame header at 05 preceding the 15 actual code at 8. The bias of 3 preserves address alignment.
+
+0 1904 300 ( Sync Bridge w/flow) OVER . ASM[ NODE BIN ERS
+
+1 # 08 org : orgn : ?lo begin @b inv -until ;
+
+2 : dly ( b) 40. for unext !b ; ( ~88 ns)
+
+3 : 1bt ( b) dup dly x10000. xor dly ;
+
+4 : zro x10001. dly ; : wpd x10001. !b ;
+
+5 : 18o ( w - 0) 17. for begin
+
+6 -while x30003. 1bt 2* next drop wpd ;
+
+7 then x30002. 1bt 2* next drop wpd ;
+
+8 : 18i ( HiZ) dup xor !b 17. for begin @b -until
+
+9
+
+begin @b inv -until inv 2. and 2/ a 2* xor a! next
+
+10 a up a! ! ( ack) x30001. 1bt wpd
+
+11 : idl # --lu alit a! .. @ @b -if ( wire) drop 18i ;
+
+12 then ( port) drop 18o begin @b -until ?lo idl ;
+
+13 : ent io b! wpd ?lo idl ; : last
+
+14 here # 8 FORTH - ASM # 5 org
+
+15 : frame ent orgn S>D , >BIN ]ASM ok
+
+To erect the bridge, we load a sync boot master into node 300, a bridge loader in 400, and a copy of the bridge code in 500. The code in 400 when activated uses 500 to reset the other chip and 300 to boot 10300 in the other chip, loading it with the bridge code from 500 and activating it. 400 then copies the bridge code from 500 into 300 and activates it. When that is complete, the bridge is fully up and functional, so we appear to have a 288 node chip with two invisible nodes (300 and 10300.)
+
+4690 0 This code is used in setting up the transparent port bridge, 1 which will then operate until both chips are reset. 2 Setup: Bridge code is in node 500 with a=5, b=io, p=down. 3 This code is in node 400 with a=up, b=down, p=0. 4 Sync Master code is in node 300 with p=x19 (drives pins low) 5 Initially, then, 300.17 (clk) and 300.1 (data) are driven low. 6 @s reads the next word from n500, starting at 5. 7 !his sends a word to the other chip's node 300 8 !ours stores a word into node 300 RAM at its a, incrementing. 9 set stores into node 500's io register.
+10 -rst and +rst drive other chip reset low and high via 500.17 11 frame resets other chip for about 5us 12 13 14 15
+4689 0 This code, in node 300, enables that node to master another chip 1 via its sync boot node (300). It is used during port bridge 2 setup to load bridge code into the other chip's node 300, but 3 can also be used by IDE to work the other chip as well. 4 The clock signal (pin 17) is low on reset. The boot node of the 5 other chip sees the pin going high and data on the pin will 6 be taken seriously as a boot stream so long as it does not 7 stay high too long the first time. The clock line is high at 8 rest. Receiver samples MSB on first falling clock edge, and 9 then each of the next 17 clock edges either direction samples
+10 another bit. Clock is high at end of word and stays there 11 until the next word begins. 12 off drives clock and data low then leaves them WPD which is the 13 rest state the bridge code at the other end is looking for. 14 15
+
+2290 0 1907 400 ( Bridge Loader) OVER . ASM[ NODE BIN ERS 1 # 0 org 2 : start ahead 3 : @s ( - n) @p !b @b ; A[ @+ !p ]] , 4 : !his ( n) @p ! ! ; A[ @p # 1901 its 18o ]] , 5 : !ours ( n) @p ! ! ; A[ @p !+ ]] , 6 : set ( n) @p !b !b ; A[ @p !b ]] , 7 : -rst x20000. set ; : +rst x30000. set ; 8 : frame then -rst 1000. for next +rst @s @s @s dup -1. . + 9 >r >r >r !his r> !his r> !his begin @s !his next
+10 : local @p !b A[ dup xor a! ]] , @p ! A[ # 1901 its off ]] , 11 @p ! A[ dup xor a! ]] , x3F. for @s !ours next 12 @p ! A[ # 1904 its ent ; ]] , @p !b A[ warm ; ]] , warm ; 13 14 : last >BIN ]ASM 15
+
+2289
+
+0 1901 300 ( Sync Master) OVER . ASM[ NODE BIN ERS
+
+1
+
+2 # 0 org
+
+3
+
+4 : dly ( b) !b 40. for unext ; ( ~88 ns)
+
+5 : 1bt ( b) dup dly x10000. xor dly ;
+
+6 : 18o ( w-0) x30000. dly 8. for begin
+
+7
+
+-while x30003. 1bt : rise
+
+8
+
+2* -if x20003. 1bt 2* *next drop ;
+
+9
+
+then x20002. 1bt 2* *next drop ;
+
+10
+
+then x30002. 1bt rise ;
+
+11 : off io b! x20002. dly x10001. !b ;
+
+12
+
+13 : last >BIN ]ASM
+
+14
+
+15
+
+Other erection mechanisms are possible, such as the one Stefan Mauerhofer uses to install this bridge in his Kraken based development environment.
+
+
