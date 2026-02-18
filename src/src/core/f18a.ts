@@ -11,6 +11,11 @@ import {
 import { WORD_MASK, XOR_ENCODING, NodeState } from './types';
 import type { NodeSnapshot, PortHandler } from './types';
 import type { GA144 } from './ga144';
+import {
+  createThermalState, resetThermalState, recordInstruction,
+  recordIdle, mixThermalSeed,
+} from './thermal';
+import type { ThermalState } from './thermal';
 
 const mask18 = (n: number): number => n & WORD_MASK;
 
@@ -80,6 +85,9 @@ export class F18ANode {
   // Step counter
   stepCount = 0;
 
+  // Thermal model
+  thermal: ThermalState;
+
   constructor(index: number, ga144: GA144) {
     this.index = index;
     this.activeIndex = index;
@@ -89,6 +97,8 @@ export class F18ANode {
     this.dstack = new CircularStack(8, 0x15555);
     this.rstack = new CircularStack(8, 0x15555);
     this.memory = new Array(MEM_SIZE).fill(0x134A9); // call warm
+    // Seed thermal PRNG uniquely per node using index
+    this.thermal = createThermalState(index * 2654435761 + 1);
   }
 
   // ========================================================================
@@ -390,7 +400,9 @@ export class F18ANode {
     this.IO = val;
     this.WD = ((val >> 11) & 1) === 1;
     this.notWD = !this.WD;
-    this.ga144.onIoWrite(this.index, val);
+    // Mix thermal state into PRNG on each IO write for entropy feedback
+    mixThermalSeed(this.thermal);
+    this.ga144.onIoWrite(this.index, val, this.thermal);
   }
 
   // ========================================================================
@@ -436,6 +448,7 @@ export class F18ANode {
 
   private executeInstruction(opcode: number, jumpAddrPos: number, addrMask: number): boolean {
     this.stepCount++;
+    recordInstruction(this.thermal, opcode);
 
     if (opcode < 8) {
       // Control flow instructions - need address from decoded word
@@ -731,6 +744,9 @@ export class F18ANode {
   stepProgram(): boolean {
     if (!this.suspended) {
       this.step();
+    } else {
+      // Suspended nodes still decay thermally (~1.5 ns per round as estimate)
+      recordIdle(this.thermal, 1.5);
     }
     return this.suspended;
   }
@@ -769,6 +785,7 @@ export class F18ANode {
     this.breakpointHit = false;
     this.carryBit = 0;
     this.extendedArith = false;
+    resetThermalState(this.thermal, this.index * 2654435761 + 1);
 
     // Load ROM
     if (romData) {
@@ -914,6 +931,12 @@ export class F18ANode {
       rom: this.getROM(),
       slotIndex: this.iI,
       stepCount: this.stepCount,
+      thermal: {
+        temperature: this.thermal.temperature,
+        totalEnergy: this.thermal.totalEnergy,
+        simulatedTime: this.thermal.simulatedTime,
+        lastJitteredTime: this.thermal.lastJitteredTime,
+      },
       currentReadingPort: this.currentReadingPort !== null
         ? (Array.isArray(this.currentReadingPort)
           ? `multi(${this.currentReadingPort.length})`

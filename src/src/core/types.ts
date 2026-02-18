@@ -31,6 +31,13 @@ export interface F18ARegisters {
   IO: Word18;
 }
 
+export interface ThermalSnapshot {
+  temperature: number;
+  totalEnergy: number;
+  simulatedTime: number;
+  lastJitteredTime: number;
+}
+
 export interface NodeSnapshot {
   coord: number;
   index: number;
@@ -42,6 +49,7 @@ export interface NodeSnapshot {
   rom: Word18[];
   slotIndex: number;
   stepCount: number;
+  thermal: ThermalSnapshot;
   currentReadingPort: string | null;
   currentWritingPort: string | null;
 }
@@ -54,6 +62,7 @@ export interface GA144Snapshot {
   selectedNode: NodeSnapshot | null;
   ioWrites: number[];        // IO register writes (ring buffer)
   ioWriteTimestamps: number[]; // Global step count when each IO write occurred
+  ioWriteJitter: Float32Array; // Jittered execution time (ns) at each IO write
   ioWriteStart: number;      // Start index for ring buffer
   ioWriteCount: number;      // Number of valid entries in ring buffer
   ioWriteSeq: number;        // Total writes seen (monotonic sequence)

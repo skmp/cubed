@@ -6,6 +6,7 @@ import { F18ANode } from './f18a';
 import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
+import type { ThermalState } from './thermal';
 
 export class GA144 {
   readonly name: string;
@@ -19,6 +20,7 @@ export class GA144 {
   private static readonly IO_WRITE_CAPACITY = 2_000_000;
   private ioWriteBuffer: number[] = new Array(GA144.IO_WRITE_CAPACITY);
   private ioWriteTimestamps: number[] = new Array(GA144.IO_WRITE_CAPACITY);
+  private ioWriteJitter: Float32Array = new Float32Array(GA144.IO_WRITE_CAPACITY);
   private ioWriteStart = 0;     // ring start index
   private ioWriteStartSeq = 0;  // sequence number at ring start
   private ioWriteSeq = 0;       // next sequence number to write
@@ -120,8 +122,9 @@ export class GA144 {
   /** Called by F18ANode when an IO register write occurs.
    *  Each write is tagged with the node coordinate so the VGA display
    *  can separate R/G/B channels from DAC nodes 117/617/717 and
-   *  sync signals from GPIO nodes.  Stored as (coord << 18) | value. */
-  onIoWrite(nodeIndex: number, value: number): void {
+   *  sync signals from GPIO nodes.  Stored as (coord << 18) | value.
+   *  The thermal state provides jittered timing for analog output recording. */
+  onIoWrite(nodeIndex: number, value: number, thermal?: ThermalState): void {
     if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
       const coord = indexToCoord(nodeIndex);
       const tagged = coord * 0x40000 + value;  // coord << 18 | value
@@ -135,11 +138,11 @@ export class GA144 {
         }
         this.lastVsyncSeq = this.ioWriteSeq;
       }
-      this.pushIoWrite(tagged);
+      this.pushIoWrite(tagged, thermal?.lastJitteredTime ?? 0);
     }
   }
 
-  private pushIoWrite(value: number): void {
+  private pushIoWrite(value: number, jitteredTime: number = 0): void {
     const capacity = this.ioWriteBuffer.length;
     const size = this.ioWriteSeq - this.ioWriteStartSeq;
     if (size >= capacity) {
@@ -150,6 +153,7 @@ export class GA144 {
     const idx = (this.ioWriteStart + (this.ioWriteSeq - this.ioWriteStartSeq)) % capacity;
     this.ioWriteBuffer[idx] = value;
     this.ioWriteTimestamps[idx] = this.totalSteps;
+    this.ioWriteJitter[idx] = jitteredTime;
     this.ioWriteSeq++;
   }
 
@@ -178,6 +182,7 @@ export class GA144 {
     this.ioWriteStart = 0;
     this.ioWriteStartSeq = 0;
     this.ioWriteSeq = 0;
+    this.ioWriteJitter = new Float32Array(GA144.IO_WRITE_CAPACITY);
     this.lastVsyncSeq = null;
     this.lastActiveIndex = NUM_NODES - 1;
 
@@ -246,6 +251,7 @@ export class GA144 {
       selectedNode,
       ioWrites: this.ioWriteBuffer,
       ioWriteTimestamps: this.ioWriteTimestamps,
+      ioWriteJitter: this.ioWriteJitter,
       ioWriteStart: this.ioWriteStart,
       ioWriteCount: this.ioWriteSeq - this.ioWriteStartSeq,
       ioWriteSeq: this.ioWriteSeq,
