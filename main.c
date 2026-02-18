@@ -6,6 +6,7 @@
  *   ./gsplat -n 5000              # test, 5K splats
  *   ./gsplat -s /dev/ttyS0        # GA144 via HPS UART
  *   ./gsplat -s /dev/ttyUSB0      # GA144 via USB serial
+ *   ./gsplat -i splats.png         # load splats from packed PNG
  *   ./gsplat -ppm                 # dump PPM frames (headless debug)
  *   ./gsplat -bench               # benchmark mode, no display loop
  */
@@ -40,6 +41,7 @@ static void usage(const char *prog)
     fprintf(stderr,
         "Usage: %s [options]\n"
         "  -n COUNT    Number of test splats (default 10000)\n"
+        "  -i FILE     Load splats from packed PNG file\n"
         "  -s DEVICE   GA144 serial device (e.g. /dev/ttyS0)\n"
         "  -frames N   Render N frames then exit\n"
         "  -ppm        Dump PPM files (for headless testing)\n"
@@ -52,6 +54,7 @@ int main(int argc, char **argv)
 {
     int splat_count = 10000;
     const char *serial_dev = NULL;
+    const char *png_path = NULL;
     int max_frames = 0;
     int dump_ppm = 0;
     int bench = 0;
@@ -59,6 +62,8 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-n") && i + 1 < argc)
             splat_count = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-i") && i + 1 < argc)
+            png_path = argv[++i];
         else if (!strcmp(argv[i], "-s") && i + 1 < argc)
             serial_dev = argv[++i];
         else if (!strcmp(argv[i], "-frames") && i + 1 < argc)
@@ -100,7 +105,12 @@ int main(int argc, char **argv)
     /* ---- Load data ---- */
     int serdes_fd = -1;
 
-    if (serial_dev) {
+    if (png_path) {
+        if (load_splats_png(png_path, store) < 0) {
+            fprintf(stderr, "Failed to load %s, using test splats\n", png_path);
+            generate_test_splats(store, splat_count);
+        }
+    } else if (serial_dev) {
         serdes_fd = serdes_init(serial_dev);
         if (serdes_fd >= 0) {
             fprintf(stderr, "Waiting for GA144 data on %s...\n", serial_dev);

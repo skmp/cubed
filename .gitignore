@@ -1,3 +1,4 @@
 *.o
 gsplat
 frame_*.ppm
+settings.local.json

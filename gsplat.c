@@ -56,7 +56,7 @@ static void init_exp_lut(void)
 
 static inline float fast_gauss(float d2)
 {
-    if (d2 >= EXP_LUT_RANGE) return 0.0f;
+    if (!(d2 >= 0.0f && d2 < EXP_LUT_RANGE)) return 0.0f;
     float fi = d2 * EXP_LUT_SCALE;
     int idx = (int)fi;
     float frac = fi - idx;
@@ -495,10 +495,29 @@ void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t 
         float rx = 3.0f * sqrtf(ca);
         float ry = 3.0f * sqrtf(cc);
 
-        s2->bbox_x0 = (int16_t)fmaxf(0, s2->sx - rx);
-        s2->bbox_y0 = (int16_t)fmaxf(0, s2->sy - ry);
-        s2->bbox_x1 = (int16_t)fminf(screen_w - 1, s2->sx + rx);
-        s2->bbox_y1 = (int16_t)fminf(screen_h - 1, s2->sy + ry);
+        float bx0 = s2->sx - rx;
+        float by0 = s2->sy - ry;
+        float bx1 = s2->sx + rx;
+        float by1 = s2->sy + ry;
+
+        /* Skip splats entirely off-screen or with NaN coords */
+        if (bx1 < 0 || by1 < 0 || bx0 >= screen_w || by0 >= screen_h
+            || bx0 != bx0 || by0 != by0) {
+            s2->depth = 1e30f;
+            s2->bbox_x0 = s2->bbox_x1 = 0;
+            s2->bbox_y0 = s2->bbox_y1 = 0;
+            continue;
+        }
+
+        if (bx0 < 0) bx0 = 0;
+        if (by0 < 0) by0 = 0;
+        if (bx1 >= screen_w) bx1 = screen_w - 1;
+        if (by1 >= screen_h) by1 = screen_h - 1;
+
+        s2->bbox_x0 = (int16_t)bx0;
+        s2->bbox_y0 = (int16_t)by0;
+        s2->bbox_x1 = (int16_t)bx1;
+        s2->bbox_y1 = (int16_t)by1;
 
         /* Pre-convert color to float for blending */
         s2->rf = s3->r / 255.0f;
@@ -916,4 +935,90 @@ void generate_test_splats(splat_store_t *store, int count)
     }
 
     fprintf(stderr, "Generated %d test splats\n", store->count);
+}
+
+/* ================================================================
+ * PNG SPLAT LOADING
+ *
+ * Packed format in a 640x480 RGB PNG (921,600 bytes):
+ *
+ *   Header (first 6 bytes = pixels [0,0]..[1,0]):
+ *     Bytes 0-1: splat count (uint16 little-endian)
+ *     Bytes 2-5: reserved (zero)
+ *
+ *   Per splat (18 bytes = 6 consecutive RGB pixels):
+ *     Bytes  0-1:  X position, int16 LE, s7.8 fixed-point (range ~[-128,+128])
+ *     Bytes  2-3:  Y position, int16 LE, s7.8 fixed-point
+ *     Bytes  4-5:  Z position, int16 LE, s7.8 fixed-point
+ *     Bytes  6-11: cov[0..5], uint8 each, 0.8 fixed-point (range [0,1))
+ *     Bytes 12-14: R, G, B (uint8)
+ *     Bytes 15:    alpha (uint8)
+ *     Bytes 16-17: reserved
+ *
+ *   Splats start at byte offset 18 (pixel 6).
+ *   Max splats: (640*480*3 - 18) / 18 = 51,199
+ * ================================================================ */
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#define STBI_NO_LINEAR
+#define STBI_NO_HDR
+#include "stb_image.h"
+
+int load_splats_png(const char *path, splat_store_t *store)
+{
+    int w, h, channels;
+    uint8_t *img = stbi_load(path, &w, &h, &channels, 3);
+    if (!img) {
+        fprintf(stderr, "Failed to load PNG: %s\n", stbi_failure_reason());
+        return -1;
+    }
+
+    int total_bytes = w * h * 3;
+    if (total_bytes < 18) {
+        fprintf(stderr, "PNG too small: %dx%d\n", w, h);
+        stbi_image_free(img);
+        return -1;
+    }
+
+    /* Read header */
+    uint8_t *p = img;
+    int count = p[0] | (p[1] << 8);
+
+    int max_splats = (total_bytes - 18) / 18;
+    if (count > max_splats) count = max_splats;
+    if (count > MAX_SPLATS) count = MAX_SPLATS;
+
+    fprintf(stderr, "PNG %dx%d, loading %d splats\n", w, h, count);
+
+    store_init(store);
+
+    for (int i = 0; i < count; i++) {
+        uint8_t *sp = img + 18 + i * 18;
+        splat_3d_t s;
+
+        /* Position: int16 LE s7.8 fixed-point */
+        int16_t ix = (int16_t)(sp[0] | (sp[1] << 8));
+        int16_t iy = (int16_t)(sp[2] | (sp[3] << 8));
+        int16_t iz = (int16_t)(sp[4] | (sp[5] << 8));
+        s.x = ix / 256.0f;
+        s.y = iy / 256.0f;
+        s.z = iz / 256.0f;
+
+        /* Covariance: uint8 0.8 fixed-point, scaled to reasonable range */
+        for (int j = 0; j < 6; j++)
+            s.cov[j] = sp[6 + j] / 256.0f;
+
+        /* Color */
+        s.r = sp[12];
+        s.g = sp[13];
+        s.b = sp[14];
+        s.alpha = sp[15];
+
+        store_add(store, &s);
+    }
+
+    stbi_image_free(img);
+    fprintf(stderr, "Loaded %d splats from %s\n", store->count, path);
+    return store->count;
 }

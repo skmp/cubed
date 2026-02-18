@@ -110,6 +110,9 @@ void serdes_close(int fd);
 void cam_init(camera_t *cam, float fov_deg, int width, int height);
 void cam_lookat(camera_t *cam, float *eye, float *target, float *up);
 
+/* PNG splat loading */
+int  load_splats_png(const char *path, splat_store_t *store);
+
 /* Test / debug */
 void generate_test_splats(splat_store_t *store, int count);
 void fb_dump_ppm(framebuf_t *fb, const char *path);
