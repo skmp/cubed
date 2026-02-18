@@ -1,0 +1,192 @@
+-- Palestine Flag (PS) VGA Output (EVB002 7-node architecture)
+-- Renders the Palestine flag on a 640x480 framebuffer.
+-- Three horizontal stripes (black, white, green) with a red triangle
+-- on the left side (stepped approximation).
+--
+-- Architecture: feeder-relay pipeline (same as CH.cube).
+--   Feeder nodes (116, 616, 716) generate pixel data via fill{}
+--   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
+--   DAC relay nodes (117, 617, 717) read from west and write to IO.
+--   R relay (117) signals sync node (217) after each row for HSYNC.
+--
+-- Flag layout (640x480):
+--   Black stripe: rows 0-159 (160 rows)
+--   White stripe: rows 160-319 (160 rows)
+--   Green stripe: rows 320-479 (160 rows)
+--   Red triangle: stepped approximation, widths per stripe:
+--     Black stripe: 64px wide (x=0-63)
+--     White stripe: 192px wide (x=0-191)
+--     Green stripe: 64px wide (x=0-63)
+--
+-- Color breakdown per channel:
+--   R: triangle=max, black stripe bg=0, white stripe bg=max, green stripe bg=0
+--   G: triangle=0, black stripe bg=0, white stripe bg=max, green stripe bg=max
+--   B: triangle=0, black stripe bg=0, white stripe bg=max, green stripe bg=0
+--
+-- DAC XOR encoding:
+--   Zero output: 0x155, Max output: 0x0AA
+
+-- ============================================================
+-- RED DAC RELAY (node 117)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ relay{port=0x1D5, count=640}
+/\ again{}
+
+-- ============================================================
+-- RED FEEDER (node 116)
+-- ============================================================
+-- R = max for triangle + white stripe background.
+-- Black stripe: 64px red triangle, rest zero.
+-- White stripe: all max (triangle + white both have R=max).
+-- Green stripe: 64px red triangle, rest zero.
+
+node 116
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black stripe: 160 rows, 64px triangle (R=max) + 576px black (R=0)
+loop{n=160}
+/\ fill{value=0x0AA, count=64}
+/\ fill{value=0x155, count=576}
+/\ again{}
+
+/\
+
+-- White stripe: 160 rows, all R=max
+loop{n=160}
+/\ fill{value=0x0AA, count=640}
+/\ again{}
+
+/\
+
+-- Green stripe: 160 rows, 64px triangle (R=max) + 576px green (R=0)
+loop{n=160}
+/\ fill{value=0x0AA, count=64}
+/\ fill{value=0x155, count=576}
+/\ again{}
+
+-- ============================================================
+-- GREEN FEEDER (node 616)
+-- ============================================================
+-- G = 0 for triangle + black stripe. Max for white + green backgrounds.
+-- Black stripe: all zero (black + red triangle both have G=0).
+-- White stripe: 192px zero (triangle), 448px max (white).
+-- Green stripe: 64px zero (triangle), 576px max (green).
+
+node 616
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black stripe: 160 rows, all G=0
+loop{n=160}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- White stripe: 160 rows, 192px triangle (G=0) + 448px white (G=max)
+loop{n=160}
+/\ fill{value=0x155, count=192}
+/\ fill{value=0x0AA, count=448}
+/\ again{}
+
+/\
+
+-- Green stripe: 160 rows, 64px triangle (G=0) + 576px green (G=max)
+loop{n=160}
+/\ fill{value=0x155, count=64}
+/\ fill{value=0x0AA, count=576}
+/\ again{}
+
+-- ============================================================
+-- BLUE FEEDER (node 716)
+-- ============================================================
+-- B = 0 for triangle + black + green. Max for white background only.
+-- Black stripe: all zero.
+-- White stripe: 192px zero (triangle), 448px max (white).
+-- Green stripe: all zero (green + red triangle both have B=0).
+
+node 716
+
+/\
+
+setb{addr=0x1D5}
+
+/\
+
+-- Black stripe: 160 rows, all B=0
+loop{n=160}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+/\
+
+-- White stripe: 160 rows, 192px triangle (B=0) + 448px white (B=max)
+loop{n=160}
+/\ fill{value=0x155, count=192}
+/\ fill{value=0x0AA, count=448}
+/\ again{}
+
+/\
+
+-- Green stripe: 160 rows, all B=0
+loop{n=160}
+/\ fill{value=0x155, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}

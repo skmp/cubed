@@ -21,10 +21,12 @@ import sampleI2cSensor from '../../../samples/i2c-sensor.cube?raw';
 import sampleWireframeSphere from '../../../samples/wireframe-sphere.cube?raw';
 import sampleBlueRectangle from '../../../samples/blue-rectangle.cube?raw';
 import sampleCH from '../../../samples/CH.cube?raw';
+import samplePS from '../../../samples/PS.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'PS': samplePS,
   'CH': sampleCH,
   'Blue Rectangle': sampleBlueRectangle,
   'MD5 Hash': sampleMd5Hash,
@@ -42,7 +44,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['CH'];
+const DEFAULT_CUBE = CUBE_SAMPLES['PS'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
@@ -63,7 +65,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  const [selectedSample, setSelectedSample] = useState('CH');
+  const [selectedSample, setSelectedSample] = useState('PS');
 
   useEffect(() => {
     onCompileRef.current = onCompile;
