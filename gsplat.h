@@ -31,18 +31,29 @@ typedef struct {
     uint8_t alpha;
 } splat_3d_t;
 
-/* ---- Projected 2D splat, ready for rasterization ---- */
+/* ---- Projected 2D splat, ready for rasterization ----
+ *
+ * All rasterizer-facing fields are fixed-point integer for FPGA
+ * compatibility (18-bit DSP multiply blocks).
+ *
+ * Fixed-point formats:
+ *   sx_fp, sy_fp: s14.4 (18 meaningful bits in int32_t)
+ *   cov_a_fp, cov_c_fp: u2.14 (16 bits, stored in uint16_t)
+ *   cov_b2_fp: s2.14 (2*b, 17 bits signed, stored in int32_t)
+ *   d² = cov_a * dx² + cov_b2 * dx*dy + cov_c * dy²
+ */
 typedef struct {
-    float sx, sy;
-    float depth;
+    int32_t sx_fp, sy_fp;     /* screen position, s14.4 */
+    float depth;              /* for sorting only (CPU-side, stays float) */
 
-    /* 2D covariance inverse (symmetric 2x2): a, b, c
-     * d² = a*dx² + 2*b*dx*dy + c*dy² */
-    float cov2d_inv[3];
+    /* Inverse 2D covariance, fixed-point */
+    uint16_t cov_a_fp;        /* u2.14: inv_cov[0] (a) */
+    uint16_t cov_c_fp;        /* u2.14: inv_cov[2] (c) */
+    int32_t  cov_b2_fp;       /* s2.14: 2 * inv_cov[1] (2*b) */
 
-    /* Color as float [0..1] for NEON vectorization */
-    float rf, gf, bf;
-    float opacity; /* alpha/255 */
+    /* Color as u0.8 integers */
+    uint8_t r, g, b;
+    uint8_t opacity;          /* alpha, u0.8 */
 
     /* Screen-space bounding box */
     int16_t bbox_x0, bbox_y0, bbox_x1, bbox_y1;
@@ -69,9 +80,9 @@ typedef struct {
     int       fd;
     uint32_t  mmap_size;
 
-    /* Tile accumulation buffer - fits in L1 cache
-     * 32x32 * 4 floats (RGBA) * 4 bytes = 16KB */
-    float tile_buf[TILE_H * TILE_W * 4] __attribute__((aligned(16)));
+    /* Tile accumulation buffer - fixed-point u0.10 per channel
+     * 32x32 * 4 channels * 2 bytes (uint16_t) = 8KB (fits in L1) */
+    uint16_t tile_buf[TILE_H * TILE_W * 4] __attribute__((aligned(16)));
 } framebuf_t;
 
 /* ---- Splat store ---- */

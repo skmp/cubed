@@ -25,42 +25,30 @@
 #include <linux/fb.h>
 #include <termios.h>
 
-#ifdef __ARM_NEON
-#include <arm_neon.h>
-#endif
-
 /* ================================================================
- * EXP() LOOKUP TABLE
+ * GAUSSIAN LUT (fixed-point, u0.16 output)
  *
- * The Gaussian kernel exp(-0.5 * d²) dominates the inner loop.
- * On A9 without VFPv4, expf() is ~50 cycles. A 1024-entry LUT
- * with linear interpolation is ~5 cycles and accurate to <0.5%.
+ * 2048 entries covering d² in [0, 8).  Each entry i represents
+ * exp(-0.5 * i/256) as a u0.16 value (0..65535).
  *
- * Table covers d² in [0, 9] (3-sigma cutoff).
- * Index = d² * (LUT_SIZE / LUT_RANGE)
+ * Index = d² * 256.  From the fixed-point d² accumulator
+ * (which is in *2^18 scaling), index = d2_sum >> 10.
+ *
+ * Cutoff at d² >= 8 (index >= 2048).  exp(-4) = 0.018,
+ * negligible contribution.
  * ================================================================ */
 
-#define EXP_LUT_SIZE  1024
-#define EXP_LUT_RANGE 9.0f
-#define EXP_LUT_SCALE (EXP_LUT_SIZE / EXP_LUT_RANGE)
+#define GAUSS_LUT_SIZE  2048
+#define GAUSS_LUT_D2_CUTOFF_FP  (8 << 18)   /* d² >= 8 in u4.18 */
 
-static float exp_lut[EXP_LUT_SIZE + 1]; /* +1 for interpolation */
+static uint16_t gauss_lut[GAUSS_LUT_SIZE];
 
-static void init_exp_lut(void)
+static void init_gauss_lut(void)
 {
-    for (int i = 0; i <= EXP_LUT_SIZE; i++) {
-        float d2 = (float)i / EXP_LUT_SCALE;
-        exp_lut[i] = expf(-0.5f * d2);
+    for (int i = 0; i < GAUSS_LUT_SIZE; i++) {
+        float d2 = (float)i / 256.0f;
+        gauss_lut[i] = (uint16_t)(expf(-0.5f * d2) * 65535.0f + 0.5f);
     }
-}
-
-static inline float fast_gauss(float d2)
-{
-    if (!(d2 >= 0.0f && d2 < EXP_LUT_RANGE)) return 0.0f;
-    float fi = d2 * EXP_LUT_SCALE;
-    int idx = (int)fi;
-    float frac = fi - idx;
-    return exp_lut[idx] + frac * (exp_lut[idx + 1] - exp_lut[idx]);
 }
 
 /* ================================================================
@@ -91,7 +79,7 @@ int fb_init(framebuf_t *fb)
         fb->tiles_x = fb->width / TILE_W;
         fb->tiles_y = fb->height / TILE_H;
         fb->pixels = calloc(1, fb->mmap_size);
-        init_exp_lut();
+        init_gauss_lut();
         return 0;
     }
 
@@ -131,7 +119,7 @@ int fb_init(framebuf_t *fb)
     /* Clear screen */
     memset(fb->pixels, 0, fb->mmap_size);
 
-    init_exp_lut();
+    init_gauss_lut();
     return 0;
 }
 
@@ -156,7 +144,7 @@ void fb_close(framebuf_t *fb)
  *   3. Convert tile_buf to RGB565/ARGB8888 and write to framebuffer
  *
  * This avoids DDR3 read-modify-write per pixel per splat.
- * L1 cache on A9 is 32KB data, so 16KB tile + working regs fits.
+ * L1 cache on A9 is 32KB data, so 8KB tile + working regs fits.
  * ================================================================ */
 
 void tile_clear(framebuf_t *fb)
@@ -164,7 +152,9 @@ void tile_clear(framebuf_t *fb)
     memset(fb->tile_buf, 0, sizeof(fb->tile_buf));
 }
 
-/* Convert float RGBA tile to framebuffer pixels and blit */
+/* Convert u0.10 fixed-point RGBA tile to framebuffer pixels and blit.
+ * Tile buffer values [0, 1023] where 1020 ~ 1.0 (from color << 2).
+ * Simple right-shifts convert to output bit depths. */
 void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
 {
     int x0 = tile_x * TILE_W;
@@ -180,59 +170,19 @@ void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
             if (sy >= screen_h) break;
 
             uint32_t *dst = (uint32_t *)fb->pixels + sy * stride_pixels + x0;
-            float *src = &fb->tile_buf[(ty * TILE_W) * 4];
+            uint16_t *src = &fb->tile_buf[(ty * TILE_W) * 4];
 
-#ifdef __ARM_NEON
-            float32x4_t zero = vdupq_n_f32(0.0f);
-            float32x4_t one  = vdupq_n_f32(1.0f);
-            float32x4_t scale255 = vdupq_n_f32(255.0f);
-            float32x4_t half = vdupq_n_f32(0.5f);
-
-            for (int tx = 0; tx < TILE_W; tx += 4) {
-                float32x4_t p0 = vminq_f32(vmaxq_f32(vld1q_f32(src + 0),  zero), one);
-                float32x4_t p1 = vminq_f32(vmaxq_f32(vld1q_f32(src + 4),  zero), one);
-                float32x4_t p2 = vminq_f32(vmaxq_f32(vld1q_f32(src + 8),  zero), one);
-                float32x4_t p3 = vminq_f32(vmaxq_f32(vld1q_f32(src + 12), zero), one);
-
-                p0 = vaddq_f32(vmulq_f32(p0, scale255), half);
-                p1 = vaddq_f32(vmulq_f32(p1, scale255), half);
-                p2 = vaddq_f32(vmulq_f32(p2, scale255), half);
-                p3 = vaddq_f32(vmulq_f32(p3, scale255), half);
-
-                uint32_t r0 = (uint32_t)vgetq_lane_f32(p0, 0);
-                uint32_t g0 = (uint32_t)vgetq_lane_f32(p0, 1);
-                uint32_t b0 = (uint32_t)vgetq_lane_f32(p0, 2);
-                uint32_t r1 = (uint32_t)vgetq_lane_f32(p1, 0);
-                uint32_t g1 = (uint32_t)vgetq_lane_f32(p1, 1);
-                uint32_t b1 = (uint32_t)vgetq_lane_f32(p1, 2);
-                uint32_t r2 = (uint32_t)vgetq_lane_f32(p2, 0);
-                uint32_t g2 = (uint32_t)vgetq_lane_f32(p2, 1);
-                uint32_t b2 = (uint32_t)vgetq_lane_f32(p2, 2);
-                uint32_t r3 = (uint32_t)vgetq_lane_f32(p3, 0);
-                uint32_t g3 = (uint32_t)vgetq_lane_f32(p3, 1);
-                uint32_t b3 = (uint32_t)vgetq_lane_f32(p3, 2);
-
-                dst[tx + 0] = 0xFF000000 | (r0 << 16) | (g0 << 8) | b0;
-                dst[tx + 1] = 0xFF000000 | (r1 << 16) | (g1 << 8) | b1;
-                dst[tx + 2] = 0xFF000000 | (r2 << 16) | (g2 << 8) | b2;
-                dst[tx + 3] = 0xFF000000 | (r3 << 16) | (g3 << 8) | b3;
-
-                src += 16;
-            }
-#else
             for (int tx = 0; tx < TILE_W; tx++) {
-                float r = src[0], g = src[1], b = src[2];
-                if (r > 1.0f) r = 1.0f; if (r < 0.0f) r = 0.0f;
-                if (g > 1.0f) g = 1.0f; if (g < 0.0f) g = 0.0f;
-                if (b > 1.0f) b = 1.0f; if (b < 0.0f) b = 0.0f;
-
-                uint32_t r8 = (uint32_t)(r * 255.0f + 0.5f);
-                uint32_t g8 = (uint32_t)(g * 255.0f + 0.5f);
-                uint32_t b8 = (uint32_t)(b * 255.0f + 0.5f);
+                /* u0.10 >> 2 = u0.8 [0, 255] */
+                uint32_t r8 = src[0] >> 2;
+                uint32_t g8 = src[1] >> 2;
+                uint32_t b8 = src[2] >> 2;
+                if (r8 > 255) r8 = 255;
+                if (g8 > 255) g8 = 255;
+                if (b8 > 255) b8 = 255;
                 dst[tx] = 0xFF000000 | (r8 << 16) | (g8 << 8) | b8;
                 src += 4;
             }
-#endif
         }
     } else {
         /* ---- RGB565 (16bpp) path ---- */
@@ -243,56 +193,20 @@ void tile_flush(framebuf_t *fb, int tile_x, int tile_y)
             if (sy >= screen_h) break;
 
             uint16_t *dst = (uint16_t *)fb->pixels + sy * stride_pixels + x0;
-            float *src = &fb->tile_buf[(ty * TILE_W) * 4];
+            uint16_t *src = &fb->tile_buf[(ty * TILE_W) * 4];
 
-#ifdef __ARM_NEON
-            for (int tx = 0; tx < TILE_W; tx += 4) {
-                float32x4_t p0 = vld1q_f32(src + 0);
-                float32x4_t p1 = vld1q_f32(src + 4);
-                float32x4_t p2 = vld1q_f32(src + 8);
-                float32x4_t p3 = vld1q_f32(src + 12);
-
-                float32x4_t zero = vdupq_n_f32(0.0f);
-                float32x4_t one  = vdupq_n_f32(1.0f);
-                p0 = vminq_f32(vmaxq_f32(p0, zero), one);
-                p1 = vminq_f32(vmaxq_f32(p1, zero), one);
-                p2 = vminq_f32(vmaxq_f32(p2, zero), one);
-                p3 = vminq_f32(vmaxq_f32(p3, zero), one);
-
-                float r0 = vgetq_lane_f32(p0, 0) * 31.0f + 0.5f;
-                float g0 = vgetq_lane_f32(p0, 1) * 63.0f + 0.5f;
-                float b0 = vgetq_lane_f32(p0, 2) * 31.0f + 0.5f;
-                float r1 = vgetq_lane_f32(p1, 0) * 31.0f + 0.5f;
-                float g1 = vgetq_lane_f32(p1, 1) * 63.0f + 0.5f;
-                float b1 = vgetq_lane_f32(p1, 2) * 31.0f + 0.5f;
-                float r2 = vgetq_lane_f32(p2, 0) * 31.0f + 0.5f;
-                float g2 = vgetq_lane_f32(p2, 1) * 63.0f + 0.5f;
-                float b2 = vgetq_lane_f32(p2, 2) * 31.0f + 0.5f;
-                float r3 = vgetq_lane_f32(p3, 0) * 31.0f + 0.5f;
-                float g3 = vgetq_lane_f32(p3, 1) * 63.0f + 0.5f;
-                float b3 = vgetq_lane_f32(p3, 2) * 31.0f + 0.5f;
-
-                dst[tx + 0] = ((uint16_t)r0 << 11) | ((uint16_t)g0 << 5) | (uint16_t)b0;
-                dst[tx + 1] = ((uint16_t)r1 << 11) | ((uint16_t)g1 << 5) | (uint16_t)b1;
-                dst[tx + 2] = ((uint16_t)r2 << 11) | ((uint16_t)g2 << 5) | (uint16_t)b2;
-                dst[tx + 3] = ((uint16_t)r3 << 11) | ((uint16_t)g3 << 5) | (uint16_t)b3;
-
-                src += 16;
-            }
-#else
             for (int tx = 0; tx < TILE_W; tx++) {
-                float r = src[0], g = src[1], b = src[2];
-                if (r > 1.0f) r = 1.0f; if (r < 0.0f) r = 0.0f;
-                if (g > 1.0f) g = 1.0f; if (g < 0.0f) g = 0.0f;
-                if (b > 1.0f) b = 1.0f; if (b < 0.0f) b = 0.0f;
-
-                uint16_t r5 = (uint16_t)(r * 31.0f + 0.5f);
-                uint16_t g6 = (uint16_t)(g * 63.0f + 0.5f);
-                uint16_t b5 = (uint16_t)(b * 31.0f + 0.5f);
-                dst[tx] = (r5 << 11) | (g6 << 5) | b5;
+                /* u0.10 >> 5 = u0.5 [0, 31] for R/B */
+                /* u0.10 >> 4 = u0.6 [0, 63] for G */
+                uint32_t r5 = src[0] >> 5;
+                uint32_t g6 = src[1] >> 4;
+                uint32_t b5 = src[2] >> 5;
+                if (r5 > 31) r5 = 31;
+                if (g6 > 63) g6 = 63;
+                if (b5 > 31) b5 = 31;
+                dst[tx] = (uint16_t)((r5 << 11) | (g6 << 5) | b5);
                 src += 4;
             }
-#endif
         }
     }
 }
@@ -432,8 +346,8 @@ void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t 
 
         float iz = -1.0f / cz;
 
-        s2->sx = cam->fx * cx * iz + cam->cx;
-        s2->sy = cam->fy * cy * iz + cam->cy;
+        float sx_f = cam->fx * cx * iz + cam->cx;
+        float sy_f = cam->fy * cy * iz + cam->cy;
         s2->depth = -cz;
 
         /* Jacobian of perspective projection */
@@ -487,18 +401,18 @@ void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t 
         }
 
         float inv_det = 1.0f / det;
-        s2->cov2d_inv[0] =  cc * inv_det;
-        s2->cov2d_inv[1] = -cb * inv_det;
-        s2->cov2d_inv[2] =  ca * inv_det;
+        float inv_a =  cc * inv_det;
+        float inv_b = -cb * inv_det;
+        float inv_c =  ca * inv_det;
 
         /* Bounding box (3-sigma) */
         float rx = 3.0f * sqrtf(ca);
         float ry = 3.0f * sqrtf(cc);
 
-        float bx0 = s2->sx - rx;
-        float by0 = s2->sy - ry;
-        float bx1 = s2->sx + rx;
-        float by1 = s2->sy + ry;
+        float bx0 = sx_f - rx;
+        float by0 = sy_f - ry;
+        float bx1 = sx_f + rx;
+        float by1 = sy_f + ry;
 
         /* Skip splats entirely off-screen or with NaN coords */
         if (bx1 < 0 || by1 < 0 || bx0 >= screen_w || by0 >= screen_h
@@ -519,11 +433,26 @@ void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t 
         s2->bbox_x1 = (int16_t)bx1;
         s2->bbox_y1 = (int16_t)by1;
 
-        /* Pre-convert color to float for blending */
-        s2->rf = s3->r / 255.0f;
-        s2->gf = s3->g / 255.0f;
-        s2->bf = s3->b / 255.0f;
-        s2->opacity = s3->alpha / 255.0f;
+        /* Convert screen position to s14.4 fixed-point */
+        s2->sx_fp = (int32_t)(sx_f * 16.0f + 0.5f);
+        s2->sy_fp = (int32_t)(sy_f * 16.0f + 0.5f);
+
+        /* Convert inverse covariance to fixed-point u2.14 / s2.14 */
+        if (inv_a > 3.999f) inv_a = 3.999f;
+        if (inv_c > 3.999f) inv_c = 3.999f;
+        float inv_b2 = 2.0f * inv_b;
+        if (inv_b2 > 3.999f) inv_b2 = 3.999f;
+        if (inv_b2 < -4.0f) inv_b2 = -4.0f;
+
+        s2->cov_a_fp = (uint16_t)(inv_a * 16384.0f + 0.5f);
+        s2->cov_b2_fp = (int32_t)(inv_b2 * 16384.0f);
+        s2->cov_c_fp = (uint16_t)(inv_c * 16384.0f + 0.5f);
+
+        /* Color and opacity stay as u0.8 integers */
+        s2->r = s3->r;
+        s2->g = s3->g;
+        s2->b = s3->b;
+        s2->opacity = s3->alpha;
     }
 }
 
@@ -598,11 +527,26 @@ void sort_splats(splat_store_t *store)
  * RASTERIZATION - Tile-based, back-to-front
  * ================================================================ */
 
-/* Rasterize a single splat into the current tile buffer */
+/* Rasterize a single splat into the current tile buffer.
+ *
+ * Fully integer/fixed-point — no float. Designed to map directly
+ * to FPGA pipeline with 18-bit DSP multiply blocks.
+ *
+ * Fixed-point chain:
+ *   dx, dy:      s14.4 (18 bits)
+ *   dx², dy²:    (dx*dx)>>4  ~17 bits unsigned
+ *   dx*dy:       (dx*dy)>>4  ~18 bits signed
+ *   a, c:        u2.14 (16 bits)
+ *   2*b:         s2.14 (17 bits)
+ *   d² sum:      u4.18 (~22 bits) = d²_float * 2^18
+ *   gauss LUT:   u0.16 (16 bits)
+ *   w:           u0.7  (0..128, where 128 = 1.0)
+ *   tile_buf:    u0.10 per channel (0..1023)
+ */
 static inline void rasterize_splat_tile(
-    float *tile_buf,
+    uint16_t *tile_buf,
     const splat_2d_t *s,
-    int tile_px, int tile_py)  /* pixel origin of this tile */
+    int tile_px, int tile_py)
 {
     /* Clip splat bbox to tile */
     int x0 = s->bbox_x0 - tile_px;
@@ -616,101 +560,91 @@ static inline void rasterize_splat_tile(
     if (y1 >= TILE_H) y1 = TILE_H - 1;
     if (x0 > x1 || y0 > y1) return;
 
-    float inv_a = s->cov2d_inv[0];
-    float inv_b = s->cov2d_inv[1];
-    float inv_c = s->cov2d_inv[2];
-    float sr = s->rf;
-    float sg = s->gf;
-    float sb = s->bf;
-    float sa = s->opacity;
-    float splat_sx = s->sx;
-    float splat_sy = s->sy;
+    /* Load splat parameters (all integer) */
+    int32_t a_fp  = s->cov_a_fp;     /* u2.14, 16 bits */
+    int32_t b2_fp = s->cov_b2_fp;    /* s2.14, 17 bits (includes 2x factor) */
+    int32_t c_fp  = s->cov_c_fp;     /* u2.14, 16 bits */
+    int32_t sx_fp = s->sx_fp;        /* s14.4 */
+    int32_t sy_fp = s->sy_fp;        /* s14.4 */
+
+    /* Color scaled to u0.10: [0,255] -> [0,1020] */
+    int32_t cr = ((int32_t)s->r) << 2;
+    int32_t cg = ((int32_t)s->g) << 2;
+    int32_t cb = ((int32_t)s->b) << 2;
+    int32_t opacity = s->opacity;     /* u0.8 */
 
     for (int ty = y0; ty <= y1; ty++) {
-        float dy = (tile_py + ty) + 0.5f - splat_sy;
-        float dy_b = inv_b * dy;
-        float dy2_c = inv_c * dy * dy;
+        /* dy in s14.4: pixel center = (tile_py + ty) * 16 + 8 */
+        int32_t dy_fp = ((tile_py + ty) * 16 + 8) - sy_fp;
 
-        float *row = &tile_buf[ty * TILE_W * 4];
+        /* dy² >> 4 (row-invariant, unsigned, ~17 bits)
+         * On FPGA: single 18x18 multiply, shift is free wiring */
+        int32_t dy2_s = (int32_t)(((int64_t)dy_fp * dy_fp) >> 4);
 
-#ifdef __ARM_NEON
-        /* Process 4 pixels at a time */
-        /* Preload dx base values */
-        float dx_base = (tile_px + x0) + 0.5f - splat_sx;
+        /* c * dy² term (row-invariant): u2.14 * u17 -> ~31 bits
+         * Represents c * dy² * 2^18 */
+        int64_t term_c = (int64_t)c_fp * dy2_s;
 
-        int tx = x0;
-        for (; tx + 3 <= x1; tx += 4) {
-            float32x4_t vdx = {
-                dx_base,
-                dx_base + 1.0f,
-                dx_base + 2.0f,
-                dx_base + 3.0f
-            };
-            dx_base += 4.0f;
+        uint16_t *row = &tile_buf[ty * TILE_W * 4];
 
-            /* d² = a*dx² + 2*b*dx*dy + c*dy² */
-            float32x4_t va   = vdupq_n_f32(inv_a);
-            float32x4_t vdy_b2 = vdupq_n_f32(2.0f * dy_b);
-            float32x4_t vdy2c = vdupq_n_f32(dy2_c);
+        /* Initial dx in s14.4 */
+        int32_t dx_fp = ((tile_px + x0) * 16 + 8) - sx_fp;
 
-            float32x4_t d2 = vmlaq_f32(
-                vmlaq_f32(vdy2c, vdy_b2, vdx),
-                va, vmulq_f32(vdx, vdx));
+        /* Precompute initial dx² and dx*dy (raw, before >>4) */
+        int32_t dx2_raw  = (int32_t)(((int64_t)dx_fp * dx_fp));
+        int32_t dxdy_raw = (int32_t)(((int64_t)dx_fp * dy_fp));
 
-            /* Evaluate Gaussian via LUT for each lane */
-            float d2_arr[4];
-            vst1q_f32(d2_arr, d2);
-
-            for (int k = 0; k < 4; k++) {
-                if (d2_arr[k] >= 9.0f) continue;
-
-                float gauss = fast_gauss(d2_arr[k]);
-                float w = gauss * sa;
-                if (w < (1.0f / 255.0f)) continue;
-
-                float omw = 1.0f - w;
-                float *px = &row[(tx + k) * 4];
-                px[0] = sr * w + px[0] * omw;
-                px[1] = sg * w + px[1] * omw;
-                px[2] = sb * w + px[2] * omw;
-                px[3] = w + px[3] * omw;
-            }
-        }
-
-        /* Remaining pixels */
-        for (; tx <= x1; tx++) {
-            float dx = (tile_px + tx) + 0.5f - splat_sx;
-            float d2 = inv_a * dx * dx + 2.0f * dx * dy_b + dy2_c;
-            if (d2 >= 9.0f) continue;
-
-            float w = fast_gauss(d2) * sa;
-            if (w < (1.0f / 255.0f)) continue;
-
-            float omw = 1.0f - w;
-            float *px = &row[tx * 4];
-            px[0] = sr * w + px[0] * omw;
-            px[1] = sg * w + px[1] * omw;
-            px[2] = sb * w + px[2] * omw;
-            px[3] = w + px[3] * omw;
-        }
-#else
-        /* Scalar path */
         for (int tx = x0; tx <= x1; tx++) {
-            float dx = (tile_px + tx) + 0.5f - splat_sx;
-            float d2 = inv_a * dx * dx + 2.0f * dx * dy_b + dy2_c;
-            if (d2 >= 9.0f) continue;
+            /* Shifted products (>>4 = divide by 16, free in FPGA) */
+            int32_t dx2_s  = dx2_raw >> 4;   /* unsigned, ~17 bits */
+            int32_t dxdy_s = dxdy_raw >> 4;  /* signed, ~18 bits */
 
-            float w = fast_gauss(d2) * sa;
-            if (w < (1.0f / 255.0f)) continue;
+            /* d² = a*dx² + 2*b*dx*dy + c*dy²
+             * Each product uses one 18x18 DSP block.
+             * All terms in d² * 2^18 scaling. */
+            int64_t term_a = (int64_t)a_fp * dx2_s;
+            int64_t term_b = (int64_t)b2_fp * dxdy_s;
 
-            float omw = 1.0f - w;
-            float *px = &row[tx * 4];
-            px[0] = sr * w + px[0] * omw;
-            px[1] = sg * w + px[1] * omw;
-            px[2] = sb * w + px[2] * omw;
-            px[3] = w + px[3] * omw;
+            int32_t d2_sum = (int32_t)(term_a + term_b + term_c);
+
+            /* Cutoff: d² >= 8.0 (in u4.18: 8 << 18 = 2097152) */
+            if (d2_sum < 0 || d2_sum >= GAUSS_LUT_D2_CUTOFF_FP) goto next_pixel;
+
+            {
+                /* LUT index: d2_sum is d²*2^18, want d²*256 = d2_sum>>10 */
+                int32_t lut_idx = d2_sum >> 10;
+                if (lut_idx >= GAUSS_LUT_SIZE) goto next_pixel;
+
+                /* Gaussian value (u0.16) */
+                uint32_t gauss = gauss_lut[lut_idx];
+
+                /* Weight: gauss * opacity -> u0.16 * u0.8 = u0.24
+                 * Scale to u0.7: >>17.  w range [0, 128] */
+                int32_t w = (int32_t)((gauss * (uint32_t)opacity) >> 17);
+                if (w <= 0) goto next_pixel;
+                if (w > 128) w = 128;
+
+                int32_t omw = 128 - w;
+
+                /* Alpha blend: px_new = (color_10 * w + px_old * omw) >> 7
+                 * color_10 (10 bits) * w (7 bits) = 17 bits -> fits 18x18
+                 * px_old (10 bits) * omw (8 bits) = 18 bits -> fits 18x18 */
+                uint16_t *px = &row[tx * 4];
+                px[0] = (uint16_t)((cr * w + (int32_t)px[0] * omw) >> 7);
+                px[1] = (uint16_t)((cg * w + (int32_t)px[1] * omw) >> 7);
+                px[2] = (uint16_t)((cb * w + (int32_t)px[2] * omw) >> 7);
+                px[3] = (uint16_t)((1020 * w + (int32_t)px[3] * omw) >> 7);
+            }
+
+        next_pixel:
+            /* Incremental update for next pixel (dx increases by 16 in s14.4)
+             * dx2_next = (dx+16)² = dx² + 32*dx + 256
+             * dxdy_next = (dx+16)*dy = dx*dy + 16*dy
+             * These replace two 18x18 multiplies with shifts + adds. */
+            dx2_raw += (dx_fp << 5) + 256;
+            dxdy_raw += (dy_fp << 4);
+            dx_fp += 16;
         }
-#endif
     }
 }
 
