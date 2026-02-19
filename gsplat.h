@@ -15,7 +15,7 @@
 
 #define DEFAULT_W  640
 #define DEFAULT_H  480
-#define MAX_SPLATS 50000
+#define MAX_SPLATS 307200  /* 640x480 - one splat per pixel */
 
 /* Tile-based rasterizer settings.
  * Tiles let us keep a working buffer in L1 cache (32KB on A9)

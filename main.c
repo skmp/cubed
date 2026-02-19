@@ -171,8 +171,8 @@ int main(int argc, char **argv)
 
         /* Orbit camera */
         float angle = frame * 0.02f;
-        float dist = 5.0f;
-        float eye[3]    = { dist * cosf(angle), 1.0f, dist * sinf(angle) };
+        float dist = 10.0f;
+        float eye[3]    = { dist * cosf(angle), 2.0f, dist * sinf(angle) };
         float target[3] = { 0, 0, 0 };
         float up[3]     = { 0, 1, 0 };
         cam_lookat(&cam, eye, target, up);

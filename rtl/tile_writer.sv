@@ -37,17 +37,18 @@ localparam SCREEN_W = 640;
 localparam FB_STRIDE_BYTES = 2560;   // 640 * 4
 
 // States
-localparam S_IDLE      = 3'd0;
-localparam S_ROW_START = 3'd1;
-localparam S_READ_PIX0 = 3'd2;
-localparam S_READ_PIX1 = 3'd3;
-localparam S_WRITE     = 3'd4;
-localparam S_DONE      = 3'd5;
+localparam S_IDLE           = 4'd0;
+localparam S_ROW_START      = 4'd1;
+localparam S_READ_PIX0_WAIT = 4'd2;  // wait for BRAM latency on pixel0
+localparam S_READ_PIX0      = 4'd3;
+localparam S_READ_PIX1_WAIT = 4'd4;  // wait for BRAM latency on pixel1
+localparam S_READ_PIX1      = 4'd5;
+localparam S_WRITE          = 4'd6;
+localparam S_DONE           = 4'd7;
 
-reg [2:0] state;
+reg [3:0] state;
 reg [4:0] row;     // 0..31
 reg [4:0] col;     // 0..31 (processes 2 pixels at a time, so steps by 2)
-reg       first_in_row;
 
 // Pixel conversion: u0.10 -> u0.8 (shift right by 2, clamp to 255)
 function [7:0] to_8bit(input [15:0] val);
@@ -62,7 +63,6 @@ endfunction
 // Stored pixel pair for burst writing
 reg [31:0] pixel0;
 reg [31:0] pixel1;
-reg [15:0] pix1_r, pix1_g, pix1_b, pix1_a;
 
 always @(posedge clk) begin
 	if (reset) begin
@@ -83,48 +83,47 @@ always @(posedge clk) begin
 
 		S_ROW_START: begin
 			col <= 0;
-			first_in_row <= 1;
-			// Start reading first pixel of row
+			// Issue BRAM read for first pixel of row
 			tb_rd_addr <= {row, 5'd0};  // pixel (row, 0)
+			state <= S_READ_PIX0_WAIT;
+		end
+
+		S_READ_PIX0_WAIT: begin
+			// Wait 1 cycle for BRAM read latency.
+			// Address was issued in ROW_START (first pair) or
+			// pre-issued in S_READ_PIX1 (subsequent pairs).
+			// BRAM data will be valid at the next edge.
 			state <= S_READ_PIX0;
 		end
 
 		S_READ_PIX0: begin
-			// BRAM has 1-cycle latency. Read data available now for previous address.
-			// Issue read for second pixel
+			// BRAM data is now valid for pixel0 (2 edges after addr issue).
+			// Capture pixel0.
+			// MiSTer ascal 32bpp format 110: byte[0]=R, [1]=G, [2]=B, [3]=xx
+			// As 32-bit LE integer: 0xXXBBGGRR
+			pixel0 <= {8'hFF,                          // byte[3] = unused/alpha
+			           to_8bit(tb_rd_data[47:32]),     // byte[2] = B
+			           to_8bit(tb_rd_data[31:16]),     // byte[1] = G
+			           to_8bit(tb_rd_data[15:0])};     // byte[0] = R
+
+			// Issue BRAM read for pixel1 (col+1)
 			tb_rd_addr <= {row, col + 5'd1};
+			state <= S_READ_PIX1_WAIT;
+		end
 
-			if (!first_in_row) begin
-				// tb_rd_data has pixel at col
-				// MiSTer ascal 32bpp format 110: byte[0]=R, byte[1]=G, byte[2]=B, byte[3]=xx
-				// As 32-bit LE integer: 0xXXBBGGRR
-				pixel0 <= {8'hFF,                          // byte[3] = unused/alpha
-				           to_8bit(tb_rd_data[47:32]),     // byte[2] = B
-				           to_8bit(tb_rd_data[31:16]),     // byte[1] = G
-				           to_8bit(tb_rd_data[15:0])};     // byte[0] = R
-			end else begin
-				first_in_row <= 0;
-				// First iteration: read addr was set in ROW_START, data not ready yet
-				// We need one more cycle. Issue address again and re-enter.
-				tb_rd_addr <= {row, col};
-				state <= S_READ_PIX0;  // Stay here one more cycle
-				first_in_row <= 0;
-			end
-
-			if (!first_in_row) begin
-				state <= S_READ_PIX1;
-			end
+		S_READ_PIX1_WAIT: begin
+			// Wait 1 cycle for BRAM read latency on pixel1.
+			state <= S_READ_PIX1;
 		end
 
 		S_READ_PIX1: begin
-			// tb_rd_data now has second pixel
-			// MiSTer ascal 32bpp format: 0xXXBBGGRR (LE)
+			// BRAM data now has pixel1 (2 edges after addr issue).
 			pixel1 <= {8'hFF,
 			           to_8bit(tb_rd_data[47:32]),
 			           to_8bit(tb_rd_data[31:16]),
 			           to_8bit(tb_rd_data[15:0])};
 
-			// Pre-read next pixel pair's first pixel
+			// Pre-issue BRAM read for next pair's pixel0
 			if (col + 2 < TILE_W) begin
 				tb_rd_addr <= {row, col + 5'd2};
 			end

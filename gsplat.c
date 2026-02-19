@@ -908,46 +908,57 @@ int load_splats_png(const char *path, splat_store_t *store)
         return -1;
     }
 
-    int total_bytes = w * h * 3;
-    if (total_bytes < 18) {
-        fprintf(stderr, "PNG too small: %dx%d\n", w, h);
-        stbi_image_free(img);
-        return -1;
-    }
-
-    /* Read header */
-    uint8_t *p = img;
-    int count = p[0] | (p[1] << 8);
-
-    int max_splats = (total_bytes - 18) / 18;
-    if (count > max_splats) count = max_splats;
+    int count = w * h;
     if (count > MAX_SPLATS) count = MAX_SPLATS;
 
     fprintf(stderr, "PNG %dx%d, loading %d splats\n", w, h, count);
 
     store_init(store);
 
+    /* Pixel coordinates -> spherical coordinates.
+     * px -> longitude (theta): [0, 2*pi]
+     * py -> latitude (phi):    [0, pi]
+     * R channel -> radius (distance) AND luminance (Y)
+     * G channel -> U chroma
+     * B channel -> V chroma
+     * YUV->RGB conversion (BT.601) */
+
     for (int i = 0; i < count; i++) {
-        uint8_t *sp = img + 18 + i * 18;
+        int px = i % w;
+        int py = i / w;
+        uint8_t *sp = img + i * 3;
         splat_3d_t s;
 
-        /* Position: int16 LE s7.8 fixed-point */
-        int16_t ix = (int16_t)(sp[0] | (sp[1] << 8));
-        int16_t iy = (int16_t)(sp[2] | (sp[3] << 8));
-        int16_t iz = (int16_t)(sp[4] | (sp[5] << 8));
-        s.x = ix / 256.0f;
-        s.y = iy / 256.0f;
-        s.z = iz / 256.0f;
+        float theta = (float)px / w * 2.0f * (float)M_PI;
+        float phi   = (float)py / h * (float)M_PI;
+        float radius = sp[0] / 255.0f * 4.0f;  /* R -> distance, scale to [0, 4] */
 
-        /* Covariance: uint8 0.8 fixed-point, scaled to reasonable range */
-        for (int j = 0; j < 6; j++)
-            s.cov[j] = sp[6 + j] / 256.0f;
+        s.x = radius * sinf(phi) * cosf(theta);
+        s.y = radius * cosf(phi);
+        s.z = radius * sinf(phi) * sinf(theta);
 
-        /* Color */
-        s.r = sp[12];
-        s.g = sp[13];
-        s.b = sp[14];
-        s.alpha = sp[15];
+        /* Small isotropic covariance */
+        float variance = 0.005f;
+        s.cov[0] = variance;
+        s.cov[1] = 0;
+        s.cov[2] = 0;
+        s.cov[3] = variance;
+        s.cov[4] = 0;
+        s.cov[5] = variance;
+
+        /* YUV -> RGB (BT.601): Y = depth value, U = G channel, V = B channel */
+        float y = sp[0];                  /* Y = same as depth byte */
+        float u = (float)sp[1] - 128.0f;  /* U centered at 128 */
+        float v = (float)sp[2] - 128.0f;  /* V centered at 128 */
+
+        int ri = (int)(y + 1.402f * v);
+        int gi = (int)(y - 0.344f * u - 0.714f * v);
+        int bi = (int)(y + 1.772f * u);
+
+        s.r = ri < 0 ? 0 : (ri > 255 ? 255 : ri);
+        s.g = gi < 0 ? 0 : (gi > 255 ? 255 : gi);
+        s.b = bi < 0 ? 0 : (bi > 255 ? 255 : bi);
+        s.alpha = 255;
 
         store_add(store, &s);
     }
@@ -982,7 +993,7 @@ int load_splats_png(const char *path, splat_store_t *store)
 #define FPGA_DESC_BASE   0x30400100          /* after 256-byte control block */
 #define FPGA_DESC_MMAP   0x30400000          /* page-aligned base for mmap */
 #define FPGA_DESC_OFFSET 0x100               /* offset within mapped page */
-#define FPGA_DESC_SIZE   (30 * 1024 * 1024)  /* 30MB for tile descriptors */
+#define FPGA_DESC_SIZE   (128 * 1024 * 1024) /* 128MB for tile descriptors */
 #define FPGA_CTRL_SIZE   64
 
 int fpga_init(fpga_ctx_t *ctx)
