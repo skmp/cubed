@@ -66,10 +66,11 @@ localparam S_ROW_DY2    = 4'd3;   // compute dy² from dy_fp
 localparam S_ROW_DX     = 4'd4;   // compute initial dx² and dxdy
 localparam S_PIX_TERMS  = 4'd5;   // compute term_a, term_b, term_c
 localparam S_PIX_CHECK  = 4'd6;   // sum + cutoff check + start reads
-localparam S_PIX_WEIGHT = 4'd7;   // LUT result + weight calc
-localparam S_PIX_BLEND  = 4'd8;   // blend + write + increment
-localparam S_PIX_SKIP   = 4'd9;   // skipped pixel: just increment
-localparam S_DONE       = 4'd10;
+localparam S_PIX_WAIT   = 4'd7;   // wait for BRAM/LUT read latency
+localparam S_PIX_WEIGHT = 4'd8;   // LUT result + weight calc
+localparam S_PIX_BLEND  = 4'd9;   // blend + write + increment
+localparam S_PIX_SKIP   = 4'd10;  // skipped pixel: just increment
+localparam S_DONE       = 4'd11;
 
 reg [3:0] state;
 
@@ -212,16 +213,23 @@ always @(posedge clk) begin
 				if (d2 < 0 || d2 >= D2_CUTOFF) begin
 					state <= S_PIX_SKIP;
 				end else begin
-					// Start LUT read (1-cycle latency)
+					// Start LUT read and tile buffer read (both have 1-cycle latency,
+					// but addresses are registered via NBA so data arrives 2 cycles later).
+					// Issue addresses here, wait in S_PIX_WAIT, read data in S_PIX_WEIGHT.
 					lut_addr <= d2[20:10];
-
-					// Start tile buffer read (1-cycle latency)
 					tb_rd_addr <= {ty, tx};
 
 					d2_sum_comb <= d2;  // save for debug if needed
-					state <= S_PIX_WEIGHT;
+					state <= S_PIX_WAIT;
 				end
 			end
+		end
+
+		S_PIX_WAIT: begin
+			// Wait 1 cycle for BRAM and LUT read latency.
+			// Addresses were set (via NBA) in S_PIX_CHECK, became visible to
+			// BRAM/LUT at start of this cycle, outputs will be valid next cycle.
+			state <= S_PIX_WEIGHT;
 		end
 
 		S_PIX_WEIGHT: begin
