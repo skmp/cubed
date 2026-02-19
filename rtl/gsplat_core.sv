@@ -16,7 +16,7 @@ module gsplat_core (
 	input  [28:0] tile_addr,         // tile descriptor DDR3 qword address
 	input  [15:0] tile_px,           // tile origin X (from header)
 	input  [15:0] tile_py,           // tile origin Y (from header)
-	input  [15:0] tile_splat_count,  // number of inline splats
+	input  [31:0] tile_splat_count,  // number of inline splats
 	input  [28:0] fb_base,           // framebuffer DDR3 qword base address
 
 	// Status (to coordinator)
@@ -59,8 +59,8 @@ reg [3:0] state;
 reg [28:0] cur_tile_addr;
 reg [15:0] cur_tile_px;
 reg [15:0] cur_tile_py;
-reg [15:0] cur_splat_count;
-reg [15:0] splat_idx;
+reg [31:0] cur_splat_count;
+reg [31:0] splat_idx;
 
 // Tile clear
 reg  [9:0] clear_addr;
@@ -278,7 +278,7 @@ always @(posedge clk) begin
 			end else begin
 				// Inline splats start at tile_addr + 2, each is 4 qwords
 				rd_addr     <= cur_tile_addr + 29'd2 +
-				               {11'd0, splat_idx, 2'b00};
+				               {splat_idx[26:0], 2'b00};
 				rd_burstcnt <= 8'd4;
 				sr_start    <= 1;
 				if (rd_ack) begin
@@ -299,7 +299,7 @@ always @(posedge clk) begin
 
 		S_SPLAT_RAST: begin
 			if (rast_done) begin
-				splat_idx <= splat_idx + 16'd1;
+				splat_idx <= splat_idx + 32'd1;
 				state     <= S_SPLAT_READ_REQ;
 			end
 		end

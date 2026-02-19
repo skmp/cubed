@@ -85,7 +85,7 @@ reg        hdr_word_cnt;
 reg [63:0] hdr_word0;
 reg [15:0] hdr_tile_px;
 reg [15:0] hdr_tile_py;
-reg [15:0] hdr_splat_count;
+reg [31:0] hdr_splat_count;
 reg [28:0] hdr_next_addr;
 
 // Which core to dispatch to (0..3)
@@ -180,7 +180,7 @@ reg  [3:0]  core_tile_start;
 reg  [28:0] core_tile_addr  [0:3];
 reg  [15:0] core_tile_px    [0:3];
 reg  [15:0] core_tile_py    [0:3];
-reg  [15:0] core_splat_count[0:3];
+reg  [31:0] core_splat_count[0:3];
 
 // Per-core DDR3 signals
 wire [28:0] core_rd_addr    [0:3];
@@ -462,9 +462,9 @@ always @(posedge clk) begin
 				end else begin
 					// Parse header
 					hdr_next_addr  <= hdr_word0[60:32];
-					hdr_tile_px    <= coord_rd_data[31:16];
-					hdr_tile_py    <= coord_rd_data[47:32];
-					hdr_splat_count <= coord_rd_data[15:0];
+					hdr_splat_count <= coord_rd_data[31:0];
+					hdr_tile_px    <= coord_rd_data[47:32];
+					hdr_tile_py    <= coord_rd_data[63:48];
 					state          <= S_HDR_DISPATCH;
 				end
 			end

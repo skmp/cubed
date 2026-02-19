@@ -1142,10 +1142,10 @@ void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_
                                 (uint32_t)tpx / 2;
             desc[0] = (uint64_t)(fb_qaddr & 0x1FFFFFFF);  /* next=0 */
 
-            /* Write header qword 1: count, tile_px, tile_py */
-            desc[1] = (uint16_t)count |
-                      ((uint32_t)tpx << 16) |
-                      ((uint64_t)(uint16_t)tpy << 32);
+            /* Write header qword 1: count(32), tile_px(16), tile_py(16) */
+            desc[1] = (uint32_t)count |
+                      ((uint64_t)(uint16_t)tpx << 32) |
+                      ((uint64_t)(uint16_t)tpy << 48);
 
             prev_hdr_offset = desc_offset;
             has_prev = 1;
