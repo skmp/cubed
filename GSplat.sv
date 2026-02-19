@@ -195,7 +195,7 @@ wire rendering;
 	assign FB_HEIGHT      = 12'd480;
 	assign FB_BASE        = 32'h30000000;
 	assign FB_STRIDE      = 14'd2560;  // 640 * 4 bytes
-	assign FB_FORCE_BLANK = rendering;
+	assign FB_FORCE_BLANK = 1'b0;  // Don't blank during rendering - let user see progressive output
 `endif
 
 ///////////////////////   VGA TIMING   ///////////////////////////

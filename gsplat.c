@@ -1010,19 +1010,46 @@ int fpga_init(fpga_ctx_t *ctx)
     }
     ctx->splats = (splat_2d_t *)ctx->splat_map;
 
+    /* Map framebuffer region for debug readback */
+    #define FPGA_FB_SIZE (640 * 480 * 4)
+    ctx->fb_map = mmap(NULL, FPGA_FB_SIZE, PROT_READ | PROT_WRITE,
+                        MAP_SHARED, ctx->mem_fd, FPGA_FB_BASE);
+    if (ctx->fb_map == MAP_FAILED) {
+        fprintf(stderr, "mmap fb (non-fatal)\n");
+        ctx->fb_map = NULL;
+        ctx->fb = NULL;
+    } else {
+        ctx->fb = (volatile uint32_t *)ctx->fb_map;
+    }
+
     /* Clear control block */
     ctx->ctrl[0] = 0;  /* splat_count */
     ctx->ctrl[1] = 0;  /* frame_request */
     ctx->ctrl[2] = 0;  /* frame_done */
     ctx->ctrl[3] = 0;  /* frame_number */
+    __sync_synchronize();
 
     fprintf(stderr, "FPGA offload: ctrl@%p splats@%p\n",
             ctx->ctrl_map, ctx->splat_map);
+
+    /* Verify DDR3 mapping: read back what we wrote */
+    fprintf(stderr, "  ctrl readback: [0]=%u [1]=%u [2]=%u [3]=%u\n",
+            ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3]);
+
+    /* Test write/read to splat region */
+    volatile uint32_t *test = (volatile uint32_t *)ctx->splats;
+    test[0] = 0xDEADBEEF;
+    __sync_synchronize();
+    fprintf(stderr, "  splat region test: wrote 0xDEADBEEF, read 0x%08X\n", test[0]);
+    test[0] = 0;
+
     return 0;
 }
 
 void fpga_close(fpga_ctx_t *ctx)
 {
+    if (ctx->fb_map && ctx->fb_map != MAP_FAILED)
+        munmap(ctx->fb_map, FPGA_FB_SIZE);
     if (ctx->splat_map && ctx->splat_map != MAP_FAILED)
         munmap(ctx->splat_map, FPGA_SPLAT_SIZE);
     if (ctx->ctrl_map && ctx->ctrl_map != MAP_FAILED)
@@ -1047,8 +1074,39 @@ void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store)
     __sync_synchronize();
     ctx->ctrl[1] = 1;   /* frame_request = 1 */
 
-    /* Wait for FPGA to finish */
+    /* Wait for FPGA to finish.
+     * 10K splats * 300 tiles at 20MHz can take 60+ seconds.
+     * Use 120 second timeout with progress reporting. */
+    int timeout = 0;
     while (ctx->ctrl[2] == 0) {
-        /* spin - could add usleep(100) for power savings */
+        usleep(10000);  /* 10ms sleep */
+        timeout++;
+        if (timeout % 100 == 0) {  /* print every second */
+            fprintf(stderr, "  waiting... ctrl: count=%u req=%u done=%u tiles=%u (%ds)\n",
+                    ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3],
+                    timeout / 100);
+        }
+        if (timeout > 12000) {  /* 120 second timeout */
+            fprintf(stderr, "FPGA timeout! ctrl: count=%u req=%u done=%u tiles=%u\n",
+                    ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3]);
+            /* Check if FPGA wrote anything to framebuffer */
+            if (ctx->fb) {
+                int nonzero = 0;
+                for (int i = 0; i < 640*480 && nonzero < 5; i++) {
+                    if (ctx->fb[i] != 0) {
+                        if (nonzero == 0)
+                            fprintf(stderr, "  FB has data! first pixels: ");
+                        fprintf(stderr, "[%d]=0x%08X ", i, ctx->fb[i]);
+                        nonzero++;
+                    }
+                }
+                if (nonzero) fprintf(stderr, "\n");
+                else fprintf(stderr, "  FB is all zeros\n");
+            }
+            break;
+        }
+    }
+    if (ctx->ctrl[2] != 0) {
+        fprintf(stderr, "FPGA frame done! tiles=%u\n", ctx->ctrl[3]);
     }
 }

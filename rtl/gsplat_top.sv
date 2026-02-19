@@ -73,6 +73,7 @@ reg  [4:0] tile_x;    // 0..TILES_X-1
 reg  [4:0] tile_y;    // 0..TILES_Y-1
 reg [15:0] tile_px;   // tile_x * TILE_W
 reg [15:0] tile_py;   // tile_y * TILE_H
+reg [15:0] tile_num;  // linear tile counter for progress tracking
 
 // Tile clear state
 reg  [9:0] clear_addr;
@@ -366,8 +367,12 @@ always @(posedge clk) begin
 			// Read control block: word 0 = {frame_request[31:0], splat_count[31:0]}
 			top_rd_addr     <= CTRL_ADDR;
 			top_rd_burstcnt <= 8'd1;
-			top_rd_req      <= 1;
-			state           <= S_POLL_WAIT;
+			if (dc_rd_ack) begin
+				top_rd_req <= 0;
+				state <= S_POLL_WAIT;
+			end else begin
+				top_rd_req <= 1;
+			end
 		end
 
 		S_POLL_WAIT: begin
@@ -390,6 +395,7 @@ always @(posedge clk) begin
 			tile_y    <= 0;
 			tile_px   <= 0;
 			tile_py   <= 0;
+			tile_num  <= 0;
 			state     <= S_TILE_CLEAR;
 			clear_addr <= 0;
 		end
@@ -415,9 +421,13 @@ always @(posedge clk) begin
 				// Request 4 words (32 bytes) for this splat
 				top_rd_addr     <= SPLAT_BASE + {13'd0, splat_idx} * SPLAT_QWORDS;
 				top_rd_burstcnt <= 8'd4;
-				top_rd_req      <= 1;
 				sr_start        <= 1;
-				state           <= S_SPLAT_READ;
+				if (dc_rd_ack) begin
+					top_rd_req <= 0;
+					state <= S_SPLAT_READ;
+				end else begin
+					top_rd_req <= 1;
+				end
 			end
 		end
 
@@ -462,6 +472,7 @@ always @(posedge clk) begin
 
 		// ---- Advance to next tile ----
 		S_TILE_NEXT: begin
+			tile_num <= tile_num + 16'd1;
 			if (tile_x + 1 >= TILES_X) begin
 				tile_x  <= 0;
 				tile_px <= 0;
@@ -484,24 +495,28 @@ always @(posedge clk) begin
 
 		// ---- Write frame done to control block ----
 		S_FRAME_DONE_WR: begin
-			// Write: splat_count unchanged in [31:0], frame_request=0 in [63:32]
-			// Actually write to second qword: frame_done=1 at offset 0x08
+			// Write to second qword (bytes 8-15):
+			//   [31:0]  = ctrl[2] = frame_done (byte offset 8)
+			//   [63:32] = ctrl[3] = frame_number / tile count (byte offset 12)
 			top_wr_addr <= CTRL_ADDR + 29'd1;  // byte offset 8 = qword offset 1
-			top_wr_data <= 64'h0000000100000000;  // frame_done=1 at [31:0], frame_number at [63:32] (ignored for now)
-			top_wr_req  <= 1;
-
-			// Also clear frame_request by writing word 0
-			// We'll do this as a second write. For simplicity, just go to done.
-			state <= S_FRAME_DONE;
+			top_wr_data <= {16'd0, tile_num, 32'd1};  // frame_done=1, frame_number=tile_num
+			if (dc_wr_ack) begin
+				top_wr_req <= 0;
+				state <= S_FRAME_DONE;
+			end else begin
+				top_wr_req <= 1;
+			end
 		end
 
 		S_FRAME_DONE: begin
+			// Clear frame_request in control block word 0
+			top_wr_addr <= CTRL_ADDR;
+			top_wr_data <= {32'd0, {16'd0, splat_count}};  // frame_req=0, keep splat_count
 			if (dc_wr_ack) begin
-				// Clear frame_request in control block word 0
-				top_wr_addr <= CTRL_ADDR;
-				top_wr_data <= {32'd0, {16'd0, splat_count}};  // frame_req=0, keep splat_count
-				top_wr_req  <= 1;
-				state       <= S_IDLE;
+				top_wr_req <= 0;
+				state <= S_IDLE;
+			end else begin
+				top_wr_req <= 1;
 			end
 		end
 

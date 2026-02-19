@@ -128,9 +128,11 @@ int  load_splats_png(const char *path, splat_store_t *store);
 typedef struct {
     volatile uint32_t *ctrl;    /* control block (splat_count, frame_req, frame_done) */
     splat_2d_t       *splats;   /* sorted splat array in DDR3 */
+    volatile uint32_t *fb;      /* framebuffer in DDR3 (for debug readback) */
     int               mem_fd;
     void             *ctrl_map;
     void             *splat_map;
+    void             *fb_map;
 } fpga_ctx_t;
 
 int  fpga_init(fpga_ctx_t *ctx);

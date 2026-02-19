@@ -42,8 +42,7 @@ localparam S_ROW_START = 3'd1;
 localparam S_READ_PIX0 = 3'd2;
 localparam S_READ_PIX1 = 3'd3;
 localparam S_WRITE     = 3'd4;
-localparam S_WRITE_WAIT = 3'd5;
-localparam S_DONE      = 3'd6;
+localparam S_DONE      = 3'd5;
 
 reg [2:0] state;
 reg [4:0] row;     // 0..31
@@ -97,10 +96,12 @@ always @(posedge clk) begin
 
 			if (!first_in_row) begin
 				// tb_rd_data has pixel at col
-				pixel0 <= {8'hFF,
-				           to_8bit(tb_rd_data[15:0]),    // R
-				           to_8bit(tb_rd_data[31:16]),   // G
-				           to_8bit(tb_rd_data[47:32])};  // B
+				// MiSTer ascal 32bpp format 110: byte[0]=R, byte[1]=G, byte[2]=B, byte[3]=xx
+				// As 32-bit LE integer: 0xXXBBGGRR
+				pixel0 <= {8'hFF,                          // byte[3] = unused/alpha
+				           to_8bit(tb_rd_data[47:32]),     // byte[2] = B
+				           to_8bit(tb_rd_data[31:16]),     // byte[1] = G
+				           to_8bit(tb_rd_data[15:0])};     // byte[0] = R
 			end else begin
 				first_in_row <= 0;
 				// First iteration: read addr was set in ROW_START, data not ready yet
@@ -117,10 +118,11 @@ always @(posedge clk) begin
 
 		S_READ_PIX1: begin
 			// tb_rd_data now has second pixel
+			// MiSTer ascal 32bpp format: 0xXXBBGGRR (LE)
 			pixel1 <= {8'hFF,
-			           to_8bit(tb_rd_data[15:0]),
+			           to_8bit(tb_rd_data[47:32]),
 			           to_8bit(tb_rd_data[31:16]),
-			           to_8bit(tb_rd_data[47:32])};
+			           to_8bit(tb_rd_data[15:0])};
 
 			// Pre-read next pixel pair's first pixel
 			if (col + 2 < TILE_W) begin
@@ -131,23 +133,18 @@ always @(posedge clk) begin
 		end
 
 		S_WRITE: begin
-			if (!wr_busy) begin
-				// Compute DDR3 address for this pixel pair
-				// byte_addr = FB_BASE_BYTES + (tile_py + row) * STRIDE + (tile_px + col) * 4
-				// ddram_addr = byte_addr >> 3
-				wr_addr <= FB_BASE +
-				           (({14'd0, tile_py} + {14'd0, 11'd0, row}) * (FB_STRIDE_BYTES >> 3)) +
-				           (({14'd0, tile_px} + {14'd0, 11'd0, col}) >> 1);
-				wr_burstcnt <= 8'd1;
-				wr_data <= {pixel1, pixel0};  // two 32-bit pixels in one 64-bit word
-				wr_be   <= 8'hFF;
-				wr_req  <= 1;
-				state   <= S_WRITE_WAIT;
-			end
-		end
-
-		S_WRITE_WAIT: begin
+			// Compute DDR3 address for this pixel pair
+			// byte_addr = FB_BASE_BYTES + (tile_py + row) * STRIDE + (tile_px + col) * 4
+			// ddram_addr = byte_addr >> 3
+			wr_addr <= FB_BASE +
+			           (({14'd0, tile_py} + {14'd0, 11'd0, row}) * (FB_STRIDE_BYTES >> 3)) +
+			           (({14'd0, tile_px} + {14'd0, 11'd0, col}) >> 1);
+			wr_burstcnt <= 8'd1;
+			wr_data <= {pixel1, pixel0};  // two 32-bit pixels in one 64-bit word
+			wr_be   <= 8'hFF;
+			// Hold wr_req asserted until ack is received, then deassert
 			if (wr_ack) begin
+				wr_req <= 0;  // Deassert immediately on ack to prevent spurious write
 				if (col + 2 >= TILE_W) begin
 					// End of row
 					if (row + 1 >= TILE_H) begin
@@ -160,6 +157,8 @@ always @(posedge clk) begin
 					col   <= col + 5'd2;
 					state <= S_READ_PIX0;
 				end
+			end else begin
+				wr_req <= 1;
 			end
 		end
 

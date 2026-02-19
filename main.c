@@ -96,6 +96,17 @@ int main(int argc, char **argv)
     framebuf_t fb;
     if (fb_init(&fb) < 0) return 1;
 
+    /* When using FPGA, override resolution to match FPGA's 640x480.
+     * The FPGA's MISTER_FB outputs tell the framework to use 640x480,
+     * but /dev/fb0 may report the scaler's output resolution (e.g. 1920x1080).
+     * The HPS projection must match the FPGA rasterizer's resolution. */
+    if (use_fpga) {
+        fb.width = 640;
+        fb.height = 480;
+        fb.tiles_x = fb.width / TILE_W;
+        fb.tiles_y = fb.height / TILE_H;
+    }
+
     splat_store_t *store = (splat_store_t *)malloc(sizeof(splat_store_t));
     if (!store) {
         fprintf(stderr, "OOM: splat_store is %zuMB\n",

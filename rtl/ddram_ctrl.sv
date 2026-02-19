@@ -1,8 +1,11 @@
 //
 // DDRAM controller - manages read/write bursts to DDR3 via MiSTer Avalon-MM interface.
 //
-// Simple arbiter: one operation at a time. Reads have priority.
-// Supports burst reads (up to 128 words) and burst writes.
+// Avalon-MM protocol:
+//   - Assert RD or WE with ADDR, BURSTCNT, and (for writes) DIN, BE
+//   - Hold all signals stable while BUSY (waitrequest) is high
+//   - Transfer is accepted on the rising edge where RD/WE is asserted AND !BUSY
+//   - For reads: data comes back via DOUT_READY pulses
 //
 
 module ddram_ctrl (
@@ -34,7 +37,7 @@ module ddram_ctrl (
 	input        [7:0] wr_burstcnt,   // 1..128
 	input       [63:0] wr_data,
 	input        [7:0] wr_be_in,
-	input              wr_req,        // assert for each word in burst
+	input              wr_req,
 	output reg         wr_ack,        // pulses when word is accepted
 	output reg         wr_busy        // high while write burst in progress
 );
@@ -47,7 +50,7 @@ localparam S_IDLE      = 3'd0;
 localparam S_RD_ISSUE  = 3'd1;
 localparam S_RD_WAIT   = 3'd2;
 localparam S_WR_ISSUE  = 3'd3;
-localparam S_WR_DATA   = 3'd4;
+localparam S_WR_BURST  = 3'd4;
 
 reg [2:0] state;
 reg [7:0] burst_remain;
@@ -72,28 +75,39 @@ always @(posedge clk) begin
 			wr_busy <= 0;
 
 			// Read has priority
-			if (rd_req && !ddram_busy) begin
-				state <= S_RD_ISSUE;
-			end else if (wr_req && !ddram_busy) begin
-				state <= S_WR_ISSUE;
+			if (rd_req) begin
+				// Latch address and set up for Avalon read
+				ddram_addr     <= rd_addr;
+				ddram_burstcnt <= rd_burstcnt;
+				ddram_be       <= 8'hFF;
+				ddram_rd       <= 1;
+				burst_remain   <= rd_burstcnt;
+				state          <= S_RD_ISSUE;
+			end else if (wr_req) begin
+				// Latch address and set up for Avalon write
+				ddram_addr     <= wr_addr;
+				ddram_burstcnt <= wr_burstcnt;
+				ddram_din      <= wr_data;
+				ddram_be       <= wr_be_in;
+				ddram_we       <= 1;
+				wr_busy        <= 1;
+				burst_remain   <= wr_burstcnt;
+				state          <= S_WR_ISSUE;
 			end
 		end
 
+		// Hold ddram_rd asserted until !ddram_busy (Avalon protocol)
 		S_RD_ISSUE: begin
 			if (!ddram_busy) begin
-				ddram_addr     <= rd_addr;
-				ddram_burstcnt <= rd_burstcnt;
-				ddram_rd       <= 1;
-				ddram_we       <= 0;
-				ddram_be       <= 8'hFF;
-				burst_remain   <= rd_burstcnt;
-				rd_ack         <= 1;
-				state          <= S_RD_WAIT;
+				// Transfer accepted
+				ddram_rd <= 0;
+				rd_ack   <= 1;
+				state    <= S_RD_WAIT;
 			end
+			// else: keep ddram_rd=1, addr, burstcnt stable (they're registered)
 		end
 
 		S_RD_WAIT: begin
-			ddram_rd <= 0;  // deassert after 1 cycle
 			if (ddram_dout_ready) begin
 				burst_remain <= burst_remain - 8'd1;
 				if (burst_remain == 8'd1) begin
@@ -102,26 +116,23 @@ always @(posedge clk) begin
 			end
 		end
 
+		// Hold ddram_we asserted until !ddram_busy (Avalon protocol)
 		S_WR_ISSUE: begin
 			if (!ddram_busy) begin
-				ddram_addr     <= wr_addr;
-				ddram_burstcnt <= wr_burstcnt;
-				ddram_din      <= wr_data;
-				ddram_be       <= wr_be_in;
-				ddram_we       <= 1;
-				ddram_rd       <= 0;
-				burst_remain   <= wr_burstcnt - 8'd1;
-				wr_ack         <= 1;
-				wr_busy        <= 1;
-				if (wr_burstcnt == 8'd1)
+				// First word accepted
+				ddram_we <= 0;
+				wr_ack   <= 1;
+				burst_remain <= burst_remain - 8'd1;
+				if (burst_remain == 8'd1)
 					state <= S_IDLE;
 				else
-					state <= S_WR_DATA;
+					state <= S_WR_BURST;
 			end
+			// else: keep ddram_we=1, addr, burstcnt, din, be stable
 		end
 
-		S_WR_DATA: begin
-			ddram_we <= 0;  // only first word has WE asserted with address
+		S_WR_BURST: begin
+			// Subsequent words of burst write
 			if (!ddram_busy && wr_req) begin
 				ddram_din  <= wr_data;
 				ddram_be   <= wr_be_in;
@@ -130,6 +141,8 @@ always @(posedge clk) begin
 				burst_remain <= burst_remain - 8'd1;
 				if (burst_remain == 8'd1)
 					state <= S_IDLE;
+			end else begin
+				ddram_we <= 0;
 			end
 		end
 
