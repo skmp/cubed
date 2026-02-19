@@ -1,10 +1,7 @@
 //
-// DDR3 arbiter - multiplexes 3 requestors onto a single ddram_ctrl.
+// DDR3 arbiter - multiplexes N requestors onto a single ddram_ctrl.
 //
-// Requestors:
-//   [0] Coordinator (poll reads, header reads, frame_done writes)
-//   [1] Core 0 (splat reads, tile flush writes)
-//   [2] Core 1 (splat reads, tile flush writes)
+// Parameterized for N_REQ requestors (default 5: coordinator + 4 cores).
 //
 // Policy: Round-robin grant at idle. Once granted, held until the
 // entire transaction completes:
@@ -14,8 +11,13 @@
 // Read data is broadcast to all requestors but rd_data_valid is gated
 // so only the granted requestor sees it.
 //
+// Port convention: per-requestor signals are packed flat.
+//   Requestor i's rd_addr = req_rd_addr[i*29 +: 29]
+//
 
-module ddram_arbiter (
+module ddram_arbiter #(
+	parameter N_REQ = 5
+) (
 	input         clk,
 	input         reset,
 
@@ -35,50 +37,22 @@ module ddram_arbiter (
 	input         dc_wr_ack,
 	input         dc_wr_busy,
 
-	// Requestor 0 (coordinator)
-	input  [28:0] r0_rd_addr,
-	input   [7:0] r0_rd_burstcnt,
-	input         r0_rd_req,
-	output        r0_rd_ack,
-	output [63:0] r0_rd_data,
-	output        r0_rd_data_valid,
-	input  [28:0] r0_wr_addr,
-	input   [7:0] r0_wr_burstcnt,
-	input  [63:0] r0_wr_data,
-	input   [7:0] r0_wr_be,
-	input         r0_wr_req,
-	output        r0_wr_ack,
-	output        r0_wr_busy,
+	// Per-requestor read interface (packed)
+	input  [N_REQ*29-1:0] req_rd_addr,
+	input  [N_REQ*8-1:0]  req_rd_burstcnt,
+	input  [N_REQ-1:0]    req_rd_req,
+	output [N_REQ-1:0]    req_rd_ack,
+	output [N_REQ*64-1:0] req_rd_data,
+	output [N_REQ-1:0]    req_rd_data_valid,
 
-	// Requestor 1 (core 0)
-	input  [28:0] r1_rd_addr,
-	input   [7:0] r1_rd_burstcnt,
-	input         r1_rd_req,
-	output        r1_rd_ack,
-	output [63:0] r1_rd_data,
-	output        r1_rd_data_valid,
-	input  [28:0] r1_wr_addr,
-	input   [7:0] r1_wr_burstcnt,
-	input  [63:0] r1_wr_data,
-	input   [7:0] r1_wr_be,
-	input         r1_wr_req,
-	output        r1_wr_ack,
-	output        r1_wr_busy,
-
-	// Requestor 2 (core 1)
-	input  [28:0] r2_rd_addr,
-	input   [7:0] r2_rd_burstcnt,
-	input         r2_rd_req,
-	output        r2_rd_ack,
-	output [63:0] r2_rd_data,
-	output        r2_rd_data_valid,
-	input  [28:0] r2_wr_addr,
-	input   [7:0] r2_wr_burstcnt,
-	input  [63:0] r2_wr_data,
-	input   [7:0] r2_wr_be,
-	input         r2_wr_req,
-	output        r2_wr_ack,
-	output        r2_wr_busy
+	// Per-requestor write interface (packed)
+	input  [N_REQ*29-1:0] req_wr_addr,
+	input  [N_REQ*8-1:0]  req_wr_burstcnt,
+	input  [N_REQ*64-1:0] req_wr_data,
+	input  [N_REQ*8-1:0]  req_wr_be,
+	input  [N_REQ-1:0]    req_wr_req,
+	output [N_REQ-1:0]    req_wr_ack,
+	output [N_REQ-1:0]    req_wr_busy
 );
 
 // ============================================================
@@ -89,95 +63,73 @@ localparam GS_IDLE     = 2'd0;
 localparam GS_RD_WAIT  = 2'd1;  // waiting for read burst data
 localparam GS_WR_WAIT  = 2'd2;  // waiting for write ack
 
+// Grant width: ceil(log2(N_REQ))
+localparam GRANT_W = (N_REQ <= 2) ? 1 :
+                     (N_REQ <= 4) ? 2 : 3;
+
 reg [1:0] gstate;
-reg [1:0] grant;       // currently granted requestor (0, 1, 2)
-reg [1:0] last_grant;  // for round-robin fairness
-reg [7:0] rd_burst_remain;  // words remaining in read burst
+reg [GRANT_W-1:0] grant;
+reg [GRANT_W-1:0] last_grant;
+reg [7:0] rd_burst_remain;
 
 // Detect any pending request from each requestor
-wire r0_any_req = r0_rd_req | r0_wr_req;
-wire r1_any_req = r1_rd_req | r1_wr_req;
-wire r2_any_req = r2_rd_req | r2_wr_req;
-wire any_req = r0_any_req | r1_any_req | r2_any_req;
+wire [N_REQ-1:0] any_req_vec = req_rd_req | req_wr_req;
+wire any_req = |any_req_vec;
 
-// Which type of request the granted requestor is making
-wire granted_rd_req = (grant == 2'd0) ? r0_rd_req :
-                      (grant == 2'd1) ? r1_rd_req :
-                                        r2_rd_req;
-
-wire [7:0] granted_rd_burstcnt = (grant == 2'd0) ? r0_rd_burstcnt :
-                                 (grant == 2'd1) ? r1_rd_burstcnt :
-                                                   r2_rd_burstcnt;
+// Granted requestor's rd_req and burstcnt (live mux)
+wire granted_rd_req = req_rd_req[grant];
+wire [7:0] granted_rd_burstcnt = req_rd_burstcnt[grant*8 +: 8];
 
 // Round-robin next grant selection
-reg [1:0] next_grant;
+reg [GRANT_W-1:0] next_grant;
 always @(*) begin
-	next_grant = 2'd0;
-	case (last_grant)
-	2'd0: begin
-		if      (r1_any_req) next_grant = 2'd1;
-		else if (r2_any_req) next_grant = 2'd2;
-		else if (r0_any_req) next_grant = 2'd0;
+	next_grant = {GRANT_W{1'b0}};
+	begin : rr_scan
+		integer j;
+		reg [GRANT_W:0] candidate;  // 1 extra bit to avoid overflow
+		for (j = 1; j <= N_REQ; j = j + 1) begin
+			// Wrap around: (last_grant + j) mod N_REQ
+			candidate = {1'b0, last_grant} + j[GRANT_W:0];
+			if (candidate >= N_REQ)
+				candidate = candidate - N_REQ;
+			if (any_req_vec[candidate[GRANT_W-1:0]]) begin
+				next_grant = candidate[GRANT_W-1:0];
+				disable rr_scan;
+			end
+		end
 	end
-	2'd1: begin
-		if      (r2_any_req) next_grant = 2'd2;
-		else if (r0_any_req) next_grant = 2'd0;
-		else if (r1_any_req) next_grant = 2'd1;
-	end
-	2'd2: begin
-		if      (r0_any_req) next_grant = 2'd0;
-		else if (r1_any_req) next_grant = 2'd1;
-		else if (r2_any_req) next_grant = 2'd2;
-	end
-	default: begin
-		if      (r0_any_req) next_grant = 2'd0;
-		else if (r1_any_req) next_grant = 2'd1;
-		else if (r2_any_req) next_grant = 2'd2;
-	end
-	endcase
 end
 
 always @(posedge clk) begin
 	if (reset) begin
-		gstate         <= GS_IDLE;
-		grant          <= 2'd0;
-		last_grant     <= 2'd0;
+		gstate          <= GS_IDLE;
+		grant           <= {GRANT_W{1'b0}};
+		last_grant      <= {GRANT_W{1'b0}};
 		rd_burst_remain <= 8'd0;
 	end else begin
 		case (gstate)
 		GS_IDLE: begin
 			if (any_req) begin
 				grant <= next_grant;
-				// Determine if this is a read or write
-				// (check on next cycle once grant is latched)
-				gstate <= GS_WR_WAIT;  // default, overridden below
-				// We need to check what the selected requestor wants.
-				// Since next_grant is combinational, we can check now.
-				case (next_grant)
-				2'd0: if (r0_rd_req) gstate <= GS_RD_WAIT;
-				2'd1: if (r1_rd_req) gstate <= GS_RD_WAIT;
-				2'd2: if (r2_rd_req) gstate <= GS_RD_WAIT;
-				default: ;
-				endcase
+				// Default to write wait, override if read
+				gstate <= GS_WR_WAIT;
+				if (req_rd_req[next_grant])
+					gstate <= GS_RD_WAIT;
 			end
 		end
 
 		GS_RD_WAIT: begin
 			if (dc_rd_ack && dc_rd_data_valid) begin
-				// Both on same cycle (shouldn't happen, but handle safely)
 				rd_burst_remain <= granted_rd_burstcnt - 8'd1;
 				if (granted_rd_burstcnt == 8'd1) begin
 					last_grant <= grant;
 					gstate     <= GS_IDLE;
 				end
 			end else if (dc_rd_ack) begin
-				// Latch burst count when rd_ack fires
 				rd_burst_remain <= granted_rd_burstcnt;
 			end else if (dc_rd_data_valid) begin
-				// Count down as data arrives
 				rd_burst_remain <= rd_burst_remain - 8'd1;
 				if (rd_burst_remain == 8'd1) begin
-					// Last word received
 					last_grant <= grant;
 					gstate     <= GS_IDLE;
 				end
@@ -185,7 +137,6 @@ always @(posedge clk) begin
 		end
 
 		GS_WR_WAIT: begin
-			// Release after write is accepted
 			if (dc_wr_ack) begin
 				last_grant <= grant;
 				gstate     <= GS_IDLE;
@@ -203,66 +154,29 @@ wire granted = (gstate != GS_IDLE);
 // Mux downstream signals based on grant
 // ============================================================
 
-// Read channel mux
-assign dc_rd_addr     = (grant == 2'd0) ? r0_rd_addr :
-                         (grant == 2'd1) ? r1_rd_addr :
-                                           r2_rd_addr;
+assign dc_rd_addr     = req_rd_addr[grant*29 +: 29];
+assign dc_rd_burstcnt = req_rd_burstcnt[grant*8 +: 8];
+assign dc_rd_req      = granted && req_rd_req[grant];
 
-assign dc_rd_burstcnt = (grant == 2'd0) ? r0_rd_burstcnt :
-                         (grant == 2'd1) ? r1_rd_burstcnt :
-                                           r2_rd_burstcnt;
-
-assign dc_rd_req      = granted && ((grant == 2'd0) ? r0_rd_req :
-                                    (grant == 2'd1) ? r1_rd_req :
-                                                      r2_rd_req);
-
-// Write channel mux
-assign dc_wr_addr     = (grant == 2'd0) ? r0_wr_addr :
-                         (grant == 2'd1) ? r1_wr_addr :
-                                           r2_wr_addr;
-
-assign dc_wr_burstcnt = (grant == 2'd0) ? r0_wr_burstcnt :
-                         (grant == 2'd1) ? r1_wr_burstcnt :
-                                           r2_wr_burstcnt;
-
-assign dc_wr_data     = (grant == 2'd0) ? r0_wr_data :
-                         (grant == 2'd1) ? r1_wr_data :
-                                           r2_wr_data;
-
-assign dc_wr_be       = (grant == 2'd0) ? r0_wr_be :
-                         (grant == 2'd1) ? r1_wr_be :
-                                           r2_wr_be;
-
-assign dc_wr_req      = granted && ((grant == 2'd0) ? r0_wr_req :
-                                    (grant == 2'd1) ? r1_wr_req :
-                                                      r2_wr_req);
+assign dc_wr_addr     = req_wr_addr[grant*29 +: 29];
+assign dc_wr_burstcnt = req_wr_burstcnt[grant*8 +: 8];
+assign dc_wr_data     = req_wr_data[grant*64 +: 64];
+assign dc_wr_be       = req_wr_be[grant*8 +: 8];
+assign dc_wr_req      = granted && req_wr_req[grant];
 
 // ============================================================
-// Demux upstream signals (ack/data) to granted requestor
+// Demux upstream signals to granted requestor
 // ============================================================
 
-// Read data is broadcast (only granted requestor consumes it)
-assign r0_rd_data       = dc_rd_data;
-assign r1_rd_data       = dc_rd_data;
-assign r2_rd_data       = dc_rd_data;
-
-assign r0_rd_data_valid = dc_rd_data_valid && granted && (grant == 2'd0);
-assign r1_rd_data_valid = dc_rd_data_valid && granted && (grant == 2'd1);
-assign r2_rd_data_valid = dc_rd_data_valid && granted && (grant == 2'd2);
-
-// Read ack
-assign r0_rd_ack = dc_rd_ack && granted && (grant == 2'd0);
-assign r1_rd_ack = dc_rd_ack && granted && (grant == 2'd1);
-assign r2_rd_ack = dc_rd_ack && granted && (grant == 2'd2);
-
-// Write ack
-assign r0_wr_ack = dc_wr_ack && granted && (grant == 2'd0);
-assign r1_wr_ack = dc_wr_ack && granted && (grant == 2'd1);
-assign r2_wr_ack = dc_wr_ack && granted && (grant == 2'd2);
-
-// Write busy
-assign r0_wr_busy = dc_wr_busy;
-assign r1_wr_busy = dc_wr_busy;
-assign r2_wr_busy = dc_wr_busy;
+genvar i;
+generate
+	for (i = 0; i < N_REQ; i = i + 1) begin : demux
+		assign req_rd_data[i*64 +: 64]  = dc_rd_data;
+		assign req_rd_data_valid[i]      = dc_rd_data_valid && granted && (grant == i[GRANT_W-1:0]);
+		assign req_rd_ack[i]             = dc_rd_ack && granted && (grant == i[GRANT_W-1:0]);
+		assign req_wr_ack[i]             = dc_wr_ack && granted && (grant == i[GRANT_W-1:0]);
+		assign req_wr_busy[i]            = dc_wr_busy;
+	end
+endgenerate
 
 endmodule

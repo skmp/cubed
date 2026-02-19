@@ -1,14 +1,14 @@
 //
-// GSplat top-level coordinator - 2-core architecture with dual buffering.
+// GSplat top-level coordinator - 4-core architecture with dual buffering.
 //
-// Orchestrates two gsplat_core instances processing tiles in parallel:
+// Orchestrates four gsplat_core instances processing tiles in parallel:
 //   1. Poll DDR3 control block for frame request
 //   2. Pre-read tile descriptor headers from linked list
 //   3. Dispatch tiles to idle cores (pass tile_addr + header data)
 //   4. When all tiles done, wait for vblank, swap FB, signal frame_done
 //
-// DDR3 access is arbitrated by ddram_arbiter (3 requestors:
-// coordinator + core0 + core1).
+// DDR3 access is arbitrated by ddram_arbiter (5 requestors:
+// coordinator + core0..core3).
 //
 // Dual buffering: FPGA renders to back buffer, swaps FB_BASE on vblank.
 // MiSTer ascal latches FB_BASE on VS falling edge, so updating during
@@ -42,6 +42,9 @@ module gsplat_top (
 // ============================================================
 // Parameters
 // ============================================================
+
+localparam N_CORES = 4;
+localparam N_REQ   = N_CORES + 1;  // cores + coordinator
 
 localparam [28:0] CTRL_ADDR  = 29'h06080000;  // 0x30400000 >> 3
 localparam [28:0] FB_A_QADDR = 29'h06000000;  // 0x30000000 >> 3
@@ -85,14 +88,8 @@ reg [15:0] hdr_tile_py;
 reg [15:0] hdr_splat_count;
 reg [28:0] hdr_next_addr;
 
-// Which core to dispatch to
-reg        dispatch_core;    // 0 or 1
-
-// Dispatch tracking - prevents re-dispatching before core sees tile_start
-reg        c0_dispatched;
-reg        c1_dispatched;
-wire       c0_idle = !c0_busy && !c0_dispatched;
-wire       c1_idle = !c1_busy && !c1_dispatched;
+// Which core to dispatch to (0..3)
+reg [1:0] dispatch_core;
 
 // Poll delay
 reg [15:0] poll_delay;
@@ -173,116 +170,137 @@ wire        coord_wr_ack;
 wire        coord_wr_busy;
 
 // ============================================================
-// Core 0
+// Core instances (4 cores)
 // ============================================================
 
-wire        c0_tile_done;
-wire        c0_busy;
-reg         c0_tile_start;
-reg  [28:0] c0_tile_addr;
-reg  [15:0] c0_tile_px;
-reg  [15:0] c0_tile_py;
-reg  [15:0] c0_splat_count;
+// Per-core control signals
+wire [3:0]  core_tile_done;
+wire [3:0]  core_busy;
+reg  [3:0]  core_tile_start;
+reg  [28:0] core_tile_addr  [0:3];
+reg  [15:0] core_tile_px    [0:3];
+reg  [15:0] core_tile_py    [0:3];
+reg  [15:0] core_splat_count[0:3];
 
-wire [28:0] c0_rd_addr;
-wire  [7:0] c0_rd_burstcnt;
-wire        c0_rd_req;
-wire        c0_rd_ack;
-wire [63:0] c0_rd_data;
-wire        c0_rd_data_valid;
+// Per-core DDR3 signals
+wire [28:0] core_rd_addr    [0:3];
+wire  [7:0] core_rd_burstcnt[0:3];
+wire [3:0]  core_rd_req;
+wire [3:0]  core_rd_ack;
+wire [63:0] core_rd_data    [0:3];
+wire [3:0]  core_rd_data_valid;
 
-wire [28:0] c0_wr_addr;
-wire  [7:0] c0_wr_burstcnt;
-wire [63:0] c0_wr_data;
-wire  [7:0] c0_wr_be;
-wire        c0_wr_req;
-wire        c0_wr_ack;
-wire        c0_wr_busy;
+wire [28:0] core_wr_addr    [0:3];
+wire  [7:0] core_wr_burstcnt[0:3];
+wire [63:0] core_wr_data    [0:3];
+wire  [7:0] core_wr_be      [0:3];
+wire [3:0]  core_wr_req;
+wire [3:0]  core_wr_ack;
+wire [3:0]  core_wr_busy;
 
-gsplat_core core0 (
-	.clk(clk),
-	.reset(reset),
-	.tile_start(c0_tile_start),
-	.tile_addr(c0_tile_addr),
-	.tile_px(c0_tile_px),
-	.tile_py(c0_tile_py),
-	.tile_splat_count(c0_splat_count),
-	.fb_base(render_fb_base),
-	.tile_done(c0_tile_done),
-	.busy(c0_busy),
-	.rd_addr(c0_rd_addr),
-	.rd_burstcnt(c0_rd_burstcnt),
-	.rd_req(c0_rd_req),
-	.rd_ack(c0_rd_ack),
-	.rd_data(c0_rd_data),
-	.rd_data_valid(c0_rd_data_valid),
-	.wr_addr(c0_wr_addr),
-	.wr_burstcnt(c0_wr_burstcnt),
-	.wr_data(c0_wr_data),
-	.wr_be(c0_wr_be),
-	.wr_req(c0_wr_req),
-	.wr_ack(c0_wr_ack),
-	.wr_busy(c0_wr_busy)
-);
+// Dispatch tracking
+reg  [3:0]  core_dispatched;
+wire [3:0]  core_idle = ~core_busy & ~core_dispatched;
+wire        all_idle  = (core_idle == 4'hF);
 
-// ============================================================
-// Core 1
-// ============================================================
+genvar gi;
 
-wire        c1_tile_done;
-wire        c1_busy;
-reg         c1_tile_start;
-reg  [28:0] c1_tile_addr;
-reg  [15:0] c1_tile_px;
-reg  [15:0] c1_tile_py;
-reg  [15:0] c1_splat_count;
-
-wire [28:0] c1_rd_addr;
-wire  [7:0] c1_rd_burstcnt;
-wire        c1_rd_req;
-wire        c1_rd_ack;
-wire [63:0] c1_rd_data;
-wire        c1_rd_data_valid;
-
-wire [28:0] c1_wr_addr;
-wire  [7:0] c1_wr_burstcnt;
-wire [63:0] c1_wr_data;
-wire  [7:0] c1_wr_be;
-wire        c1_wr_req;
-wire        c1_wr_ack;
-wire        c1_wr_busy;
-
-gsplat_core core1 (
-	.clk(clk),
-	.reset(reset),
-	.tile_start(c1_tile_start),
-	.tile_addr(c1_tile_addr),
-	.tile_px(c1_tile_px),
-	.tile_py(c1_tile_py),
-	.tile_splat_count(c1_splat_count),
-	.fb_base(render_fb_base),
-	.tile_done(c1_tile_done),
-	.busy(c1_busy),
-	.rd_addr(c1_rd_addr),
-	.rd_burstcnt(c1_rd_burstcnt),
-	.rd_req(c1_rd_req),
-	.rd_ack(c1_rd_ack),
-	.rd_data(c1_rd_data),
-	.rd_data_valid(c1_rd_data_valid),
-	.wr_addr(c1_wr_addr),
-	.wr_burstcnt(c1_wr_burstcnt),
-	.wr_data(c1_wr_data),
-	.wr_be(c1_wr_be),
-	.wr_req(c1_wr_req),
-	.wr_ack(c1_wr_ack),
-	.wr_busy(c1_wr_busy)
-);
+generate
+	for (gi = 0; gi < N_CORES; gi = gi + 1) begin : cores
+		gsplat_core core_inst (
+			.clk(clk),
+			.reset(reset),
+			.tile_start(core_tile_start[gi]),
+			.tile_addr(core_tile_addr[gi]),
+			.tile_px(core_tile_px[gi]),
+			.tile_py(core_tile_py[gi]),
+			.tile_splat_count(core_splat_count[gi]),
+			.fb_base(render_fb_base),
+			.tile_done(core_tile_done[gi]),
+			.busy(core_busy[gi]),
+			.rd_addr(core_rd_addr[gi]),
+			.rd_burstcnt(core_rd_burstcnt[gi]),
+			.rd_req(core_rd_req[gi]),
+			.rd_ack(core_rd_ack[gi]),
+			.rd_data(core_rd_data[gi]),
+			.rd_data_valid(core_rd_data_valid[gi]),
+			.wr_addr(core_wr_addr[gi]),
+			.wr_burstcnt(core_wr_burstcnt[gi]),
+			.wr_data(core_wr_data[gi]),
+			.wr_be(core_wr_be[gi]),
+			.wr_req(core_wr_req[gi]),
+			.wr_ack(core_wr_ack[gi]),
+			.wr_busy(core_wr_busy[gi])
+		);
+	end
+endgenerate
 
 // ============================================================
-// DDR3 Arbiter
+// DDR3 Arbiter - pack signals for parameterized interface
 // ============================================================
 
-ddram_arbiter arbiter_inst (
+// Pack per-requestor read signals: [0]=coordinator, [1..4]=cores
+wire [N_REQ*29-1:0] arb_rd_addr = {
+	core_rd_addr[3], core_rd_addr[2], core_rd_addr[1], core_rd_addr[0],
+	coord_rd_addr
+};
+wire [N_REQ*8-1:0] arb_rd_burstcnt = {
+	core_rd_burstcnt[3], core_rd_burstcnt[2], core_rd_burstcnt[1], core_rd_burstcnt[0],
+	coord_rd_burstcnt
+};
+wire [N_REQ-1:0] arb_rd_req = {core_rd_req, coord_rd_req};
+
+wire [N_REQ-1:0]    arb_rd_ack;
+wire [N_REQ*64-1:0] arb_rd_data;
+wire [N_REQ-1:0]    arb_rd_data_valid;
+
+// Unpack read responses
+assign coord_rd_ack        = arb_rd_ack[0];
+assign coord_rd_data       = arb_rd_data[63:0];
+assign coord_rd_data_valid = arb_rd_data_valid[0];
+
+generate
+	for (gi = 0; gi < N_CORES; gi = gi + 1) begin : unpack_rd
+		assign core_rd_ack[gi]        = arb_rd_ack[gi+1];
+		assign core_rd_data[gi]       = arb_rd_data[(gi+1)*64 +: 64];
+		assign core_rd_data_valid[gi] = arb_rd_data_valid[gi+1];
+	end
+endgenerate
+
+// Pack per-requestor write signals
+wire [N_REQ*29-1:0] arb_wr_addr = {
+	core_wr_addr[3], core_wr_addr[2], core_wr_addr[1], core_wr_addr[0],
+	coord_wr_addr
+};
+wire [N_REQ*8-1:0] arb_wr_burstcnt = {
+	core_wr_burstcnt[3], core_wr_burstcnt[2], core_wr_burstcnt[1], core_wr_burstcnt[0],
+	coord_wr_burstcnt
+};
+wire [N_REQ*64-1:0] arb_wr_data = {
+	core_wr_data[3], core_wr_data[2], core_wr_data[1], core_wr_data[0],
+	coord_wr_data
+};
+wire [N_REQ*8-1:0] arb_wr_be = {
+	core_wr_be[3], core_wr_be[2], core_wr_be[1], core_wr_be[0],
+	coord_wr_be
+};
+wire [N_REQ-1:0] arb_wr_req = {core_wr_req, coord_wr_req};
+
+wire [N_REQ-1:0] arb_wr_ack;
+wire [N_REQ-1:0] arb_wr_busy;
+
+// Unpack write responses
+assign coord_wr_ack  = arb_wr_ack[0];
+assign coord_wr_busy = arb_wr_busy[0];
+
+generate
+	for (gi = 0; gi < N_CORES; gi = gi + 1) begin : unpack_wr
+		assign core_wr_ack[gi]  = arb_wr_ack[gi+1];
+		assign core_wr_busy[gi] = arb_wr_busy[gi+1];
+	end
+endgenerate
+
+ddram_arbiter #(.N_REQ(N_REQ)) arbiter_inst (
 	.clk(clk),
 	.reset(reset),
 
@@ -301,51 +319,28 @@ ddram_arbiter arbiter_inst (
 	.dc_wr_ack(dc_wr_ack),
 	.dc_wr_busy(dc_wr_busy),
 
-	// Requestor 0: coordinator
-	.r0_rd_addr(coord_rd_addr),
-	.r0_rd_burstcnt(coord_rd_burstcnt),
-	.r0_rd_req(coord_rd_req),
-	.r0_rd_ack(coord_rd_ack),
-	.r0_rd_data(coord_rd_data),
-	.r0_rd_data_valid(coord_rd_data_valid),
-	.r0_wr_addr(coord_wr_addr),
-	.r0_wr_burstcnt(coord_wr_burstcnt),
-	.r0_wr_data(coord_wr_data),
-	.r0_wr_be(coord_wr_be),
-	.r0_wr_req(coord_wr_req),
-	.r0_wr_ack(coord_wr_ack),
-	.r0_wr_busy(coord_wr_busy),
-
-	// Requestor 1: core 0
-	.r1_rd_addr(c0_rd_addr),
-	.r1_rd_burstcnt(c0_rd_burstcnt),
-	.r1_rd_req(c0_rd_req),
-	.r1_rd_ack(c0_rd_ack),
-	.r1_rd_data(c0_rd_data),
-	.r1_rd_data_valid(c0_rd_data_valid),
-	.r1_wr_addr(c0_wr_addr),
-	.r1_wr_burstcnt(c0_wr_burstcnt),
-	.r1_wr_data(c0_wr_data),
-	.r1_wr_be(c0_wr_be),
-	.r1_wr_req(c0_wr_req),
-	.r1_wr_ack(c0_wr_ack),
-	.r1_wr_busy(c0_wr_busy),
-
-	// Requestor 2: core 1
-	.r2_rd_addr(c1_rd_addr),
-	.r2_rd_burstcnt(c1_rd_burstcnt),
-	.r2_rd_req(c1_rd_req),
-	.r2_rd_ack(c1_rd_ack),
-	.r2_rd_data(c1_rd_data),
-	.r2_rd_data_valid(c1_rd_data_valid),
-	.r2_wr_addr(c1_wr_addr),
-	.r2_wr_burstcnt(c1_wr_burstcnt),
-	.r2_wr_data(c1_wr_data),
-	.r2_wr_be(c1_wr_be),
-	.r2_wr_req(c1_wr_req),
-	.r2_wr_ack(c1_wr_ack),
-	.r2_wr_busy(c1_wr_busy)
+	// Packed requestor interfaces
+	.req_rd_addr(arb_rd_addr),
+	.req_rd_burstcnt(arb_rd_burstcnt),
+	.req_rd_req(arb_rd_req),
+	.req_rd_ack(arb_rd_ack),
+	.req_rd_data(arb_rd_data),
+	.req_rd_data_valid(arb_rd_data_valid),
+	.req_wr_addr(arb_wr_addr),
+	.req_wr_burstcnt(arb_wr_burstcnt),
+	.req_wr_data(arb_wr_data),
+	.req_wr_be(arb_wr_be),
+	.req_wr_req(arb_wr_req),
+	.req_wr_ack(arb_wr_ack),
+	.req_wr_busy(arb_wr_busy)
 );
+
+// ============================================================
+// Tile completion counting
+// ============================================================
+
+wire [2:0] done_count = {2'd0, core_tile_done[0]} + {2'd0, core_tile_done[1]}
+                       + {2'd0, core_tile_done[2]} + {2'd0, core_tile_done[3]};
 
 // ============================================================
 // Coordinator FSM
@@ -359,28 +354,22 @@ always @(posedge clk) begin
 		rendering       <= 0;
 		coord_rd_req    <= 0;
 		coord_wr_req    <= 0;
-		c0_tile_start   <= 0;
-		c1_tile_start   <= 0;
-		c0_dispatched   <= 0;
-		c1_dispatched   <= 0;
+		core_tile_start <= 4'd0;
+		core_dispatched <= 4'd0;
 		poll_delay      <= 0;
 		back_buf        <= 1;          // first frame renders to B
 		fb_base_addr    <= FB_A_BYTE;  // start displaying buffer A (empty/black)
 	end else begin
-		c0_tile_start  <= 0;
-		c1_tile_start  <= 0;
-		coord_rd_req   <= 0;
-		coord_wr_req   <= 0;
+		core_tile_start <= 4'd0;
+		coord_rd_req    <= 0;
+		coord_wr_req    <= 0;
 
 		// Clear dispatch flags once core acknowledges by going busy
-		if (c0_dispatched && c0_busy) c0_dispatched <= 0;
-		if (c1_dispatched && c1_busy) c1_dispatched <= 0;
+		core_dispatched <= core_dispatched & ~(core_dispatched & core_busy);
 
 		// Track tile completions
-		if (c0_tile_done && c1_tile_done)
-			tile_num <= tile_num + 16'd2;
-		else if (c0_tile_done || c1_tile_done)
-			tile_num <= tile_num + 16'd1;
+		if (done_count != 0)
+			tile_num <= tile_num + {13'd0, done_count};
 
 		case (state)
 
@@ -431,20 +420,24 @@ always @(posedge clk) begin
 		S_DISPATCH: begin
 			if (tiles_remaining) begin
 				// Find an idle core to dispatch to
-				if (c0_idle) begin
-					dispatch_core <= 0;
+				if (core_idle[0]) begin
+					dispatch_core <= 2'd0;
 					state <= S_HDR_REQ;
-				end else if (c1_idle) begin
-					dispatch_core <= 1;
+				end else if (core_idle[1]) begin
+					dispatch_core <= 2'd1;
+					state <= S_HDR_REQ;
+				end else if (core_idle[2]) begin
+					dispatch_core <= 2'd2;
+					state <= S_HDR_REQ;
+				end else if (core_idle[3]) begin
+					dispatch_core <= 2'd3;
 					state <= S_HDR_REQ;
 				end
-				// else: both busy, wait (stay in S_DISPATCH)
+				// else: all busy, wait (stay in S_DISPATCH)
 			end else begin
 				// No more tiles to dispatch — wait for all cores to finish
-				if (c0_idle && c1_idle) begin
+				if (all_idle)
 					state <= S_VBLANK_WAIT;
-				end
-				// else: wait for cores to finish
 			end
 		end
 
@@ -479,21 +472,16 @@ always @(posedge clk) begin
 
 		S_HDR_DISPATCH: begin
 			// Dispatch to the selected core
-			if (dispatch_core == 0) begin
-				c0_tile_addr   <= cur_tile_addr;
-				c0_tile_px     <= hdr_tile_px;
-				c0_tile_py     <= hdr_tile_py;
-				c0_splat_count <= hdr_splat_count;
-				c0_tile_start  <= 1;
-				c0_dispatched  <= 1;
-			end else begin
-				c1_tile_addr   <= cur_tile_addr;
-				c1_tile_px     <= hdr_tile_px;
-				c1_tile_py     <= hdr_tile_py;
-				c1_splat_count <= hdr_splat_count;
-				c1_tile_start  <= 1;
-				c1_dispatched  <= 1;
-			end
+			core_tile_addr[dispatch_core]   <= cur_tile_addr;
+			core_tile_px[dispatch_core]     <= hdr_tile_px;
+			core_tile_py[dispatch_core]     <= hdr_tile_py;
+			core_splat_count[dispatch_core] <= hdr_splat_count;
+			case (dispatch_core)
+			2'd0: begin core_tile_start <= 4'b0001; core_dispatched <= (core_dispatched & ~core_busy) | 4'b0001; end
+			2'd1: begin core_tile_start <= 4'b0010; core_dispatched <= (core_dispatched & ~core_busy) | 4'b0010; end
+			2'd2: begin core_tile_start <= 4'b0100; core_dispatched <= (core_dispatched & ~core_busy) | 4'b0100; end
+			2'd3: begin core_tile_start <= 4'b1000; core_dispatched <= (core_dispatched & ~core_busy) | 4'b1000; end
+			endcase
 
 			// Advance to next tile
 			if (hdr_next_addr == 29'd0) begin
