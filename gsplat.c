@@ -1143,8 +1143,9 @@ void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_
     }
 
 done_building:
-    fprintf(stderr, "FPGA: built tile descriptors, %u bytes, first@0x%08X\n",
-            desc_offset, first_tile_qaddr);
+    if (ctx->verbose)
+        fprintf(stderr, "FPGA: built tile descriptors, %u bytes, first@0x%08X\n",
+                desc_offset, first_tile_qaddr);
 
     /* Signal FPGA: ctrl[0] = first tile descriptor qword address */
     ctx->ctrl[0] = first_tile_qaddr;
@@ -1157,7 +1158,7 @@ done_building:
     while (ctx->ctrl[2] == 0) {
         usleep(10000);  /* 10ms sleep */
         timeout++;
-        if (timeout % 100 == 0) {
+        if (ctx->verbose && timeout % 100 == 0) {
             fprintf(stderr, "  waiting... ctrl: first=%u req=%u done=%u tiles=%u (%ds)\n",
                     ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3],
                     timeout / 100);
@@ -1181,7 +1182,7 @@ done_building:
             break;
         }
     }
-    if (ctx->ctrl[2] != 0) {
+    if (ctx->ctrl[2] != 0 && ctx->verbose) {
         fprintf(stderr, "FPGA frame done! tiles=%u\n", ctx->ctrl[3]);
     }
 }

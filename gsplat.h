@@ -145,6 +145,7 @@ typedef struct {
     void             *ctrl_map;
     void             *desc_map;
     void             *fb_map;
+    int               verbose;
 } fpga_ctx_t;
 
 int  fpga_init(fpga_ctx_t *ctx);

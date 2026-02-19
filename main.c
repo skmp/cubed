@@ -45,6 +45,7 @@ static void usage(const char *prog)
         "  -i FILE     Load splats from packed PNG file\n"
         "  -s DEVICE   GA144 serial device (e.g. /dev/ttyS0)\n"
         "  -fpga       Offload rasterization to FPGA fabric\n"
+        "  -v          Verbose output\n"
         "  -frames N   Render N frames then exit\n"
         "  -ppm        Dump PPM files (for headless testing)\n"
         "  -bench      Benchmark: 100 frames, print stats, exit\n"
@@ -61,6 +62,7 @@ int main(int argc, char **argv)
     int dump_ppm = 0;
     int bench = 0;
     int use_fpga = 0;
+    int verbose = 0;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-n") && i + 1 < argc)
@@ -71,6 +73,8 @@ int main(int argc, char **argv)
             serial_dev = argv[++i];
         else if (!strcmp(argv[i], "-fpga"))
             use_fpga = 1;
+        else if (!strcmp(argv[i], "-v"))
+            verbose = 1;
         else if (!strcmp(argv[i], "-frames") && i + 1 < argc)
             max_frames = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-ppm"))
@@ -124,6 +128,8 @@ int main(int argc, char **argv)
         if (fpga_init(&fpga) < 0) {
             fprintf(stderr, "FPGA init failed, falling back to CPU\n");
             use_fpga = 0;
+        } else {
+            fpga.verbose = verbose;
         }
     }
 
