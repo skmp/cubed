@@ -276,7 +276,7 @@ always @(posedge clk) begin
 			end else begin
 				// Inline splats start at tile_addr + 2, each is 4 qwords
 				rd_addr     <= cur_tile_addr + 29'd2 +
-				               {13'd0, splat_idx, 2'b00};
+				               {11'd0, splat_idx, 2'b00};
 				rd_burstcnt <= 8'd4;
 				sr_start    <= 1;
 				if (rd_ack) begin

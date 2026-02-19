@@ -6,9 +6,13 @@
 //   [1] Core 0 (splat reads, tile flush writes)
 //   [2] Core 1 (splat reads, tile flush writes)
 //
-// Policy: Round-robin grant at idle. Once granted, held until transaction
-// completes (rd_ack or wr_ack from ddram_ctrl). Read data is broadcast
-// to all requestors but only the granted one should consume it.
+// Policy: Round-robin grant at idle. Once granted, held until the
+// entire transaction completes:
+//   - Reads: held until all burst data words received (rd_data_valid count)
+//   - Writes: held until wr_ack (single-word bursts only in this design)
+//
+// Read data is broadcast to all requestors but rd_data_valid is gated
+// so only the granted requestor sees it.
 //
 
 module ddram_arbiter (
@@ -77,19 +81,33 @@ module ddram_arbiter (
 	output        r2_wr_busy
 );
 
-// Grant state
+// ============================================================
+// Grant FSM
+// ============================================================
+
+localparam GS_IDLE     = 2'd0;
+localparam GS_RD_WAIT  = 2'd1;  // waiting for read burst data
+localparam GS_WR_WAIT  = 2'd2;  // waiting for write ack
+
+reg [1:0] gstate;
 reg [1:0] grant;       // currently granted requestor (0, 1, 2)
-reg       granted;     // whether a grant is active
 reg [1:0] last_grant;  // for round-robin fairness
+reg [7:0] rd_burst_remain;  // words remaining in read burst
 
 // Detect any pending request from each requestor
 wire r0_any_req = r0_rd_req | r0_wr_req;
 wire r1_any_req = r1_rd_req | r1_wr_req;
 wire r2_any_req = r2_rd_req | r2_wr_req;
+wire any_req = r0_any_req | r1_any_req | r2_any_req;
 
-// Transaction completion: grant released when ddram_ctrl accepts the request
-// (rd_ack or wr_ack). The requestor will then deassert its req signal.
-wire grant_release = dc_rd_ack | dc_wr_ack;
+// Which type of request the granted requestor is making
+wire granted_rd_req = (grant == 2'd0) ? r0_rd_req :
+                      (grant == 2'd1) ? r1_rd_req :
+                                        r2_rd_req;
+
+wire [7:0] granted_rd_burstcnt = (grant == 2'd0) ? r0_rd_burstcnt :
+                                 (grant == 2'd1) ? r1_rd_burstcnt :
+                                                   r2_rd_burstcnt;
 
 // Round-robin next grant selection
 reg [1:0] next_grant;
@@ -119,29 +137,61 @@ always @(*) begin
 	endcase
 end
 
-wire any_req = r0_any_req | r1_any_req | r2_any_req;
-
 always @(posedge clk) begin
 	if (reset) begin
-		granted    <= 0;
-		grant      <= 2'd0;
-		last_grant <= 2'd0;
+		gstate         <= GS_IDLE;
+		grant          <= 2'd0;
+		last_grant     <= 2'd0;
+		rd_burst_remain <= 8'd0;
 	end else begin
-		if (granted) begin
-			// Release grant when transaction is accepted
-			if (grant_release) begin
-				granted    <= 0;
-				last_grant <= grant;
-			end
-		end else begin
-			// No active grant - select next requestor
+		case (gstate)
+		GS_IDLE: begin
 			if (any_req) begin
-				grant   <= next_grant;
-				granted <= 1;
+				grant <= next_grant;
+				// Determine if this is a read or write
+				// (check on next cycle once grant is latched)
+				gstate <= GS_WR_WAIT;  // default, overridden below
+				// We need to check what the selected requestor wants.
+				// Since next_grant is combinational, we can check now.
+				case (next_grant)
+				2'd0: if (r0_rd_req) gstate <= GS_RD_WAIT;
+				2'd1: if (r1_rd_req) gstate <= GS_RD_WAIT;
+				2'd2: if (r2_rd_req) gstate <= GS_RD_WAIT;
+				default: ;
+				endcase
 			end
 		end
+
+		GS_RD_WAIT: begin
+			// Latch burst count when rd_ack fires
+			if (dc_rd_ack) begin
+				rd_burst_remain <= granted_rd_burstcnt;
+			end
+			// Count down as data arrives
+			if (dc_rd_data_valid) begin
+				rd_burst_remain <= rd_burst_remain - 8'd1;
+				if (rd_burst_remain == 8'd1) begin
+					// Last word received
+					last_grant <= grant;
+					gstate     <= GS_IDLE;
+				end
+			end
+		end
+
+		GS_WR_WAIT: begin
+			// Release after write is accepted
+			if (dc_wr_ack) begin
+				last_grant <= grant;
+				gstate     <= GS_IDLE;
+			end
+		end
+
+		default: gstate <= GS_IDLE;
+		endcase
 	end
 end
+
+wire granted = (gstate != GS_IDLE);
 
 // ============================================================
 // Mux downstream signals based on grant

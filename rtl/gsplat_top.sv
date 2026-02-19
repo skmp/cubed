@@ -72,6 +72,12 @@ reg [28:0] hdr_next_addr;
 // Which core to dispatch to
 reg        dispatch_core;    // 0 or 1
 
+// Dispatch tracking - prevents re-dispatching before core sees tile_start
+reg        c0_dispatched;
+reg        c1_dispatched;
+wire       c0_idle = !c0_busy && !c0_dispatched;
+wire       c1_idle = !c1_busy && !c1_dispatched;
+
 // Poll delay
 reg [15:0] poll_delay;
 
@@ -330,6 +336,8 @@ always @(posedge clk) begin
 		coord_wr_req    <= 0;
 		c0_tile_start   <= 0;
 		c1_tile_start   <= 0;
+		c0_dispatched   <= 0;
+		c1_dispatched   <= 0;
 		poll_delay      <= 0;
 	end else begin
 		c0_tile_start  <= 0;
@@ -337,10 +345,15 @@ always @(posedge clk) begin
 		coord_rd_req   <= 0;
 		coord_wr_req   <= 0;
 
+		// Clear dispatch flags once core acknowledges by going busy
+		if (c0_dispatched && c0_busy) c0_dispatched <= 0;
+		if (c1_dispatched && c1_busy) c1_dispatched <= 0;
+
 		// Track tile completions
-		if (c0_tile_done) tile_num <= tile_num + 16'd1;
-		if (c1_tile_done) tile_num <= tile_num + 16'd1;
-		if (c0_tile_done && c1_tile_done) tile_num <= tile_num + 16'd2;
+		if (c0_tile_done && c1_tile_done)
+			tile_num <= tile_num + 16'd2;
+		else if (c0_tile_done || c1_tile_done)
+			tile_num <= tile_num + 16'd1;
 
 		case (state)
 
@@ -391,18 +404,17 @@ always @(posedge clk) begin
 		S_DISPATCH: begin
 			if (tiles_remaining) begin
 				// Find an idle core to dispatch to
-				if (!c0_busy) begin
+				if (c0_idle) begin
 					dispatch_core <= 0;
 					state <= S_HDR_REQ;
-				end else if (!c1_busy) begin
+				end else if (c1_idle) begin
 					dispatch_core <= 1;
 					state <= S_HDR_REQ;
 				end
 				// else: both busy, wait (stay in S_DISPATCH)
 			end else begin
-				// No more tiles to dispatch
-				if (!c0_busy && !c1_busy) begin
-					// Both cores finished
+				// No more tiles to dispatch — wait for all cores to finish
+				if (c0_idle && c1_idle) begin
 					state <= S_FRAME_DONE_WR;
 				end
 				// else: wait for cores to finish
@@ -441,17 +453,19 @@ always @(posedge clk) begin
 		S_HDR_DISPATCH: begin
 			// Dispatch to the selected core
 			if (dispatch_core == 0) begin
-				c0_tile_addr  <= cur_tile_addr;
-				c0_tile_px    <= hdr_tile_px;
-				c0_tile_py    <= hdr_tile_py;
+				c0_tile_addr   <= cur_tile_addr;
+				c0_tile_px     <= hdr_tile_px;
+				c0_tile_py     <= hdr_tile_py;
 				c0_splat_count <= hdr_splat_count;
-				c0_tile_start <= 1;
+				c0_tile_start  <= 1;
+				c0_dispatched  <= 1;
 			end else begin
-				c1_tile_addr  <= cur_tile_addr;
-				c1_tile_px    <= hdr_tile_px;
-				c1_tile_py    <= hdr_tile_py;
+				c1_tile_addr   <= cur_tile_addr;
+				c1_tile_px     <= hdr_tile_px;
+				c1_tile_py     <= hdr_tile_py;
 				c1_splat_count <= hdr_splat_count;
-				c1_tile_start <= 1;
+				c1_tile_start  <= 1;
+				c1_dispatched  <= 1;
 			end
 
 			// Advance to next tile
