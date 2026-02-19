@@ -977,9 +977,9 @@ int load_splats_png(const char *path, splat_store_t *store)
  * ================================================================ */
 
 #define FPGA_FB_BASE     0x30000000
-#define FPGA_SPLAT_BASE  0x30200000
-#define FPGA_CTRL_BASE   0x30400000
-#define FPGA_DESC_SIZE   (2 * 1024 * 1024)  /* 2MB for tile descriptors */
+#define FPGA_CTRL_BASE   0x30200000
+#define FPGA_DESC_BASE   0x30200100          /* after 256-byte control block */
+#define FPGA_DESC_SIZE   (32 * 1024 * 1024)  /* 32MB for tile descriptors */
 #define FPGA_CTRL_SIZE   64
 
 int fpga_init(fpga_ctx_t *ctx)
@@ -1001,7 +1001,7 @@ int fpga_init(fpga_ctx_t *ctx)
     ctx->ctrl = (volatile uint32_t *)ctx->ctrl_map;
 
     ctx->desc_map = mmap(NULL, FPGA_DESC_SIZE, PROT_READ | PROT_WRITE,
-                          MAP_SHARED, ctx->mem_fd, FPGA_SPLAT_BASE);
+                          MAP_SHARED, ctx->mem_fd, FPGA_DESC_BASE);
     if (ctx->desc_map == MAP_FAILED) {
         perror("mmap desc");
         munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
@@ -1088,7 +1088,7 @@ void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_
             }
 
             uint64_t *desc = (uint64_t *)(desc_base + desc_offset);
-            uint32_t tile_qaddr = (FPGA_SPLAT_BASE + desc_offset) >> 3;
+            uint32_t tile_qaddr = (FPGA_DESC_BASE + desc_offset) >> 3;
 
             if (!has_prev) first_tile_qaddr = tile_qaddr;
 

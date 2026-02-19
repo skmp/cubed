@@ -128,8 +128,8 @@ int  load_splats_png(const char *path, splat_store_t *store);
  *
  * DDR3 layout:
  *   0x30000000  Framebuffer (640x480x4 = 1.2MB)
- *   0x30200000  Tile descriptor list (linked, variable size)
- *   0x30400000  Control block (16 bytes)
+ *   0x30200000  Control block (64 bytes)
+ *   0x30200100  Tile descriptor list (linked, up to 32MB)
  *
  * Each tile descriptor in DDR3:
  *   Qword 0: [28:0]=fb_qaddr [60:32]=next_tile_qaddr (0=last)
