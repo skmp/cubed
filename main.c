@@ -45,12 +45,35 @@ static void usage(const char *prog)
         "  -i FILE     Load splats from packed PNG file\n"
         "  -s DEVICE   GA144 serial device (e.g. /dev/ttyS0)\n"
         "  -fpga       Offload rasterization to FPGA fabric\n"
+        "  -seed N     Animation seed (default: random)\n"
         "  -v          Verbose output\n"
         "  -frames N   Render N frames then exit\n"
         "  -ppm        Dump PPM files (for headless testing)\n"
         "  -bench      Benchmark: 100 frames, print stats, exit\n"
         "  -h          This help\n",
         prog);
+}
+
+/* Harmonic animation parameters derived from seed.
+ * Each oscillator has a frequency and phase offset, producing
+ * complex non-repeating motion from incommensurate frequencies. */
+typedef struct {
+    float freq[8];   /* 8 oscillator frequencies */
+    float phase[8];  /* 8 oscillator phase offsets */
+} anim_params_t;
+
+static void anim_init(anim_params_t *ap, uint32_t seed)
+{
+    /* Use seed to generate pseudo-random but deterministic frequencies.
+     * Golden-ratio-based frequencies ensure non-repeating patterns. */
+    uint32_t s = seed;
+    for (int i = 0; i < 8; i++) {
+        /* xorshift32 */
+        s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+        ap->freq[i] = 0.003f + (s & 0xFFFF) / 65536.0f * 0.012f;
+        s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+        ap->phase[i] = (s & 0xFFFF) / 65536.0f * 2.0f * (float)M_PI;
+    }
 }
 
 int main(int argc, char **argv)
@@ -63,6 +86,8 @@ int main(int argc, char **argv)
     int bench = 0;
     int use_fpga = 0;
     int verbose = 0;
+    uint32_t anim_seed = 0;
+    int seed_set = 0;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-n") && i + 1 < argc)
@@ -73,6 +98,10 @@ int main(int argc, char **argv)
             serial_dev = argv[++i];
         else if (!strcmp(argv[i], "-fpga"))
             use_fpga = 1;
+        else if (!strcmp(argv[i], "-seed") && i + 1 < argc) {
+            anim_seed = (uint32_t)strtoul(argv[++i], NULL, 0);
+            seed_set = 1;
+        }
         else if (!strcmp(argv[i], "-v"))
             verbose = 1;
         else if (!strcmp(argv[i], "-frames") && i + 1 < argc)
@@ -93,6 +122,13 @@ int main(int argc, char **argv)
             return 1;
         }
     }
+
+    if (!seed_set) {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        anim_seed = (uint32_t)(ts.tv_sec ^ ts.tv_nsec);
+    }
+    fprintf(stderr, "Animation seed: %u\n", anim_seed);
 
     signal(SIGINT, sigint_handler);
 
@@ -161,6 +197,10 @@ int main(int argc, char **argv)
             fb.tiles_x, fb.tiles_y, TILE_W, TILE_H,
             use_fpga ? " [FPGA]" : "");
 
+    /* ---- Animation init ---- */
+    anim_params_t anim;
+    anim_init(&anim, anim_seed);
+
     /* ---- Render loop ---- */
     int frame = 0;
     double t_proj_sum = 0, t_sort_sum = 0, t_rast_sum = 0, t_total_sum = 0;
@@ -169,12 +209,40 @@ int main(int argc, char **argv)
     while (running) {
         double t0 = now_ms();
 
-        /* Orbit camera around Y (earth pole), screen rotated 90° */
-        float angle = frame * 0.02f;
-        float dist = 10.0f;
-        float eye[3]    = { dist * cosf(angle), 0.0f, dist * sinf(angle) };
+        /* Rotozoomer camera: harmonic oscillators for distance and rotation.
+         * Distance zooms from close (0.1x) up to full view, modulated by
+         * layered sinusoids. Rotation uses incommensurate frequencies for
+         * complex non-repeating orbits. */
+        float t = (float)frame;
+
+        /* Distance: base zoom-in ramp + harmonic oscillations */
+        float zoom_ramp = 1.0f - 0.9f * expf(-t * 0.005f);  /* 0.1 -> 1.0 */
+        float dist_mod = 0.3f * sinf(t * anim.freq[0] + anim.phase[0])
+                       + 0.15f * sinf(t * anim.freq[1] + anim.phase[1])
+                       + 0.08f * sinf(t * anim.freq[2] + anim.phase[2]);
+        float dist = (10.0f + dist_mod * 10.0f) * zoom_ramp;
+        if (dist < 2.0f) dist = 2.0f;
+
+        /* Orbit angle: primary rotation + harmonic wobbles */
+        float angle = t * anim.freq[3] + anim.phase[3]
+                    + 0.5f * sinf(t * anim.freq[4] + anim.phase[4])
+                    + 0.3f * sinf(t * anim.freq[5] + anim.phase[5]);
+
+        /* Elevation: gentle up/down drift */
+        float elev = 0.4f * sinf(t * anim.freq[6] + anim.phase[6])
+                   + 0.2f * sinf(t * anim.freq[7] + anim.phase[7]);
+
+        float eye[3] = {
+            dist * cosf(angle) * cosf(elev),
+            dist * sinf(elev),
+            dist * sinf(angle) * cosf(elev)
+        };
         float target[3] = { 0, 0, 0 };
-        float up[3]     = { 0, 0, 1 };
+
+        /* Up vector: rotate around view axis for rotozoomer effect */
+        float roll = 0.3f * sinf(t * anim.freq[2] * 0.7f + anim.phase[5])
+                   + 0.15f * sinf(t * anim.freq[0] * 1.3f + anim.phase[7]);
+        float up[3] = { sinf(roll), cosf(roll), 0.0f };
         cam_lookat(&cam, eye, target, up);
 
         double t1 = now_ms();

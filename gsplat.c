@@ -337,7 +337,7 @@ void project_splats(splat_store_t *store, const camera_t *cam, const framebuf_t 
         float cy = m[1]*s3->x + m[5]*s3->y + m[9]*s3->z  + m[13];
         float cz = m[2]*s3->x + m[6]*s3->y + m[10]*s3->z + m[14];
 
-        if (cz >= -0.1f) {
+        if (cz >= -1.0f) {
             s2->depth = 1e30f;
             s2->bbox_x0 = s2->bbox_x1 = 0;
             s2->bbox_y0 = s2->bbox_y1 = 0;
