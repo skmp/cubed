@@ -1,5 +1,7 @@
 set_global_assignment -name SYSTEMVERILOG_FILE GSplat.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/gsplat_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/gsplat_core.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram_arbiter.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram_ctrl.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/splat_reader.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tile_rasterizer.sv

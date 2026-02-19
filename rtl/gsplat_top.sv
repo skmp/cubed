@@ -1,15 +1,14 @@
 //
-// GSplat top-level controller.
+// GSplat top-level coordinator - 2-core architecture.
 //
-// Orchestrates the full rasterization pipeline using linked tile descriptors:
+// Orchestrates two gsplat_core instances processing tiles in parallel:
 //   1. Poll DDR3 control block for frame request
-//   2. Read first_tile_addr from ctrl[0]
-//   3. For each tile descriptor in linked list:
-//      a. Read 2-qword header (fb_addr, next_tile, count, tile_px, tile_py)
-//      b. Clear tile buffer
-//      c. Read & rasterize inline splats (already pre-filtered by HPS)
-//      d. Write completed tile to DDR3 framebuffer
-//   4. Follow next_tile pointer until 0, then signal frame done
+//   2. Pre-read tile descriptor headers from linked list
+//   3. Dispatch tiles to idle cores (pass tile_addr + header data)
+//   4. When all tiles done, signal frame_done
+//
+// DDR3 access is arbitrated by ddram_arbiter (3 requestors:
+// coordinator + core0 + core1).
 //
 
 module gsplat_top (
@@ -36,52 +35,48 @@ module gsplat_top (
 // Parameters
 // ============================================================
 
-// DDR3 addresses (byte_addr >> 3)
 localparam [28:0] CTRL_ADDR = 29'h06040000;  // 0x30200000 >> 3
 
 // ============================================================
-// Top-level FSM
+// Coordinator FSM states
 // ============================================================
 
-localparam S_IDLE            = 4'd0;
-localparam S_POLL_REQ        = 4'd1;
-localparam S_POLL_WAIT       = 4'd2;
-localparam S_FRAME_START     = 4'd3;
-localparam S_TILE_HDR_REQ    = 4'd4;
-localparam S_TILE_HDR_WAIT   = 4'd5;
-localparam S_TILE_CLEAR      = 4'd6;
-localparam S_SPLAT_READ_REQ  = 4'd7;
-localparam S_SPLAT_READ      = 4'd8;
-localparam S_SPLAT_RAST      = 4'd9;
-localparam S_TILE_FLUSH      = 4'd10;
-localparam S_TILE_NEXT       = 4'd11;
-localparam S_FRAME_DONE_WR   = 4'd12;
-localparam S_FRAME_DONE      = 4'd13;
+localparam S_IDLE          = 4'd0;
+localparam S_POLL_REQ      = 4'd1;
+localparam S_POLL_WAIT     = 4'd2;
+localparam S_FRAME_START   = 4'd3;
+localparam S_DISPATCH      = 4'd4;   // check for idle core, dispatch or wait
+localparam S_HDR_REQ       = 4'd5;   // read 2-qword tile header
+localparam S_HDR_WAIT      = 4'd6;   // wait for header data
+localparam S_HDR_DISPATCH  = 4'd7;   // send tile to core
+localparam S_WAIT_CORES    = 4'd8;   // all tiles dispatched, wait for cores to finish
+localparam S_FRAME_DONE_WR = 4'd9;
+localparam S_FRAME_DONE    = 4'd10;
 
 reg [3:0] state;
 
 // Frame state
-reg [28:0] first_tile_addr;   // from ctrl[0]
-reg [28:0] cur_tile_addr;     // current tile descriptor DDR3 qword address
-reg [28:0] next_tile_addr;    // next tile descriptor (0 = done)
-reg [15:0] tile_splat_count;  // splats in current tile
-reg [15:0] tile_splat_idx;    // current splat within tile
-reg [15:0] tile_px;           // tile origin X (from descriptor)
-reg [15:0] tile_py;           // tile origin Y (from descriptor)
-reg [15:0] tile_num;          // linear tile counter for progress
+reg [28:0] first_tile_addr;
+reg [28:0] cur_tile_addr;    // next tile to dispatch
+reg [15:0] tile_num;         // progress counter
+reg        tiles_remaining;  // 0 when cur_tile_addr == 0
 
-// Tile header read state (2 qwords)
-reg        hdr_word_cnt;      // 0 = first qword, 1 = second qword
+// Header read state
+reg        hdr_word_cnt;
 reg [63:0] hdr_word0;
+reg [15:0] hdr_tile_px;
+reg [15:0] hdr_tile_py;
+reg [15:0] hdr_splat_count;
+reg [28:0] hdr_next_addr;
 
-// Tile clear state
-reg  [9:0] clear_addr;
+// Which core to dispatch to
+reg        dispatch_core;    // 0 or 1
 
-// Poll delay counter
+// Poll delay
 reg [15:0] poll_delay;
 
 // ============================================================
-// DDRAM controller
+// DDRAM controller (single instance, shared)
 // ============================================================
 
 wire [28:0] dc_rd_addr;
@@ -130,257 +125,252 @@ ddram_ctrl ddram_ctrl_inst (
 );
 
 // ============================================================
-// Splat reader
+// Coordinator DDR3 interface (requestor 0 for arbiter)
 // ============================================================
 
-wire        sr_word_ready;
-wire signed [31:0] sr_sx_fp, sr_sy_fp;
-wire        [15:0] sr_cov_a_fp, sr_cov_c_fp;
-wire signed [31:0] sr_cov_b2_fp;
-wire         [7:0] sr_r, sr_g, sr_b, sr_opacity;
-wire signed [15:0] sr_bbox_x0, sr_bbox_y0, sr_bbox_x1, sr_bbox_y1;
-wire               sr_splat_valid;
-reg                sr_start;
+reg  [28:0] coord_rd_addr;
+reg   [7:0] coord_rd_burstcnt;
+reg         coord_rd_req;
+wire        coord_rd_ack;
+wire [63:0] coord_rd_data;
+wire        coord_rd_data_valid;
 
-splat_reader splat_reader_inst (
+reg  [28:0] coord_wr_addr;
+reg   [7:0] coord_wr_burstcnt;
+reg  [63:0] coord_wr_data;
+reg   [7:0] coord_wr_be;
+reg         coord_wr_req;
+wire        coord_wr_ack;
+wire        coord_wr_busy;
+
+// ============================================================
+// Core 0
+// ============================================================
+
+wire        c0_tile_done;
+wire        c0_busy;
+reg         c0_tile_start;
+reg  [28:0] c0_tile_addr;
+reg  [15:0] c0_tile_px;
+reg  [15:0] c0_tile_py;
+reg  [15:0] c0_splat_count;
+
+wire [28:0] c0_rd_addr;
+wire  [7:0] c0_rd_burstcnt;
+wire        c0_rd_req;
+wire        c0_rd_ack;
+wire [63:0] c0_rd_data;
+wire        c0_rd_data_valid;
+
+wire [28:0] c0_wr_addr;
+wire  [7:0] c0_wr_burstcnt;
+wire [63:0] c0_wr_data;
+wire  [7:0] c0_wr_be;
+wire        c0_wr_req;
+wire        c0_wr_ack;
+wire        c0_wr_busy;
+
+gsplat_core core0 (
 	.clk(clk),
 	.reset(reset),
-	.word_data(dc_rd_data),
-	.word_valid(dc_rd_data_valid),
-	.word_ready(sr_word_ready),
-	.start(sr_start),
-	.sx_fp(sr_sx_fp),
-	.sy_fp(sr_sy_fp),
-	.cov_a_fp(sr_cov_a_fp),
-	.cov_c_fp(sr_cov_c_fp),
-	.cov_b2_fp(sr_cov_b2_fp),
-	.r(sr_r),
-	.g(sr_g),
-	.b(sr_b),
-	.opacity(sr_opacity),
-	.bbox_x0(sr_bbox_x0),
-	.bbox_y0(sr_bbox_y0),
-	.bbox_x1(sr_bbox_x1),
-	.bbox_y1(sr_bbox_y1),
-	.splat_valid(sr_splat_valid)
+	.tile_start(c0_tile_start),
+	.tile_addr(c0_tile_addr),
+	.tile_px(c0_tile_px),
+	.tile_py(c0_tile_py),
+	.tile_splat_count(c0_splat_count),
+	.tile_done(c0_tile_done),
+	.busy(c0_busy),
+	.rd_addr(c0_rd_addr),
+	.rd_burstcnt(c0_rd_burstcnt),
+	.rd_req(c0_rd_req),
+	.rd_ack(c0_rd_ack),
+	.rd_data(c0_rd_data),
+	.rd_data_valid(c0_rd_data_valid),
+	.wr_addr(c0_wr_addr),
+	.wr_burstcnt(c0_wr_burstcnt),
+	.wr_data(c0_wr_data),
+	.wr_be(c0_wr_be),
+	.wr_req(c0_wr_req),
+	.wr_ack(c0_wr_ack),
+	.wr_busy(c0_wr_busy)
 );
 
 // ============================================================
-// Tile buffer
+// Core 1
 // ============================================================
 
-// Mux between rasterizer and writer/clear for tile buffer access
-reg   [9:0] tb_rd_addr;
-wire [63:0] tb_rd_data;
-reg   [9:0] tb_wr_addr;
-reg  [63:0] tb_wr_data;
-reg         tb_wr_en;
+wire        c1_tile_done;
+wire        c1_busy;
+reg         c1_tile_start;
+reg  [28:0] c1_tile_addr;
+reg  [15:0] c1_tile_px;
+reg  [15:0] c1_tile_py;
+reg  [15:0] c1_splat_count;
 
-// Rasterizer tile buffer interface
-wire  [9:0] rast_tb_rd_addr;
-wire  [9:0] rast_tb_wr_addr;
-wire [63:0] rast_tb_wr_data;
-wire        rast_tb_wr_en;
+wire [28:0] c1_rd_addr;
+wire  [7:0] c1_rd_burstcnt;
+wire        c1_rd_req;
+wire        c1_rd_ack;
+wire [63:0] c1_rd_data;
+wire        c1_rd_data_valid;
 
-// Writer tile buffer interface
-wire  [9:0] tw_tb_rd_addr;
+wire [28:0] c1_wr_addr;
+wire  [7:0] c1_wr_burstcnt;
+wire [63:0] c1_wr_data;
+wire  [7:0] c1_wr_be;
+wire        c1_wr_req;
+wire        c1_wr_ack;
+wire        c1_wr_busy;
 
-tile_buffer tile_buffer_inst (
-	.clk(clk),
-	.rd_addr(tb_rd_addr),
-	.rd_data(tb_rd_data),
-	.wr_addr(tb_wr_addr),
-	.wr_data(tb_wr_data),
-	.wr_en(tb_wr_en)
-);
-
-// ============================================================
-// Tile rasterizer
-// ============================================================
-
-wire [10:0] rast_lut_addr;
-wire [15:0] rast_lut_data;
-wire        rast_done;
-reg         rast_start;
-
-tile_rasterizer rasterizer_inst (
+gsplat_core core1 (
 	.clk(clk),
 	.reset(reset),
-	.sx_fp(sr_sx_fp),
-	.sy_fp(sr_sy_fp),
-	.cov_a_fp(sr_cov_a_fp),
-	.cov_c_fp(sr_cov_c_fp),
-	.cov_b2_fp(sr_cov_b2_fp),
-	.r(sr_r),
-	.g(sr_g),
-	.b_in(sr_b),
-	.opacity(sr_opacity),
-	.bbox_x0(sr_bbox_x0),
-	.bbox_y0(sr_bbox_y0),
-	.bbox_x1(sr_bbox_x1),
-	.bbox_y1(sr_bbox_y1),
-	.tile_px(tile_px),
-	.tile_py(tile_py),
-	.start(rast_start),
-	.done(rast_done),
-	.tb_rd_addr(rast_tb_rd_addr),
-	.tb_rd_data(tb_rd_data),
-	.tb_wr_addr(rast_tb_wr_addr),
-	.tb_wr_data(rast_tb_wr_data),
-	.tb_wr_en(rast_tb_wr_en),
-	.lut_addr(rast_lut_addr),
-	.lut_data(rast_lut_data)
+	.tile_start(c1_tile_start),
+	.tile_addr(c1_tile_addr),
+	.tile_px(c1_tile_px),
+	.tile_py(c1_tile_py),
+	.tile_splat_count(c1_splat_count),
+	.tile_done(c1_tile_done),
+	.busy(c1_busy),
+	.rd_addr(c1_rd_addr),
+	.rd_burstcnt(c1_rd_burstcnt),
+	.rd_req(c1_rd_req),
+	.rd_ack(c1_rd_ack),
+	.rd_data(c1_rd_data),
+	.rd_data_valid(c1_rd_data_valid),
+	.wr_addr(c1_wr_addr),
+	.wr_burstcnt(c1_wr_burstcnt),
+	.wr_data(c1_wr_data),
+	.wr_be(c1_wr_be),
+	.wr_req(c1_wr_req),
+	.wr_ack(c1_wr_ack),
+	.wr_busy(c1_wr_busy)
 );
 
 // ============================================================
-// Gaussian LUT
+// DDR3 Arbiter
 // ============================================================
 
-gauss_lut gauss_lut_inst (
-	.clk(clk),
-	.addr(rast_lut_addr),
-	.data(rast_lut_data)
-);
-
-// ============================================================
-// Tile writer
-// ============================================================
-
-wire        tw_done;
-reg         tw_start;
-
-wire [28:0] tw_wr_addr;
-wire  [7:0] tw_wr_burstcnt;
-wire [63:0] tw_wr_data;
-wire  [7:0] tw_wr_be;
-wire        tw_wr_req;
-
-tile_writer tile_writer_inst (
+ddram_arbiter arbiter_inst (
 	.clk(clk),
 	.reset(reset),
-	.start(tw_start),
-	.done(tw_done),
-	.tile_px(tile_px),
-	.tile_py(tile_py),
-	.tb_rd_addr(tw_tb_rd_addr),
-	.tb_rd_data(tb_rd_data),
-	.wr_addr(tw_wr_addr),
-	.wr_burstcnt(tw_wr_burstcnt),
-	.wr_data(tw_wr_data),
-	.wr_be(tw_wr_be),
-	.wr_req(tw_wr_req),
-	.wr_ack(dc_wr_ack),
-	.wr_busy(dc_wr_busy)
+
+	// Downstream to ddram_ctrl
+	.dc_rd_addr(dc_rd_addr),
+	.dc_rd_burstcnt(dc_rd_burstcnt),
+	.dc_rd_req(dc_rd_req),
+	.dc_rd_ack(dc_rd_ack),
+	.dc_rd_data(dc_rd_data),
+	.dc_rd_data_valid(dc_rd_data_valid),
+	.dc_wr_addr(dc_wr_addr),
+	.dc_wr_burstcnt(dc_wr_burstcnt),
+	.dc_wr_data(dc_wr_data),
+	.dc_wr_be(dc_wr_be),
+	.dc_wr_req(dc_wr_req),
+	.dc_wr_ack(dc_wr_ack),
+	.dc_wr_busy(dc_wr_busy),
+
+	// Requestor 0: coordinator
+	.r0_rd_addr(coord_rd_addr),
+	.r0_rd_burstcnt(coord_rd_burstcnt),
+	.r0_rd_req(coord_rd_req),
+	.r0_rd_ack(coord_rd_ack),
+	.r0_rd_data(coord_rd_data),
+	.r0_rd_data_valid(coord_rd_data_valid),
+	.r0_wr_addr(coord_wr_addr),
+	.r0_wr_burstcnt(coord_wr_burstcnt),
+	.r0_wr_data(coord_wr_data),
+	.r0_wr_be(coord_wr_be),
+	.r0_wr_req(coord_wr_req),
+	.r0_wr_ack(coord_wr_ack),
+	.r0_wr_busy(coord_wr_busy),
+
+	// Requestor 1: core 0
+	.r1_rd_addr(c0_rd_addr),
+	.r1_rd_burstcnt(c0_rd_burstcnt),
+	.r1_rd_req(c0_rd_req),
+	.r1_rd_ack(c0_rd_ack),
+	.r1_rd_data(c0_rd_data),
+	.r1_rd_data_valid(c0_rd_data_valid),
+	.r1_wr_addr(c0_wr_addr),
+	.r1_wr_burstcnt(c0_wr_burstcnt),
+	.r1_wr_data(c0_wr_data),
+	.r1_wr_be(c0_wr_be),
+	.r1_wr_req(c0_wr_req),
+	.r1_wr_ack(c0_wr_ack),
+	.r1_wr_busy(c0_wr_busy),
+
+	// Requestor 2: core 1
+	.r2_rd_addr(c1_rd_addr),
+	.r2_rd_burstcnt(c1_rd_burstcnt),
+	.r2_rd_req(c1_rd_req),
+	.r2_rd_ack(c1_rd_ack),
+	.r2_rd_data(c1_rd_data),
+	.r2_rd_data_valid(c1_rd_data_valid),
+	.r2_wr_addr(c1_wr_addr),
+	.r2_wr_burstcnt(c1_wr_burstcnt),
+	.r2_wr_data(c1_wr_data),
+	.r2_wr_be(c1_wr_be),
+	.r2_wr_req(c1_wr_req),
+	.r2_wr_ack(c1_wr_ack),
+	.r2_wr_busy(c1_wr_busy)
 );
 
 // ============================================================
-// DDRAM request mux
+// Coordinator FSM
 // ============================================================
 
-// Read channel: used by top FSM (poll + header + splat reads)
-reg  [28:0] top_rd_addr;
-reg   [7:0] top_rd_burstcnt;
-reg         top_rd_req;
-
-assign dc_rd_addr     = top_rd_addr;
-assign dc_rd_burstcnt = top_rd_burstcnt;
-assign dc_rd_req      = top_rd_req;
-
-// Write channel: mux between top FSM (frame_done ack) and tile_writer
-reg         top_wr_req;
-reg  [28:0] top_wr_addr;
-reg  [63:0] top_wr_data;
-
-wire use_tw_wr = (state == S_TILE_FLUSH);
-
-assign dc_wr_addr     = use_tw_wr ? tw_wr_addr     : top_wr_addr;
-assign dc_wr_burstcnt = use_tw_wr ? tw_wr_burstcnt : 8'd1;
-assign dc_wr_data     = use_tw_wr ? tw_wr_data     : top_wr_data;
-assign dc_wr_be       = use_tw_wr ? tw_wr_be       : 8'hFF;
-assign dc_wr_req      = use_tw_wr ? tw_wr_req      : top_wr_req;
-
-// Tile buffer mux: rasterizer during S_SPLAT_RAST, writer during S_TILE_FLUSH, top during clear
-always @(*) begin
-	case (state)
-	S_SPLAT_RAST: begin
-		tb_rd_addr = rast_tb_rd_addr;
-		tb_wr_addr = rast_tb_wr_addr;
-		tb_wr_data = rast_tb_wr_data;
-		tb_wr_en   = rast_tb_wr_en;
-	end
-	S_TILE_FLUSH: begin
-		tb_rd_addr = tw_tb_rd_addr;
-		tb_wr_addr = 10'd0;
-		tb_wr_data = 64'd0;
-		tb_wr_en   = 1'b0;
-	end
-	default: begin
-		// Clear or idle - top FSM controls writes
-		tb_rd_addr = 10'd0;
-		tb_wr_addr = clear_addr;
-		tb_wr_data = 64'd0;
-		tb_wr_en   = (state == S_TILE_CLEAR);
-	end
-	endcase
-end
-
-// ============================================================
-// Main FSM
-// ============================================================
-
-// Latch for poll data
 reg [63:0] poll_data;
 
 always @(posedge clk) begin
 	if (reset) begin
-		state       <= S_IDLE;
-		rendering   <= 0;
-		top_rd_req  <= 0;
-		top_wr_req  <= 0;
-		sr_start    <= 0;
-		rast_start  <= 0;
-		tw_start    <= 0;
-		poll_delay  <= 0;
+		state           <= S_IDLE;
+		rendering       <= 0;
+		coord_rd_req    <= 0;
+		coord_wr_req    <= 0;
+		c0_tile_start   <= 0;
+		c1_tile_start   <= 0;
+		poll_delay      <= 0;
 	end else begin
-		sr_start   <= 0;
-		rast_start <= 0;
-		tw_start   <= 0;
-		top_rd_req <= 0;
-		top_wr_req <= 0;
+		c0_tile_start  <= 0;
+		c1_tile_start  <= 0;
+		coord_rd_req   <= 0;
+		coord_wr_req   <= 0;
+
+		// Track tile completions
+		if (c0_tile_done) tile_num <= tile_num + 16'd1;
+		if (c1_tile_done) tile_num <= tile_num + 16'd1;
+		if (c0_tile_done && c1_tile_done) tile_num <= tile_num + 16'd2;
 
 		case (state)
 
 		// ---- Poll control block ----
 		S_IDLE: begin
 			rendering <= 0;
-			// Delay between polls to avoid hammering DDR3
 			if (poll_delay == 0) begin
 				state <= S_POLL_REQ;
-				poll_delay <= 16'd50000;  // ~1ms at 50MHz
+				poll_delay <= 16'd50000;
 			end else begin
 				poll_delay <= poll_delay - 16'd1;
 			end
 		end
 
 		S_POLL_REQ: begin
-			// Read control block qword 0: {frame_request[31:0], first_tile_addr[31:0]}
-			top_rd_addr     <= CTRL_ADDR;
-			top_rd_burstcnt <= 8'd1;
-			if (dc_rd_ack) begin
-				top_rd_req <= 0;
+			coord_rd_addr     <= CTRL_ADDR;
+			coord_rd_burstcnt <= 8'd1;
+			if (coord_rd_ack) begin
+				coord_rd_req <= 0;
 				state <= S_POLL_WAIT;
 			end else begin
-				top_rd_req <= 1;
+				coord_rd_req <= 1;
 			end
 		end
 
 		S_POLL_WAIT: begin
-			if (dc_rd_data_valid) begin
-				poll_data <= dc_rd_data;
-				// ctrl[0] = first_tile_addr in [31:0] (actually [28:0])
-				// ctrl[1] = frame_request in [63:32]
-				if (dc_rd_data[63:32] != 0 && dc_rd_data[28:0] != 0) begin
-					first_tile_addr <= dc_rd_data[28:0];
+			if (coord_rd_data_valid) begin
+				poll_data <= coord_rd_data;
+				if (coord_rd_data[63:32] != 0 && coord_rd_data[28:0] != 0) begin
+					first_tile_addr <= coord_rd_data[28:0];
 					state           <= S_FRAME_START;
 				end else begin
 					state <= S_IDLE;
@@ -390,136 +380,121 @@ always @(posedge clk) begin
 
 		// ---- Frame start ----
 		S_FRAME_START: begin
-			rendering      <= 1;
-			cur_tile_addr  <= first_tile_addr;
-			tile_num       <= 0;
-			state          <= S_TILE_HDR_REQ;
+			rendering       <= 1;
+			cur_tile_addr   <= first_tile_addr;
+			tiles_remaining <= 1;
+			tile_num        <= 0;
+			state           <= S_DISPATCH;
 		end
 
-		// ---- Read tile descriptor header (2 qwords) ----
-		S_TILE_HDR_REQ: begin
-			top_rd_addr     <= cur_tile_addr;
-			top_rd_burstcnt <= 8'd2;  // 2 qwords for header
-			hdr_word_cnt    <= 0;
-			if (dc_rd_ack) begin
-				top_rd_req <= 0;
-				state <= S_TILE_HDR_WAIT;
+		// ---- Dispatch: find idle core, read header, send tile ----
+		S_DISPATCH: begin
+			if (tiles_remaining) begin
+				// Find an idle core to dispatch to
+				if (!c0_busy) begin
+					dispatch_core <= 0;
+					state <= S_HDR_REQ;
+				end else if (!c1_busy) begin
+					dispatch_core <= 1;
+					state <= S_HDR_REQ;
+				end
+				// else: both busy, wait (stay in S_DISPATCH)
 			end else begin
-				top_rd_req <= 1;
+				// No more tiles to dispatch
+				if (!c0_busy && !c1_busy) begin
+					// Both cores finished
+					state <= S_FRAME_DONE_WR;
+				end
+				// else: wait for cores to finish
 			end
 		end
 
-		S_TILE_HDR_WAIT: begin
-			if (dc_rd_data_valid) begin
+		// ---- Read tile header (2 qwords) ----
+		S_HDR_REQ: begin
+			coord_rd_addr     <= cur_tile_addr;
+			coord_rd_burstcnt <= 8'd2;
+			hdr_word_cnt      <= 0;
+			if (coord_rd_ack) begin
+				coord_rd_req <= 0;
+				state <= S_HDR_WAIT;
+			end else begin
+				coord_rd_req <= 1;
+			end
+		end
+
+		S_HDR_WAIT: begin
+			if (coord_rd_data_valid) begin
 				if (!hdr_word_cnt) begin
-					// Qword 0: [28:0]=fb_qaddr, [60:32]=next_tile_qaddr
-					hdr_word0    <= dc_rd_data;
+					hdr_word0    <= coord_rd_data;
 					hdr_word_cnt <= 1;
 				end else begin
-					// Qword 1: [15:0]=splat_count, [31:16]=tile_px, [47:32]=tile_py
-					tile_splat_count <= dc_rd_data[15:0];
-					tile_px          <= dc_rd_data[31:16];
-					tile_py          <= dc_rd_data[47:32];
-					next_tile_addr   <= hdr_word0[60:32];
-
-					// Start clearing tile buffer
-					clear_addr <= 0;
-					state      <= S_TILE_CLEAR;
+					// Parse header
+					hdr_next_addr  <= hdr_word0[60:32];
+					hdr_tile_px    <= coord_rd_data[31:16];
+					hdr_tile_py    <= coord_rd_data[47:32];
+					hdr_splat_count <= coord_rd_data[15:0];
+					state          <= S_HDR_DISPATCH;
 				end
 			end
 		end
 
-		// ---- Clear tile buffer ----
-		S_TILE_CLEAR: begin
-			// Write zeros to tile buffer, 1 entry per clock
-			clear_addr <= clear_addr + 10'd1;
-			if (clear_addr == 10'd1023) begin
-				tile_splat_idx <= 0;
-				state          <= S_SPLAT_READ_REQ;
-			end
-		end
-
-		// ---- Read one inline splat from DDR3 ----
-		S_SPLAT_READ_REQ: begin
-			if (tile_splat_idx >= tile_splat_count) begin
-				// All splats processed for this tile
-				state <= S_TILE_FLUSH;
-				tw_start <= 1;
+		S_HDR_DISPATCH: begin
+			// Dispatch to the selected core
+			if (dispatch_core == 0) begin
+				c0_tile_addr  <= cur_tile_addr;
+				c0_tile_px    <= hdr_tile_px;
+				c0_tile_py    <= hdr_tile_py;
+				c0_splat_count <= hdr_splat_count;
+				c0_tile_start <= 1;
 			end else begin
-				// Inline splats start at cur_tile_addr + 2, each is 4 qwords
-				top_rd_addr     <= cur_tile_addr + 29'd2 +
-				                   {13'd0, tile_splat_idx, 2'b00};  // * 4
-				top_rd_burstcnt <= 8'd4;
-				sr_start        <= 1;
-				if (dc_rd_ack) begin
-					top_rd_req <= 0;
-					state <= S_SPLAT_READ;
-				end else begin
-					top_rd_req <= 1;
-				end
+				c1_tile_addr  <= cur_tile_addr;
+				c1_tile_px    <= hdr_tile_px;
+				c1_tile_py    <= hdr_tile_py;
+				c1_splat_count <= hdr_splat_count;
+				c1_tile_start <= 1;
 			end
+
+			// Advance to next tile
+			if (hdr_next_addr == 29'd0) begin
+				tiles_remaining <= 0;
+			end else begin
+				cur_tile_addr <= hdr_next_addr;
+			end
+
+			state <= S_DISPATCH;
 		end
 
-		S_SPLAT_READ: begin
-			// Wait for splat_reader to assemble all 4 words
-			if (sr_splat_valid) begin
-				// HPS pre-filtered: no bbox check needed, go straight to rasterize
-				rast_start <= 1;
-				state      <= S_SPLAT_RAST;
-			end
-		end
-
-		// ---- Rasterize splat into tile ----
-		S_SPLAT_RAST: begin
-			if (rast_done) begin
-				tile_splat_idx <= tile_splat_idx + 16'd1;
-				state          <= S_SPLAT_READ_REQ;
-			end
-		end
-
-		// ---- Flush tile to DDR3 framebuffer ----
-		S_TILE_FLUSH: begin
-			if (tw_done) begin
-				state <= S_TILE_NEXT;
-			end
-		end
-
-		// ---- Advance to next tile via linked list ----
-		S_TILE_NEXT: begin
-			tile_num <= tile_num + 16'd1;
-			if (next_tile_addr == 29'd0) begin
-				// No more tiles - frame complete
+		// ---- Wait for cores (only reached via S_DISPATCH when !tiles_remaining) ----
+		S_WAIT_CORES: begin
+			if (!c0_busy && !c1_busy) begin
 				state <= S_FRAME_DONE_WR;
-			end else begin
-				cur_tile_addr <= next_tile_addr;
-				state         <= S_TILE_HDR_REQ;
 			end
 		end
 
-		// ---- Write frame done to control block ----
+		// ---- Write frame done ----
 		S_FRAME_DONE_WR: begin
-			// Write to second qword (bytes 8-15):
-			//   [31:0]  = ctrl[2] = frame_done (byte offset 8)
-			//   [63:32] = ctrl[3] = tile count (byte offset 12)
-			top_wr_addr <= CTRL_ADDR + 29'd1;
-			top_wr_data <= {16'd0, tile_num, 32'd1};
-			if (dc_wr_ack) begin
-				top_wr_req <= 0;
+			coord_wr_addr     <= CTRL_ADDR + 29'd1;
+			coord_wr_burstcnt <= 8'd1;
+			coord_wr_data     <= {16'd0, tile_num, 32'd1};
+			coord_wr_be       <= 8'hFF;
+			if (coord_wr_ack) begin
+				coord_wr_req <= 0;
 				state <= S_FRAME_DONE;
 			end else begin
-				top_wr_req <= 1;
+				coord_wr_req <= 1;
 			end
 		end
 
 		S_FRAME_DONE: begin
-			// Clear frame_request in control block word 0
-			top_wr_addr <= CTRL_ADDR;
-			top_wr_data <= {32'd0, 3'd0, first_tile_addr};  // frame_req=0, keep first_tile_addr
-			if (dc_wr_ack) begin
-				top_wr_req <= 0;
+			coord_wr_addr     <= CTRL_ADDR;
+			coord_wr_burstcnt <= 8'd1;
+			coord_wr_data     <= {32'd0, 3'd0, first_tile_addr};
+			coord_wr_be       <= 8'hFF;
+			if (coord_wr_ack) begin
+				coord_wr_req <= 0;
 				state <= S_IDLE;
 			end else begin
-				top_wr_req <= 1;
+				coord_wr_req <= 1;
 			end
 		end
 
