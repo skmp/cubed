@@ -97,6 +97,13 @@ wire       c1_idle = !c1_busy && !c1_dispatched;
 // Poll delay
 reg [15:0] poll_delay;
 
+// CDC synchronizer for fb_vbl (may be in clk_vid domain)
+reg fb_vbl_sync1, fb_vbl_sync2;
+always @(posedge clk) begin
+	fb_vbl_sync1 <= fb_vbl;
+	fb_vbl_sync2 <= fb_vbl_sync1;
+end
+
 // ============================================================
 // DDRAM controller (single instance, shared)
 // ============================================================
@@ -357,8 +364,8 @@ always @(posedge clk) begin
 		c0_dispatched   <= 0;
 		c1_dispatched   <= 0;
 		poll_delay      <= 0;
-		back_buf        <= 0;
-		fb_base_addr    <= FB_A_BYTE;  // start displaying buffer A
+		back_buf        <= 1;          // first frame renders to B
+		fb_base_addr    <= FB_A_BYTE;  // start displaying buffer A (empty/black)
 	end else begin
 		c0_tile_start  <= 0;
 		c1_tile_start  <= 0;
@@ -500,7 +507,7 @@ always @(posedge clk) begin
 
 		// ---- Wait for vblank before swapping framebuffer ----
 		S_VBLANK_WAIT: begin
-			if (fb_vbl) begin
+			if (fb_vbl_sync2) begin
 				// Swap: the buffer we just rendered to becomes the front buffer
 				fb_base_addr <= back_buf ? FB_B_BYTE : FB_A_BYTE;
 				back_buf     <= ~back_buf;

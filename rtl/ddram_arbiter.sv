@@ -163,12 +163,18 @@ always @(posedge clk) begin
 		end
 
 		GS_RD_WAIT: begin
-			// Latch burst count when rd_ack fires
-			if (dc_rd_ack) begin
+			if (dc_rd_ack && dc_rd_data_valid) begin
+				// Both on same cycle (shouldn't happen, but handle safely)
+				rd_burst_remain <= granted_rd_burstcnt - 8'd1;
+				if (granted_rd_burstcnt == 8'd1) begin
+					last_grant <= grant;
+					gstate     <= GS_IDLE;
+				end
+			end else if (dc_rd_ack) begin
+				// Latch burst count when rd_ack fires
 				rd_burst_remain <= granted_rd_burstcnt;
-			end
-			// Count down as data arrives
-			if (dc_rd_data_valid) begin
+			end else if (dc_rd_data_valid) begin
+				// Count down as data arrives
 				rd_burst_remain <= rd_burst_remain - 8'd1;
 				if (rd_burst_remain == 8'd1) begin
 					// Last word received
