@@ -1,14 +1,18 @@
 //
-// GSplat top-level coordinator - 2-core architecture.
+// GSplat top-level coordinator - 2-core architecture with dual buffering.
 //
 // Orchestrates two gsplat_core instances processing tiles in parallel:
 //   1. Poll DDR3 control block for frame request
 //   2. Pre-read tile descriptor headers from linked list
 //   3. Dispatch tiles to idle cores (pass tile_addr + header data)
-//   4. When all tiles done, signal frame_done
+//   4. When all tiles done, wait for vblank, swap FB, signal frame_done
 //
 // DDR3 access is arbitrated by ddram_arbiter (3 requestors:
 // coordinator + core0 + core1).
+//
+// Dual buffering: FPGA renders to back buffer, swaps FB_BASE on vblank.
+// MiSTer ascal latches FB_BASE on VS falling edge, so updating during
+// vblank is race-free.
 //
 
 module gsplat_top (
@@ -27,6 +31,10 @@ module gsplat_top (
 	output  [7:0] ddram_be,
 	output        ddram_we,
 
+	// Framebuffer control (directly to emu FB ports)
+	input         fb_vbl,          // vblank active (from ascal)
+	output reg [31:0] fb_base_addr,   // framebuffer base address (byte)
+
 	// Status
 	output reg    rendering
 );
@@ -35,7 +43,11 @@ module gsplat_top (
 // Parameters
 // ============================================================
 
-localparam [28:0] CTRL_ADDR = 29'h06040000;  // 0x30200000 >> 3
+localparam [28:0] CTRL_ADDR  = 29'h06080000;  // 0x30400000 >> 3
+localparam [28:0] FB_A_QADDR = 29'h06000000;  // 0x30000000 >> 3
+localparam [28:0] FB_B_QADDR = 29'h06040000;  // 0x30200000 >> 3
+localparam [31:0] FB_A_BYTE  = 32'h30000000;
+localparam [31:0] FB_B_BYTE  = 32'h30200000;
 
 // ============================================================
 // Coordinator FSM states
@@ -49,7 +61,7 @@ localparam S_DISPATCH      = 4'd4;   // check for idle core, dispatch or wait
 localparam S_HDR_REQ       = 4'd5;   // read 2-qword tile header
 localparam S_HDR_WAIT      = 4'd6;   // wait for header data
 localparam S_HDR_DISPATCH  = 4'd7;   // send tile to core
-localparam S_WAIT_CORES    = 4'd8;   // all tiles dispatched, wait for cores to finish
+localparam S_VBLANK_WAIT   = 4'd8;   // wait for vblank before swapping FB
 localparam S_FRAME_DONE_WR = 4'd9;
 localparam S_FRAME_DONE    = 4'd10;
 
@@ -60,6 +72,10 @@ reg [28:0] first_tile_addr;
 reg [28:0] cur_tile_addr;    // next tile to dispatch
 reg [15:0] tile_num;         // progress counter
 reg        tiles_remaining;  // 0 when cur_tile_addr == 0
+
+// Dual buffering
+reg        back_buf;         // 0=render to A, 1=render to B
+wire [28:0] render_fb_base = back_buf ? FB_B_QADDR : FB_A_QADDR;
 
 // Header read state
 reg        hdr_word_cnt;
@@ -184,6 +200,7 @@ gsplat_core core0 (
 	.tile_px(c0_tile_px),
 	.tile_py(c0_tile_py),
 	.tile_splat_count(c0_splat_count),
+	.fb_base(render_fb_base),
 	.tile_done(c0_tile_done),
 	.busy(c0_busy),
 	.rd_addr(c0_rd_addr),
@@ -236,6 +253,7 @@ gsplat_core core1 (
 	.tile_px(c1_tile_px),
 	.tile_py(c1_tile_py),
 	.tile_splat_count(c1_splat_count),
+	.fb_base(render_fb_base),
 	.tile_done(c1_tile_done),
 	.busy(c1_busy),
 	.rd_addr(c1_rd_addr),
@@ -339,6 +357,8 @@ always @(posedge clk) begin
 		c0_dispatched   <= 0;
 		c1_dispatched   <= 0;
 		poll_delay      <= 0;
+		back_buf        <= 0;
+		fb_base_addr    <= FB_A_BYTE;  // start displaying buffer A
 	end else begin
 		c0_tile_start  <= 0;
 		c1_tile_start  <= 0;
@@ -415,7 +435,7 @@ always @(posedge clk) begin
 			end else begin
 				// No more tiles to dispatch — wait for all cores to finish
 				if (c0_idle && c1_idle) begin
-					state <= S_FRAME_DONE_WR;
+					state <= S_VBLANK_WAIT;
 				end
 				// else: wait for cores to finish
 			end
@@ -478,10 +498,13 @@ always @(posedge clk) begin
 			state <= S_DISPATCH;
 		end
 
-		// ---- Wait for cores (only reached via S_DISPATCH when !tiles_remaining) ----
-		S_WAIT_CORES: begin
-			if (!c0_busy && !c1_busy) begin
-				state <= S_FRAME_DONE_WR;
+		// ---- Wait for vblank before swapping framebuffer ----
+		S_VBLANK_WAIT: begin
+			if (fb_vbl) begin
+				// Swap: the buffer we just rendered to becomes the front buffer
+				fb_base_addr <= back_buf ? FB_B_BYTE : FB_A_BYTE;
+				back_buf     <= ~back_buf;
+				state        <= S_FRAME_DONE_WR;
 			end
 		end
 

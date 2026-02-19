@@ -977,9 +977,10 @@ int load_splats_png(const char *path, splat_store_t *store)
  * ================================================================ */
 
 #define FPGA_FB_BASE     0x30000000
-#define FPGA_CTRL_BASE   0x30200000
-#define FPGA_DESC_BASE   0x30200100          /* after 256-byte control block */
-#define FPGA_DESC_SIZE   (32 * 1024 * 1024)  /* 32MB for tile descriptors */
+/* FB_A at 0x30000000, FB_B at 0x30200000 (dual buffering handled by FPGA) */
+#define FPGA_CTRL_BASE   0x30400000
+#define FPGA_DESC_BASE   0x30400100          /* after 256-byte control block */
+#define FPGA_DESC_SIZE   (30 * 1024 * 1024)  /* 30MB for tile descriptors */
 #define FPGA_CTRL_SIZE   64
 
 int fpga_init(fpga_ctx_t *ctx)

@@ -17,6 +17,7 @@ module gsplat_core (
 	input  [15:0] tile_px,           // tile origin X (from header)
 	input  [15:0] tile_py,           // tile origin Y (from header)
 	input  [15:0] tile_splat_count,  // number of inline splats
+	input  [28:0] fb_base,           // framebuffer DDR3 qword base address
 
 	// Status (to coordinator)
 	output reg    tile_done,         // pulse: tile complete
@@ -188,6 +189,7 @@ tile_writer tile_writer_inst (
 	.done(tw_done),
 	.tile_px(cur_tile_px),
 	.tile_py(cur_tile_py),
+	.fb_base(fb_base),
 	.tb_rd_addr(tw_tb_rd_addr),
 	.tb_rd_data(tb_rd_data),
 	.wr_addr(wr_addr),

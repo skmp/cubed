@@ -187,15 +187,16 @@ wire reset = RESET | status[0] | buttons[1];
 ///////////////////////   FB CONFIG   ////////////////////////////
 
 wire rendering;
+wire [31:0] gsplat_fb_base;
 
 `ifdef MISTER_FB
 	assign FB_EN          = 1'b1;
 	assign FB_FORMAT      = 5'b00110;  // 32bpp RGB
 	assign FB_WIDTH       = 12'd640;
 	assign FB_HEIGHT      = 12'd480;
-	assign FB_BASE        = 32'h30000000;
+	assign FB_BASE        = gsplat_fb_base;
 	assign FB_STRIDE      = 14'd2560;  // 640 * 4 bytes
-	assign FB_FORCE_BLANK = 1'b0;  // Don't blank during rendering - let user see progressive output
+	assign FB_FORCE_BLANK = 1'b0;
 `endif
 
 ///////////////////////   VGA TIMING   ///////////////////////////
@@ -261,6 +262,13 @@ gsplat_top gsplat_top
 	.ddram_din(DDRAM_DIN),
 	.ddram_be(DDRAM_BE),
 	.ddram_we(DDRAM_WE),
+
+`ifdef MISTER_FB
+	.fb_vbl(FB_VBL),
+`else
+	.fb_vbl(1'b1),
+`endif
+	.fb_base_addr(gsplat_fb_base),
 
 	.rendering(rendering)
 );

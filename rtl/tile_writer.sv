@@ -15,6 +15,7 @@ module tile_writer (
 	output reg    done,
 	input  [15:0] tile_px,    // tile origin X in pixels
 	input  [15:0] tile_py,    // tile origin Y in pixels
+	input  [28:0] fb_base,    // framebuffer DDR3 qword base address
 
 	// Tile buffer read interface
 	output reg  [9:0] tb_rd_addr,
@@ -33,7 +34,6 @@ module tile_writer (
 localparam TILE_W = 32;
 localparam TILE_H = 32;
 localparam SCREEN_W = 640;
-localparam FB_BASE  = 29'h06000000;  // 0x30000000 >> 3
 localparam FB_STRIDE_BYTES = 2560;   // 640 * 4
 
 // States
@@ -136,7 +136,7 @@ always @(posedge clk) begin
 			// Compute DDR3 address for this pixel pair
 			// byte_addr = FB_BASE_BYTES + (tile_py + row) * STRIDE + (tile_px + col) * 4
 			// ddram_addr = byte_addr >> 3
-			wr_addr <= FB_BASE +
+			wr_addr <= fb_base +
 			           (({14'd0, tile_py} + {14'd0, 11'd0, row}) * (FB_STRIDE_BYTES >> 3)) +
 			           (({14'd0, tile_px} + {14'd0, 11'd0, col}) >> 1);
 			wr_burstcnt <= 8'd1;
