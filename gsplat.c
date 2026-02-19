@@ -980,6 +980,8 @@ int load_splats_png(const char *path, splat_store_t *store)
 /* FB_A at 0x30000000, FB_B at 0x30200000 (dual buffering handled by FPGA) */
 #define FPGA_CTRL_BASE   0x30400000
 #define FPGA_DESC_BASE   0x30400100          /* after 256-byte control block */
+#define FPGA_DESC_MMAP   0x30400000          /* page-aligned base for mmap */
+#define FPGA_DESC_OFFSET 0x100               /* offset within mapped page */
 #define FPGA_DESC_SIZE   (30 * 1024 * 1024)  /* 30MB for tile descriptors */
 #define FPGA_CTRL_SIZE   64
 
@@ -1001,15 +1003,15 @@ int fpga_init(fpga_ctx_t *ctx)
     }
     ctx->ctrl = (volatile uint32_t *)ctx->ctrl_map;
 
-    ctx->desc_map = mmap(NULL, FPGA_DESC_SIZE, PROT_READ | PROT_WRITE,
-                          MAP_SHARED, ctx->mem_fd, FPGA_DESC_BASE);
+    ctx->desc_map = mmap(NULL, FPGA_DESC_SIZE + FPGA_DESC_OFFSET, PROT_READ | PROT_WRITE,
+                          MAP_SHARED, ctx->mem_fd, FPGA_DESC_MMAP);
     if (ctx->desc_map == MAP_FAILED) {
         perror("mmap desc");
         munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
         close(ctx->mem_fd);
         return -1;
     }
-    ctx->desc = ctx->desc_map;
+    ctx->desc = (uint8_t *)ctx->desc_map + FPGA_DESC_OFFSET;
 
     /* Map framebuffer region for debug readback */
     #define FPGA_FB_SIZE (640 * 480 * 4)
@@ -1052,7 +1054,7 @@ void fpga_close(fpga_ctx_t *ctx)
     if (ctx->fb_map && ctx->fb_map != MAP_FAILED)
         munmap(ctx->fb_map, FPGA_FB_SIZE);
     if (ctx->desc_map && ctx->desc_map != MAP_FAILED)
-        munmap(ctx->desc_map, FPGA_DESC_SIZE);
+        munmap(ctx->desc_map, FPGA_DESC_SIZE + FPGA_DESC_OFFSET);
     if (ctx->ctrl_map && ctx->ctrl_map != MAP_FAILED)
         munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
     if (ctx->mem_fd >= 0)
