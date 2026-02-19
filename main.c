@@ -169,12 +169,12 @@ int main(int argc, char **argv)
     while (running) {
         double t0 = now_ms();
 
-        /* Orbit camera */
+        /* Orbit camera around Y (earth pole), screen rotated 90° */
         float angle = frame * 0.02f;
         float dist = 10.0f;
-        float eye[3]    = { dist * cosf(angle), 2.0f, dist * sinf(angle) };
+        float eye[3]    = { dist * cosf(angle), 0.0f, dist * sinf(angle) };
         float target[3] = { 0, 0, 0 };
-        float up[3]     = { 0, 1, 0 };
+        float up[3]     = { 0, 0, 1 };
         cam_lookat(&cam, eye, target, up);
 
         double t1 = now_ms();
