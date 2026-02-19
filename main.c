@@ -22,7 +22,7 @@
 #include <signal.h>
 #include <termios.h>
 
-static volatile int running = 1;
+volatile int running = 1;
 
 static void sigint_handler(int sig)
 {

@@ -461,10 +461,10 @@ always @(posedge clk) begin
 					hdr_word_cnt <= 1;
 				end else begin
 					// Parse header
-					hdr_next_addr  <= hdr_word0[60:32];
+					hdr_next_addr   <= hdr_word0[60:32];
 					hdr_splat_count <= coord_rd_data[31:0];
-					hdr_tile_px    <= coord_rd_data[47:32];
-					hdr_tile_py    <= coord_rd_data[63:48];
+					hdr_tile_px     <= coord_rd_data[47:32];
+					hdr_tile_py     <= coord_rd_data[63:48];
 					state          <= S_HDR_DISPATCH;
 				end
 			end

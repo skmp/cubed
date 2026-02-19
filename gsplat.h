@@ -152,6 +152,9 @@ int  fpga_init(fpga_ctx_t *ctx);
 void fpga_close(fpga_ctx_t *ctx);
 void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_t *fb);
 
+/* Signal flag - set to 0 by SIGINT handler for immediate exit */
+extern volatile int running;
+
 /* Test / debug */
 void generate_test_splats(splat_store_t *store, int count);
 void fb_dump_ppm(framebuf_t *fb, const char *path);

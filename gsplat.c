@@ -1166,7 +1166,7 @@ done_building:
 
     /* Wait for FPGA to finish */
     int timeout = 0;
-    while (ctx->ctrl[2] == 0) {
+    while (ctx->ctrl[2] == 0 && running) {
         usleep(10000);  /* 10ms sleep */
         timeout++;
         if (ctx->verbose && timeout % 100 == 0) {
