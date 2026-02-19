@@ -178,7 +178,7 @@ int main(int argc, char **argv)
         double t3 = now_ms();
 
         if (use_fpga) {
-            fpga_rasterize(&fpga, store);
+            fpga_rasterize(&fpga, store, &fb);
         } else {
             rasterize_splats(store, &fb);
         }

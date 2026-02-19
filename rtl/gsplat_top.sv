@@ -1,13 +1,15 @@
 //
 // GSplat top-level controller.
 //
-// Orchestrates the full rasterization pipeline:
+// Orchestrates the full rasterization pipeline using linked tile descriptors:
 //   1. Poll DDR3 control block for frame request
-//   2. For each tile (20x15 = 300 tiles at 640x480):
-//      a. Clear tile buffer
-//      b. Stream all splats from DDR3, rasterize overlapping ones
-//      c. Write completed tile to DDR3 framebuffer
-//   3. Signal frame done
+//   2. Read first_tile_addr from ctrl[0]
+//   3. For each tile descriptor in linked list:
+//      a. Read 2-qword header (fb_addr, next_tile, count, tile_px, tile_py)
+//      b. Clear tile buffer
+//      c. Read & rasterize inline splats (already pre-filtered by HPS)
+//      d. Write completed tile to DDR3 framebuffer
+//   4. Follow next_tile pointer until 0, then signal frame done
 //
 
 module gsplat_top (
@@ -34,46 +36,43 @@ module gsplat_top (
 // Parameters
 // ============================================================
 
-localparam SCREEN_W     = 640;
-localparam SCREEN_H     = 480;
-localparam TILE_W       = 32;
-localparam TILE_H       = 32;
-localparam TILES_X      = SCREEN_W / TILE_W;  // 20
-localparam TILES_Y      = SCREEN_H / TILE_H;  // 15
-
 // DDR3 addresses (byte_addr >> 3)
-localparam [28:0] CTRL_ADDR  = 29'h06080000;  // 0x30400000 >> 3
-localparam [28:0] SPLAT_BASE = 29'h06040000;  // 0x30200000 >> 3
-localparam        SPLAT_QWORDS = 4;            // 32 bytes = 4 x 64-bit
+localparam [28:0] CTRL_ADDR = 29'h06080000;  // 0x30400000 >> 3
 
 // ============================================================
 // Top-level FSM
 // ============================================================
 
-localparam S_IDLE           = 4'd0;
-localparam S_POLL_REQ       = 4'd1;
-localparam S_POLL_WAIT      = 4'd2;
-localparam S_FRAME_START    = 4'd3;
-localparam S_TILE_CLEAR     = 4'd4;
-localparam S_SPLAT_READ_REQ = 4'd5;
-localparam S_SPLAT_READ     = 4'd6;
-localparam S_SPLAT_CHECK    = 4'd7;
-localparam S_SPLAT_RAST     = 4'd8;
-localparam S_TILE_FLUSH     = 4'd9;
-localparam S_TILE_NEXT      = 4'd10;
-localparam S_FRAME_DONE_WR  = 4'd11;
-localparam S_FRAME_DONE     = 4'd12;
+localparam S_IDLE            = 4'd0;
+localparam S_POLL_REQ        = 4'd1;
+localparam S_POLL_WAIT       = 4'd2;
+localparam S_FRAME_START     = 4'd3;
+localparam S_TILE_HDR_REQ    = 4'd4;
+localparam S_TILE_HDR_WAIT   = 4'd5;
+localparam S_TILE_CLEAR      = 4'd6;
+localparam S_SPLAT_READ_REQ  = 4'd7;
+localparam S_SPLAT_READ      = 4'd8;
+localparam S_SPLAT_RAST      = 4'd9;
+localparam S_TILE_FLUSH      = 4'd10;
+localparam S_TILE_NEXT       = 4'd11;
+localparam S_FRAME_DONE_WR   = 4'd12;
+localparam S_FRAME_DONE      = 4'd13;
 
 reg [3:0] state;
 
 // Frame state
-reg [15:0] splat_count;
-reg [15:0] splat_idx;
-reg  [4:0] tile_x;    // 0..TILES_X-1
-reg  [4:0] tile_y;    // 0..TILES_Y-1
-reg [15:0] tile_px;   // tile_x * TILE_W
-reg [15:0] tile_py;   // tile_y * TILE_H
-reg [15:0] tile_num;  // linear tile counter for progress tracking
+reg [28:0] first_tile_addr;   // from ctrl[0]
+reg [28:0] cur_tile_addr;     // current tile descriptor DDR3 qword address
+reg [28:0] next_tile_addr;    // next tile descriptor (0 = done)
+reg [15:0] tile_splat_count;  // splats in current tile
+reg [15:0] tile_splat_idx;    // current splat within tile
+reg [15:0] tile_px;           // tile origin X (from descriptor)
+reg [15:0] tile_py;           // tile origin Y (from descriptor)
+reg [15:0] tile_num;          // linear tile counter for progress
+
+// Tile header read state (2 qwords)
+reg        hdr_word_cnt;      // 0 = first qword, 1 = second qword
+reg [63:0] hdr_word0;
 
 // Tile clear state
 reg  [9:0] clear_addr;
@@ -278,7 +277,7 @@ tile_writer tile_writer_inst (
 // DDRAM request mux
 // ============================================================
 
-// Read channel: used by top FSM (poll + splat reads)
+// Read channel: used by top FSM (poll + header + splat reads)
 reg  [28:0] top_rd_addr;
 reg   [7:0] top_rd_burstcnt;
 reg         top_rd_req;
@@ -364,7 +363,7 @@ always @(posedge clk) begin
 		end
 
 		S_POLL_REQ: begin
-			// Read control block: word 0 = {frame_request[31:0], splat_count[31:0]}
+			// Read control block qword 0: {frame_request[31:0], first_tile_addr[31:0]}
 			top_rd_addr     <= CTRL_ADDR;
 			top_rd_burstcnt <= 8'd1;
 			if (dc_rd_ack) begin
@@ -378,10 +377,11 @@ always @(posedge clk) begin
 		S_POLL_WAIT: begin
 			if (dc_rd_data_valid) begin
 				poll_data <= dc_rd_data;
-				// splat_count in [31:0], frame_request in [63:32]
-				if (dc_rd_data[63:32] != 0 && dc_rd_data[15:0] != 0) begin
-					splat_count <= dc_rd_data[15:0];
-					state       <= S_FRAME_START;
+				// ctrl[0] = first_tile_addr in [31:0] (actually [28:0])
+				// ctrl[1] = frame_request in [63:32]
+				if (dc_rd_data[63:32] != 0 && dc_rd_data[28:0] != 0) begin
+					first_tile_addr <= dc_rd_data[28:0];
+					state           <= S_FRAME_START;
 				end else begin
 					state <= S_IDLE;
 				end
@@ -390,36 +390,65 @@ always @(posedge clk) begin
 
 		// ---- Frame start ----
 		S_FRAME_START: begin
-			rendering <= 1;
-			tile_x    <= 0;
-			tile_y    <= 0;
-			tile_px   <= 0;
-			tile_py   <= 0;
-			tile_num  <= 0;
-			state     <= S_TILE_CLEAR;
-			clear_addr <= 0;
+			rendering      <= 1;
+			cur_tile_addr  <= first_tile_addr;
+			tile_num       <= 0;
+			state          <= S_TILE_HDR_REQ;
+		end
+
+		// ---- Read tile descriptor header (2 qwords) ----
+		S_TILE_HDR_REQ: begin
+			top_rd_addr     <= cur_tile_addr;
+			top_rd_burstcnt <= 8'd2;  // 2 qwords for header
+			hdr_word_cnt    <= 0;
+			if (dc_rd_ack) begin
+				top_rd_req <= 0;
+				state <= S_TILE_HDR_WAIT;
+			end else begin
+				top_rd_req <= 1;
+			end
+		end
+
+		S_TILE_HDR_WAIT: begin
+			if (dc_rd_data_valid) begin
+				if (!hdr_word_cnt) begin
+					// Qword 0: [28:0]=fb_qaddr, [60:32]=next_tile_qaddr
+					hdr_word0    <= dc_rd_data;
+					hdr_word_cnt <= 1;
+				end else begin
+					// Qword 1: [15:0]=splat_count, [31:16]=tile_px, [47:32]=tile_py
+					tile_splat_count <= dc_rd_data[15:0];
+					tile_px          <= dc_rd_data[31:16];
+					tile_py          <= dc_rd_data[47:32];
+					next_tile_addr   <= hdr_word0[60:32];
+
+					// Start clearing tile buffer
+					clear_addr <= 0;
+					state      <= S_TILE_CLEAR;
+				end
+			end
 		end
 
 		// ---- Clear tile buffer ----
 		S_TILE_CLEAR: begin
 			// Write zeros to tile buffer, 1 entry per clock
-			// tb_wr_en is driven by the mux (always 1 in this state)
 			clear_addr <= clear_addr + 10'd1;
 			if (clear_addr == 10'd1023) begin
-				splat_idx <= 0;
-				state     <= S_SPLAT_READ_REQ;
+				tile_splat_idx <= 0;
+				state          <= S_SPLAT_READ_REQ;
 			end
 		end
 
-		// ---- Read one splat from DDR3 ----
+		// ---- Read one inline splat from DDR3 ----
 		S_SPLAT_READ_REQ: begin
-			if (splat_idx >= splat_count) begin
+			if (tile_splat_idx >= tile_splat_count) begin
 				// All splats processed for this tile
 				state <= S_TILE_FLUSH;
 				tw_start <= 1;
 			end else begin
-				// Request 4 words (32 bytes) for this splat
-				top_rd_addr     <= SPLAT_BASE + {13'd0, splat_idx} * SPLAT_QWORDS;
+				// Inline splats start at cur_tile_addr + 2, each is 4 qwords
+				top_rd_addr     <= cur_tile_addr + 29'd2 +
+				                   {13'd0, tile_splat_idx, 2'b00};  // * 4
 				top_rd_burstcnt <= 8'd4;
 				sr_start        <= 1;
 				if (dc_rd_ack) begin
@@ -434,22 +463,7 @@ always @(posedge clk) begin
 		S_SPLAT_READ: begin
 			// Wait for splat_reader to assemble all 4 words
 			if (sr_splat_valid) begin
-				state <= S_SPLAT_CHECK;
-			end
-		end
-
-		// ---- Check bbox overlap ----
-		S_SPLAT_CHECK: begin
-			// Quick reject: does splat bbox overlap this tile?
-			if (sr_bbox_x1 < $signed({1'b0, tile_px}) ||
-			    sr_bbox_x0 >= $signed({1'b0, tile_px} + TILE_W) ||
-			    sr_bbox_y1 < $signed({1'b0, tile_py}) ||
-			    sr_bbox_y0 >= $signed({1'b0, tile_py} + TILE_H)) begin
-				// No overlap, next splat
-				splat_idx <= splat_idx + 16'd1;
-				state     <= S_SPLAT_READ_REQ;
-			end else begin
-				// Overlap - rasterize
+				// HPS pre-filtered: no bbox check needed, go straight to rasterize
 				rast_start <= 1;
 				state      <= S_SPLAT_RAST;
 			end
@@ -458,8 +472,8 @@ always @(posedge clk) begin
 		// ---- Rasterize splat into tile ----
 		S_SPLAT_RAST: begin
 			if (rast_done) begin
-				splat_idx <= splat_idx + 16'd1;
-				state     <= S_SPLAT_READ_REQ;
+				tile_splat_idx <= tile_splat_idx + 16'd1;
+				state          <= S_SPLAT_READ_REQ;
 			end
 		end
 
@@ -470,26 +484,15 @@ always @(posedge clk) begin
 			end
 		end
 
-		// ---- Advance to next tile ----
+		// ---- Advance to next tile via linked list ----
 		S_TILE_NEXT: begin
 			tile_num <= tile_num + 16'd1;
-			if (tile_x + 1 >= TILES_X) begin
-				tile_x  <= 0;
-				tile_px <= 0;
-				if (tile_y + 1 >= TILES_Y) begin
-					// Frame complete
-					state <= S_FRAME_DONE_WR;
-				end else begin
-					tile_y  <= tile_y + 5'd1;
-					tile_py <= tile_py + TILE_H;
-					clear_addr <= 0;
-					state   <= S_TILE_CLEAR;
-				end
+			if (next_tile_addr == 29'd0) begin
+				// No more tiles - frame complete
+				state <= S_FRAME_DONE_WR;
 			end else begin
-				tile_x  <= tile_x + 5'd1;
-				tile_px <= tile_px + TILE_W;
-				clear_addr <= 0;
-				state   <= S_TILE_CLEAR;
+				cur_tile_addr <= next_tile_addr;
+				state         <= S_TILE_HDR_REQ;
 			end
 		end
 
@@ -497,9 +500,9 @@ always @(posedge clk) begin
 		S_FRAME_DONE_WR: begin
 			// Write to second qword (bytes 8-15):
 			//   [31:0]  = ctrl[2] = frame_done (byte offset 8)
-			//   [63:32] = ctrl[3] = frame_number / tile count (byte offset 12)
-			top_wr_addr <= CTRL_ADDR + 29'd1;  // byte offset 8 = qword offset 1
-			top_wr_data <= {16'd0, tile_num, 32'd1};  // frame_done=1, frame_number=tile_num
+			//   [63:32] = ctrl[3] = tile count (byte offset 12)
+			top_wr_addr <= CTRL_ADDR + 29'd1;
+			top_wr_data <= {16'd0, tile_num, 32'd1};
 			if (dc_wr_ack) begin
 				top_wr_req <= 0;
 				state <= S_FRAME_DONE;
@@ -511,7 +514,7 @@ always @(posedge clk) begin
 		S_FRAME_DONE: begin
 			// Clear frame_request in control block word 0
 			top_wr_addr <= CTRL_ADDR;
-			top_wr_data <= {32'd0, {16'd0, splat_count}};  // frame_req=0, keep splat_count
+			top_wr_data <= {32'd0, 3'd0, first_tile_addr};  // frame_req=0, keep first_tile_addr
 			if (dc_wr_ack) begin
 				top_wr_req <= 0;
 				state <= S_IDLE;

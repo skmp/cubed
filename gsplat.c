@@ -979,7 +979,7 @@ int load_splats_png(const char *path, splat_store_t *store)
 #define FPGA_FB_BASE     0x30000000
 #define FPGA_SPLAT_BASE  0x30200000
 #define FPGA_CTRL_BASE   0x30400000
-#define FPGA_SPLAT_SIZE  (MAX_SPLATS * sizeof(splat_2d_t))
+#define FPGA_DESC_SIZE   (2 * 1024 * 1024)  /* 2MB for tile descriptors */
 #define FPGA_CTRL_SIZE   64
 
 int fpga_init(fpga_ctx_t *ctx)
@@ -1000,15 +1000,15 @@ int fpga_init(fpga_ctx_t *ctx)
     }
     ctx->ctrl = (volatile uint32_t *)ctx->ctrl_map;
 
-    ctx->splat_map = mmap(NULL, FPGA_SPLAT_SIZE, PROT_READ | PROT_WRITE,
+    ctx->desc_map = mmap(NULL, FPGA_DESC_SIZE, PROT_READ | PROT_WRITE,
                           MAP_SHARED, ctx->mem_fd, FPGA_SPLAT_BASE);
-    if (ctx->splat_map == MAP_FAILED) {
-        perror("mmap splats");
+    if (ctx->desc_map == MAP_FAILED) {
+        perror("mmap desc");
         munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
         close(ctx->mem_fd);
         return -1;
     }
-    ctx->splats = (splat_2d_t *)ctx->splat_map;
+    ctx->desc = ctx->desc_map;
 
     /* Map framebuffer region for debug readback */
     #define FPGA_FB_SIZE (640 * 480 * 4)
@@ -1029,18 +1029,18 @@ int fpga_init(fpga_ctx_t *ctx)
     ctx->ctrl[3] = 0;  /* frame_number */
     __sync_synchronize();
 
-    fprintf(stderr, "FPGA offload: ctrl@%p splats@%p\n",
-            ctx->ctrl_map, ctx->splat_map);
+    fprintf(stderr, "FPGA offload: ctrl@%p desc@%p\n",
+            ctx->ctrl_map, ctx->desc_map);
 
     /* Verify DDR3 mapping: read back what we wrote */
     fprintf(stderr, "  ctrl readback: [0]=%u [1]=%u [2]=%u [3]=%u\n",
             ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3]);
 
-    /* Test write/read to splat region */
-    volatile uint32_t *test = (volatile uint32_t *)ctx->splats;
+    /* Test write/read to descriptor region */
+    volatile uint32_t *test = (volatile uint32_t *)ctx->desc;
     test[0] = 0xDEADBEEF;
     __sync_synchronize();
-    fprintf(stderr, "  splat region test: wrote 0xDEADBEEF, read 0x%08X\n", test[0]);
+    fprintf(stderr, "  desc region test: wrote 0xDEADBEEF, read 0x%08X\n", test[0]);
     test[0] = 0;
 
     return 0;
@@ -1050,46 +1050,118 @@ void fpga_close(fpga_ctx_t *ctx)
 {
     if (ctx->fb_map && ctx->fb_map != MAP_FAILED)
         munmap(ctx->fb_map, FPGA_FB_SIZE);
-    if (ctx->splat_map && ctx->splat_map != MAP_FAILED)
-        munmap(ctx->splat_map, FPGA_SPLAT_SIZE);
+    if (ctx->desc_map && ctx->desc_map != MAP_FAILED)
+        munmap(ctx->desc_map, FPGA_DESC_SIZE);
     if (ctx->ctrl_map && ctx->ctrl_map != MAP_FAILED)
         munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
     if (ctx->mem_fd >= 0)
         close(ctx->mem_fd);
 }
 
-void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store)
+void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_t *fb)
 {
-    /* Copy sorted splat_2d_t array to DDR3 shared memory.
-     * The sort_idx array gives back-to-front order. We write
-     * splats in sorted order so the FPGA can process them sequentially. */
-    for (int i = 0; i < store->count; i++) {
-        uint32_t idx = store->sort_idx[i];
-        ctx->splats[i] = store->splats_2d[idx];
+    /* Build per-tile linked descriptors in DDR3.
+     *
+     * Each tile descriptor:
+     *   Qword 0: [28:0]=fb_qaddr [60:32]=next_tile_qaddr (0=last)
+     *   Qword 1: [15:0]=splat_count [31:16]=tile_px [47:32]=tile_py
+     *   Qword 2..N+1: inline splat_2d_t data (N*4 qwords)
+     */
+    uint8_t *desc_base = (uint8_t *)ctx->desc;
+    uint32_t desc_offset = 0;
+    uint32_t prev_hdr_offset = 0;  /* byte offset of previous descriptor header */
+    int has_prev = 0;
+    uint32_t first_tile_qaddr = 0;
+
+    for (int ty = 0; ty < fb->tiles_y; ty++) {
+        int tpy = ty * TILE_H;
+        for (int tx = 0; tx < fb->tiles_x; tx++) {
+            int tpx = tx * TILE_W;
+
+            /* Align to 8 bytes */
+            desc_offset = (desc_offset + 7) & ~7;
+
+            /* Check we don't overflow the descriptor region */
+            if (desc_offset + 16 > FPGA_DESC_SIZE) {
+                fprintf(stderr, "FPGA: descriptor overflow at tile %d,%d\n", tx, ty);
+                goto done_building;
+            }
+
+            uint64_t *desc = (uint64_t *)(desc_base + desc_offset);
+            uint32_t tile_qaddr = (FPGA_SPLAT_BASE + desc_offset) >> 3;
+
+            if (!has_prev) first_tile_qaddr = tile_qaddr;
+
+            /* Patch previous descriptor's next pointer */
+            if (has_prev) {
+                uint64_t *prev = (uint64_t *)(desc_base + prev_hdr_offset);
+                prev[0] = (prev[0] & 0x1FFFFFFFULL) | ((uint64_t)tile_qaddr << 32);
+            }
+
+            /* Collect overlapping splats inline */
+            int count = 0;
+            uint64_t *splat_dst = &desc[2];
+
+            for (int si = 0; si < store->count; si++) {
+                uint32_t idx = store->sort_idx[si];
+                const splat_2d_t *s = &store->splats_2d[idx];
+
+                if (s->bbox_x1 < tpx || s->bbox_x0 >= tpx + TILE_W) continue;
+                if (s->bbox_y1 < tpy || s->bbox_y0 >= tpy + TILE_H) continue;
+
+                /* Check space for this splat (4 qwords = 32 bytes) */
+                uint32_t needed = desc_offset + (2 + (count + 1) * 4) * 8;
+                if (needed > FPGA_DESC_SIZE) {
+                    fprintf(stderr, "FPGA: descriptor overflow at splat %d in tile %d,%d\n",
+                            count, tx, ty);
+                    break;
+                }
+
+                /* Copy 32 bytes (4 qwords) inline */
+                memcpy(&splat_dst[count * 4], s, 32);
+                count++;
+            }
+
+            /* Write header qword 0: fb_qaddr in [28:0], next=0 for now */
+            uint32_t fb_qaddr = (FPGA_FB_BASE >> 3) +
+                                (uint32_t)tpy * (640 * 4 / 8) +
+                                (uint32_t)tpx / 2;
+            desc[0] = (uint64_t)(fb_qaddr & 0x1FFFFFFF);  /* next=0 */
+
+            /* Write header qword 1: count, tile_px, tile_py */
+            desc[1] = (uint16_t)count |
+                      ((uint32_t)tpx << 16) |
+                      ((uint64_t)(uint16_t)tpy << 32);
+
+            prev_hdr_offset = desc_offset;
+            has_prev = 1;
+            desc_offset += (2 + count * 4) * 8;
+        }
     }
 
-    /* Signal FPGA to render */
-    ctx->ctrl[0] = (uint32_t)store->count;
+done_building:
+    fprintf(stderr, "FPGA: built tile descriptors, %u bytes, first@0x%08X\n",
+            desc_offset, first_tile_qaddr);
+
+    /* Signal FPGA: ctrl[0] = first tile descriptor qword address */
+    ctx->ctrl[0] = first_tile_qaddr;
     ctx->ctrl[2] = 0;   /* clear frame_done */
     __sync_synchronize();
     ctx->ctrl[1] = 1;   /* frame_request = 1 */
 
-    /* Wait for FPGA to finish.
-     * 10K splats * 300 tiles at 20MHz can take 60+ seconds.
-     * Use 120 second timeout with progress reporting. */
+    /* Wait for FPGA to finish */
     int timeout = 0;
     while (ctx->ctrl[2] == 0) {
         usleep(10000);  /* 10ms sleep */
         timeout++;
-        if (timeout % 100 == 0) {  /* print every second */
-            fprintf(stderr, "  waiting... ctrl: count=%u req=%u done=%u tiles=%u (%ds)\n",
+        if (timeout % 100 == 0) {
+            fprintf(stderr, "  waiting... ctrl: first=%u req=%u done=%u tiles=%u (%ds)\n",
                     ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3],
                     timeout / 100);
         }
         if (timeout > 12000) {  /* 120 second timeout */
-            fprintf(stderr, "FPGA timeout! ctrl: count=%u req=%u done=%u tiles=%u\n",
+            fprintf(stderr, "FPGA timeout! ctrl: first=%u req=%u done=%u tiles=%u\n",
                     ctx->ctrl[0], ctx->ctrl[1], ctx->ctrl[2], ctx->ctrl[3]);
-            /* Check if FPGA wrote anything to framebuffer */
             if (ctx->fb) {
                 int nonzero = 0;
                 for (int i = 0; i < 640*480 && nonzero < 5; i++) {

@@ -124,20 +124,31 @@ void cam_lookat(camera_t *cam, float *eye, float *target, float *up);
 /* PNG splat loading */
 int  load_splats_png(const char *path, splat_store_t *store);
 
-/* FPGA offload - rasterization via FPGA fabric over DDR3 shared memory */
+/* FPGA offload - rasterization via FPGA fabric over DDR3 shared memory.
+ *
+ * DDR3 layout:
+ *   0x30000000  Framebuffer (640x480x4 = 1.2MB)
+ *   0x30200000  Tile descriptor list (linked, variable size)
+ *   0x30400000  Control block (16 bytes)
+ *
+ * Each tile descriptor in DDR3:
+ *   Qword 0: [28:0]=fb_qaddr [60:32]=next_tile_qaddr (0=last)
+ *   Qword 1: [15:0]=splat_count [31:16]=tile_px [47:32]=tile_py
+ *   Qword 2..N+1: inline splat_2d_t data (N*4 qwords)
+ */
 typedef struct {
-    volatile uint32_t *ctrl;    /* control block (splat_count, frame_req, frame_done) */
-    splat_2d_t       *splats;   /* sorted splat array in DDR3 */
+    volatile uint32_t *ctrl;    /* control block */
+    void             *desc;     /* tile descriptor region in DDR3 */
     volatile uint32_t *fb;      /* framebuffer in DDR3 (for debug readback) */
     int               mem_fd;
     void             *ctrl_map;
-    void             *splat_map;
+    void             *desc_map;
     void             *fb_map;
 } fpga_ctx_t;
 
 int  fpga_init(fpga_ctx_t *ctx);
 void fpga_close(fpga_ctx_t *ctx);
-void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store);
+void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store, const framebuf_t *fb);
 
 /* Test / debug */
 void generate_test_splats(splat_store_t *store, int count);
