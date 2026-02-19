@@ -124,6 +124,19 @@ void cam_lookat(camera_t *cam, float *eye, float *target, float *up);
 /* PNG splat loading */
 int  load_splats_png(const char *path, splat_store_t *store);
 
+/* FPGA offload - rasterization via FPGA fabric over DDR3 shared memory */
+typedef struct {
+    volatile uint32_t *ctrl;    /* control block (splat_count, frame_req, frame_done) */
+    splat_2d_t       *splats;   /* sorted splat array in DDR3 */
+    int               mem_fd;
+    void             *ctrl_map;
+    void             *splat_map;
+} fpga_ctx_t;
+
+int  fpga_init(fpga_ctx_t *ctx);
+void fpga_close(fpga_ctx_t *ctx);
+void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store);
+
 /* Test / debug */
 void generate_test_splats(splat_store_t *store, int count);
 void fb_dump_ppm(framebuf_t *fb, const char *path);

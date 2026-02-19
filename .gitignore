@@ -2,3 +2,19 @@
 gsplat
 frame_*.ppm
 settings.local.json
+
+# Quartus build outputs
+output_files/
+db/
+incremental_db/
+greybox_tmp/
+build_id.v
+*.qws
+*.bak
+*.rpt
+*.done
+*.summary
+*.smsg
+*.pin
+*.jdi
+c5_pin_model_dump.txt

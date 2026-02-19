@@ -7,6 +7,7 @@
  *   ./gsplat -s /dev/ttyS0        # GA144 via HPS UART
  *   ./gsplat -s /dev/ttyUSB0      # GA144 via USB serial
  *   ./gsplat -i splats.png         # load splats from packed PNG
+ *   ./gsplat -fpga                # offload rasterization to FPGA
  *   ./gsplat -ppm                 # dump PPM frames (headless debug)
  *   ./gsplat -bench               # benchmark mode, no display loop
  */
@@ -43,6 +44,7 @@ static void usage(const char *prog)
         "  -n COUNT    Number of test splats (default 10000)\n"
         "  -i FILE     Load splats from packed PNG file\n"
         "  -s DEVICE   GA144 serial device (e.g. /dev/ttyS0)\n"
+        "  -fpga       Offload rasterization to FPGA fabric\n"
         "  -frames N   Render N frames then exit\n"
         "  -ppm        Dump PPM files (for headless testing)\n"
         "  -bench      Benchmark: 100 frames, print stats, exit\n"
@@ -58,6 +60,7 @@ int main(int argc, char **argv)
     int max_frames = 0;
     int dump_ppm = 0;
     int bench = 0;
+    int use_fpga = 0;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-n") && i + 1 < argc)
@@ -66,6 +69,8 @@ int main(int argc, char **argv)
             png_path = argv[++i];
         else if (!strcmp(argv[i], "-s") && i + 1 < argc)
             serial_dev = argv[++i];
+        else if (!strcmp(argv[i], "-fpga"))
+            use_fpga = 1;
         else if (!strcmp(argv[i], "-frames") && i + 1 < argc)
             max_frames = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-ppm"))
@@ -102,6 +107,15 @@ int main(int argc, char **argv)
     camera_t cam;
     cam_init(&cam, 60.0f, fb.width, fb.height);
 
+    /* ---- FPGA init ---- */
+    fpga_ctx_t fpga;
+    if (use_fpga) {
+        if (fpga_init(&fpga) < 0) {
+            fprintf(stderr, "FPGA init failed, falling back to CPU\n");
+            use_fpga = 0;
+        }
+    }
+
     /* ---- Load data ---- */
     int serdes_fd = -1;
 
@@ -125,9 +139,10 @@ int main(int argc, char **argv)
         generate_test_splats(store, splat_count);
     }
 
-    fprintf(stderr, "%d splats, %dx%d, tiles %dx%d (%dx%d px)\n",
+    fprintf(stderr, "%d splats, %dx%d, tiles %dx%d (%dx%d px)%s\n",
             store->count, fb.width, fb.height,
-            fb.tiles_x, fb.tiles_y, TILE_W, TILE_H);
+            fb.tiles_x, fb.tiles_y, TILE_W, TILE_H,
+            use_fpga ? " [FPGA]" : "");
 
     /* ---- Render loop ---- */
     int frame = 0;
@@ -145,15 +160,17 @@ int main(int argc, char **argv)
         float up[3]     = { 0, 1, 0 };
         cam_lookat(&cam, eye, target, up);
 
-        /* Check for updated GA144 data (non-blocking) */
-        /* TODO: poll serdes_fd and double-buffer store */
-
         double t1 = now_ms();
         project_splats(store, &cam, &fb);
         double t2 = now_ms();
         sort_splats(store);
         double t3 = now_ms();
-        rasterize_splats(store, &fb);
+
+        if (use_fpga) {
+            fpga_rasterize(&fpga, store);
+        } else {
+            rasterize_splats(store, &fb);
+        }
         double t4 = now_ms();
 
         t_proj_sum += (t2 - t1);
@@ -161,8 +178,8 @@ int main(int argc, char **argv)
         t_rast_sum += (t4 - t3);
         t_total_sum += (t4 - t0);
 
-        /* Dump PPM if requested or headless */
-        if (dump_ppm || fb.fd < 0) {
+        /* Dump PPM if requested or headless (CPU mode only) */
+        if (!use_fpga && (dump_ppm || fb.fd < 0)) {
             char path[64];
             snprintf(path, sizeof(path), "frame_%04d.ppm", frame);
             fb_dump_ppm(&fb, path);
@@ -182,12 +199,13 @@ int main(int argc, char **argv)
             t_proj_sum = t_sort_sum = t_rast_sum = t_total_sum = 0;
         }
 
-        if (fb.fd < 0 && max_frames == 0) max_frames = 5;
+        if (!use_fpga && fb.fd < 0 && max_frames == 0) max_frames = 5;
         if (max_frames > 0 && frame >= max_frames) break;
     }
 
     fprintf(stderr, "Done. %d frames rendered.\n", frame);
 
+    if (use_fpga) fpga_close(&fpga);
     if (serdes_fd >= 0) serdes_close(serdes_fd);
     fb_close(&fb);
     free(store);

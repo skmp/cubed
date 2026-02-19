@@ -956,3 +956,99 @@ int load_splats_png(const char *path, splat_store_t *store)
     fprintf(stderr, "Loaded %d splats from %s\n", store->count, path);
     return store->count;
 }
+
+/* ================================================================
+ * FPGA OFFLOAD
+ *
+ * The FPGA reads sorted splat_2d_t data from DDR3 and rasterizes
+ * tiles directly, writing the result to the DDR3 framebuffer.
+ * The MiSTer framework handles video scan-out from DDR3.
+ *
+ * DDR3 shared memory layout:
+ *   0x30000000  Framebuffer (640x480x4 = 1.2MB) - FPGA writes
+ *   0x30200000  Splat array (MAX_SPLATS * 32B)   - HPS writes
+ *   0x30400000  Control block (64B)               - shared
+ *
+ * Control block layout:
+ *   [0]  uint32_t splat_count     HPS writes
+ *   [1]  uint32_t frame_request   HPS writes 1, FPGA clears
+ *   [2]  uint32_t frame_done      FPGA writes 1, HPS reads+clears
+ *   [3]  uint32_t frame_number    FPGA increments
+ * ================================================================ */
+
+#define FPGA_FB_BASE     0x30000000
+#define FPGA_SPLAT_BASE  0x30200000
+#define FPGA_CTRL_BASE   0x30400000
+#define FPGA_SPLAT_SIZE  (MAX_SPLATS * sizeof(splat_2d_t))
+#define FPGA_CTRL_SIZE   64
+
+int fpga_init(fpga_ctx_t *ctx)
+{
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (ctx->mem_fd < 0) {
+        perror("open /dev/mem");
+        return -1;
+    }
+
+    ctx->ctrl_map = mmap(NULL, FPGA_CTRL_SIZE, PROT_READ | PROT_WRITE,
+                         MAP_SHARED, ctx->mem_fd, FPGA_CTRL_BASE);
+    if (ctx->ctrl_map == MAP_FAILED) {
+        perror("mmap ctrl");
+        close(ctx->mem_fd);
+        return -1;
+    }
+    ctx->ctrl = (volatile uint32_t *)ctx->ctrl_map;
+
+    ctx->splat_map = mmap(NULL, FPGA_SPLAT_SIZE, PROT_READ | PROT_WRITE,
+                          MAP_SHARED, ctx->mem_fd, FPGA_SPLAT_BASE);
+    if (ctx->splat_map == MAP_FAILED) {
+        perror("mmap splats");
+        munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
+        close(ctx->mem_fd);
+        return -1;
+    }
+    ctx->splats = (splat_2d_t *)ctx->splat_map;
+
+    /* Clear control block */
+    ctx->ctrl[0] = 0;  /* splat_count */
+    ctx->ctrl[1] = 0;  /* frame_request */
+    ctx->ctrl[2] = 0;  /* frame_done */
+    ctx->ctrl[3] = 0;  /* frame_number */
+
+    fprintf(stderr, "FPGA offload: ctrl@%p splats@%p\n",
+            ctx->ctrl_map, ctx->splat_map);
+    return 0;
+}
+
+void fpga_close(fpga_ctx_t *ctx)
+{
+    if (ctx->splat_map && ctx->splat_map != MAP_FAILED)
+        munmap(ctx->splat_map, FPGA_SPLAT_SIZE);
+    if (ctx->ctrl_map && ctx->ctrl_map != MAP_FAILED)
+        munmap(ctx->ctrl_map, FPGA_CTRL_SIZE);
+    if (ctx->mem_fd >= 0)
+        close(ctx->mem_fd);
+}
+
+void fpga_rasterize(fpga_ctx_t *ctx, const splat_store_t *store)
+{
+    /* Copy sorted splat_2d_t array to DDR3 shared memory.
+     * The sort_idx array gives back-to-front order. We write
+     * splats in sorted order so the FPGA can process them sequentially. */
+    for (int i = 0; i < store->count; i++) {
+        uint32_t idx = store->sort_idx[i];
+        ctx->splats[i] = store->splats_2d[idx];
+    }
+
+    /* Signal FPGA to render */
+    ctx->ctrl[0] = (uint32_t)store->count;
+    ctx->ctrl[2] = 0;   /* clear frame_done */
+    __sync_synchronize();
+    ctx->ctrl[1] = 1;   /* frame_request = 1 */
+
+    /* Wait for FPGA to finish */
+    while (ctx->ctrl[2] == 0) {
+        /* spin - could add usleep(100) for power savings */
+    }
+}
