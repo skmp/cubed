@@ -870,9 +870,12 @@ export class F18ANode {
           const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
           const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs; // 0..256 wraps
           const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
+          // Each node's VCO has a unique phase offset derived from its
+          // coordinate, modelling manufacturing variation between circuits.
+          const nodeOffset = (this.coord * 0x9E37 + 0x1B873) & 0x3FFFF;
           // Mix in thermal jitter: temperature shifts VCO frequency slightly
           const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
-          this.fetchedData = (baseTicks + thermalOffset) & 0x3FFFF;
+          this.fetchedData = (baseTicks + nodeOffset + thermalOffset) & 0x3FFFF;
           return true;
         },
         write: (_v: number) => {

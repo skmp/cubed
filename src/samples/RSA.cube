@@ -1,14 +1,14 @@
 -- RSA: Runtime Shor's Algorithm — Delta VCO Noise Visualization
--- Factors N=15 using VCO thermal noise for random base selection,
--- while visualizing per-pixel timing deltas on all RGB channels.
---
 -- Each DAC node (117, 617, 717) reads its own VCO counter via the
 -- DATA port (0x141) and outputs the difference from the previous
--- reading. Since VCO frequency varies with temperature and read
--- timing depends on instruction execution jitter, the result is a
--- thermal noise pattern that reveals chip-level timing structure.
+-- reading. Each analog node has a physically distinct VCO circuit
+-- with unique phase characteristics, producing independent noise
+-- on the R, G, and B channels.
 --
--- Architecture: 8 nodes
+-- Also runs Shor's factoring algorithm for N=15 using VCO thermal
+-- noise for random base selection.
+--
+-- Architecture: 7 nodes
 --   VGA: 117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
 --   Compute: 416 (noise counter) → 417 (Shor's algorithm)
 --   Serial: 317 (IO output)
