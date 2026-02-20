@@ -90,8 +90,8 @@ always @(*) begin
 		for (j = 1; j <= N_REQ; j = j + 1) begin
 			// Wrap around: (last_grant + j) mod N_REQ
 			candidate = {1'b0, last_grant} + j[GRANT_W:0];
-			if (candidate >= N_REQ)
-				candidate = candidate - N_REQ;
+			if (candidate >= N_REQ[GRANT_W:0])
+				candidate = candidate - N_REQ[GRANT_W:0];
 			if (any_req_vec[candidate[GRANT_W-1:0]]) begin
 				next_grant = candidate[GRANT_W-1:0];
 				disable rr_scan;

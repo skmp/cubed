@@ -135,6 +135,45 @@ reg [15:0] s4_px_r, s4_px_g, s4_px_b, s4_px_a;
 // Pipeline empty flag
 wire pipeline_active = s1_valid | s2_valid | s3_valid | s4_valid;
 
+// ============================================================
+// Combinational intermediates (avoid blocking assigns in always)
+// ============================================================
+
+// Stage 2: d² computation
+wire signed [31:0] s2_d2 = s1_term_a[31:0] + s1_term_b[31:0] + term_c[31:0];
+wire               s2_d2_skip = (s2_d2 < 0) || (s2_d2 >= D2_CUTOFF);
+
+// Stage 4: weight computation
+wire [23:0] s4_w_raw = ({8'd0, lut_data} * {16'd0, opacity}) >> 17;
+wire [7:0]  s4_w_clamped = (s4_w_raw > 24'd128) ? 8'd128 : s4_w_raw[7:0];
+wire        s4_w_zero = (s4_w_clamped == 8'd0);
+
+// Stage 5: blend computation
+wire [17:0] s5_new_r = ({8'd0, cr}  * {10'd0, s4_w} + {2'd0, s4_px_r} * {10'd0, s4_omw}) >> 7;
+wire [17:0] s5_new_g = ({8'd0, cg}  * {10'd0, s4_w} + {2'd0, s4_px_g} * {10'd0, s4_omw}) >> 7;
+wire [17:0] s5_new_b = ({8'd0, cb}  * {10'd0, s4_w} + {2'd0, s4_px_b} * {10'd0, s4_omw}) >> 7;
+wire [17:0] s5_new_a = (18'd1020   * {10'd0, s4_w} + {2'd0, s4_px_a} * {10'd0, s4_omw}) >> 7;
+
+// OS_CLIP: bbox clipping (widened to 17 bits to avoid truncation)
+wire signed [16:0] clip_cx0 = $signed({1'b0, bbox_x0}) - $signed({1'b0, tile_px});
+wire signed [16:0] clip_cy0 = $signed({1'b0, bbox_y0}) - $signed({1'b0, tile_py});
+wire signed [16:0] clip_cx1 = $signed({1'b0, bbox_x1}) - $signed({1'b0, tile_px});
+wire signed [16:0] clip_cy1 = $signed({1'b0, bbox_y1}) - $signed({1'b0, tile_py});
+
+// Clamp to tile bounds
+wire signed [16:0] clamp_x0 = (clip_cx0 < 0) ? 17'sd0 : clip_cx0;
+wire signed [16:0] clamp_y0 = (clip_cy0 < 0) ? 17'sd0 : clip_cy0;
+wire signed [16:0] clamp_x1 = (clip_cx1 >= TILE_W) ? (TILE_W - 1) : clip_cx1;
+wire signed [16:0] clamp_y1 = (clip_cy1 >= TILE_H) ? (TILE_H - 1) : clip_cy1;
+wire               clip_empty = (clamp_x0 > clamp_x1) || (clamp_y0 > clamp_y1);
+
+// OS_ROW_DY2: dy² computation
+wire signed [63:0] dy2_full = dy_fp * dy_fp;
+
+// OS_ROW_DX: dx² and dxdy initial computation
+wire signed [63:0] dx2_full  = dx_fp * dx_fp;
+wire signed [63:0] dxdy_full = dx_fp * dy_fp;
+
 always @(posedge clk) begin
 	if (reset) begin
 		ostate   <= OS_IDLE;
@@ -150,23 +189,12 @@ always @(posedge clk) begin
 
 		// ============================================================
 		// Stage 5: BLEND (consumes s4 registers)
-		// Always runs - processes whatever s4 holds
 		// ============================================================
 
 		if (s4_valid && !s4_skip) begin
-			begin
-				reg [17:0] new_r, new_g, new_b, new_a;
-
-				// px_new = (color_10 * w + px_old * omw) >> 7
-				new_r = ({8'd0, cr}  * {10'd0, s4_w} + {2'd0, s4_px_r} * {10'd0, s4_omw}) >> 7;
-				new_g = ({8'd0, cg}  * {10'd0, s4_w} + {2'd0, s4_px_g} * {10'd0, s4_omw}) >> 7;
-				new_b = ({8'd0, cb}  * {10'd0, s4_w} + {2'd0, s4_px_b} * {10'd0, s4_omw}) >> 7;
-				new_a = (18'd1020   * {10'd0, s4_w} + {2'd0, s4_px_a} * {10'd0, s4_omw}) >> 7;
-
-				tb_wr_addr <= {s4_ty, s4_tx};
-				tb_wr_data <= {new_a[15:0], new_b[15:0], new_g[15:0], new_r[15:0]};
-				tb_wr_en   <= 1;
-			end
+			tb_wr_addr <= {s4_ty, s4_tx};
+			tb_wr_data <= {s5_new_a[15:0], s5_new_b[15:0], s5_new_g[15:0], s5_new_r[15:0]};
+			tb_wr_en   <= 1;
 		end
 
 		// ============================================================
@@ -179,16 +207,11 @@ always @(posedge clk) begin
 		s4_skip  <= s3_skip;
 
 		if (s3_valid && !s3_skip) begin
-			begin
-				reg [23:0] w_raw;
-				w_raw = ({8'd0, lut_data} * {16'd0, opacity}) >> 17;
-				if (w_raw > 128) w_raw = 128;
-				if (w_raw == 0) begin
-					s4_skip <= 1;
-				end else begin
-					s4_w   <= w_raw[7:0];
-					s4_omw <= 8'd128 - w_raw[7:0];
-				end
+			if (s4_w_zero) begin
+				s4_skip <= 1;
+			end else begin
+				s4_w   <= s4_w_clamped;
+				s4_omw <= 8'd128 - s4_w_clamped;
 			end
 			s4_px_r <= tb_rd_data[15:0];
 			s4_px_g <= tb_rd_data[31:16];
@@ -214,17 +237,12 @@ always @(posedge clk) begin
 		s2_ty    <= s1_ty;
 
 		if (s1_valid) begin
-			begin
-				reg signed [31:0] d2;
-				d2 = s1_term_a[31:0] + s1_term_b[31:0] + term_c[31:0];
-
-				if (d2 < 0 || d2 >= D2_CUTOFF) begin
-					s2_skip <= 1;
-				end else begin
-					s2_skip    <= 0;
-					lut_addr   <= d2[20:10];
-					tb_rd_addr <= {s1_ty, s1_tx};
-				end
+			if (s2_d2_skip) begin
+				s2_skip <= 1;
+			end else begin
+				s2_skip    <= 0;
+				lut_addr   <= s2_d2[20:10];
+				tb_rd_addr <= {s1_ty, s1_tx};
 			end
 		end else begin
 			s2_skip <= 1;
@@ -232,8 +250,6 @@ always @(posedge clk) begin
 
 		// ============================================================
 		// Stage 1: TERMS (fed by outer FSM in OS_PIPELINE)
-		// s1 registers are set by the outer FSM below.
-		// When not in OS_PIPELINE, s1_valid is cleared.
 		// ============================================================
 
 		// Default: no new pixel entering Stage 1
@@ -252,38 +268,25 @@ always @(posedge clk) begin
 		end
 
 		OS_CLIP: begin
-			begin
-				reg signed [15:0] cx0, cy0, cx1, cy1;
-				cx0 = bbox_x0 - $signed({1'b0, tile_px});
-				cy0 = bbox_y0 - $signed({1'b0, tile_py});
-				cx1 = bbox_x1 - $signed({1'b0, tile_px});
-				cy1 = bbox_y1 - $signed({1'b0, tile_py});
+			if (clip_empty) begin
+				done   <= 1;
+				ostate <= OS_IDLE;
+			end else begin
+				x0 <= clamp_x0[4:0];
+				y0 <= clamp_y0[4:0];
+				x1 <= clamp_x1[4:0];
+				y1 <= clamp_y1[4:0];
 
-				if (cx0 < 0) cx0 = 0;
-				if (cy0 < 0) cy0 = 0;
-				if (cx1 >= TILE_W) cx1 = TILE_W - 1;
-				if (cy1 >= TILE_H) cy1 = TILE_H - 1;
+				cr <= {r, 2'b00};
+				cg <= {g, 2'b00};
+				cb <= {b_in, 2'b00};
 
-				if (cx0 > cx1 || cy0 > cy1) begin
-					done   <= 1;
-					ostate <= OS_IDLE;
-				end else begin
-					x0 <= cx0[4:0];
-					y0 <= cy0[4:0];
-					x1 <= cx1[4:0];
-					y1 <= cy1[4:0];
-
-					cr <= {r, 2'b00};
-					cg <= {g, 2'b00};
-					cb <= {b_in, 2'b00};
-
-					ty <= cy0[4:0];
-					ostate <= OS_ROW_SETUP;
-				end
+				ty <= clamp_y0[4:0];
+				ostate <= OS_ROW_SETUP;
 			end
 		end
 
-		// -- Row setup: 3 cycles (same as before) --
+		// -- Row setup: 3 cycles --
 
 		OS_ROW_SETUP: begin
 			// Compute dy_fp = ((tile_py + ty) * 16 + 8) - sy_fp  [s14.4]
@@ -293,11 +296,7 @@ always @(posedge clk) begin
 
 		OS_ROW_DY2: begin
 			// dy_fp is now valid. Compute dy²>>4.
-			begin
-				reg signed [63:0] dy2_full;
-				dy2_full = dy_fp * dy_fp;
-				dy2_s <= dy2_full[35:4];  // >>4, unsigned ~17 bits
-			end
+			dy2_s <= dy2_full[35:4];
 
 			// Compute initial dx_fp for first pixel in row
 			dx_fp <= ($signed({1'b0, tile_px}) + $signed({11'b0, x0})) * 16 + 8 - sx_fp;
@@ -309,13 +308,8 @@ always @(posedge clk) begin
 		OS_ROW_DX: begin
 			// dy2_s and dx_fp are now valid.
 			// Compute initial dx²_raw and dxdy_raw.
-			begin
-				reg signed [63:0] dx2_full, dxdy_full;
-				dx2_full  = dx_fp * dx_fp;
-				dxdy_full = dx_fp * dy_fp;
-				dx2_raw   <= dx2_full[31:0];
-				dxdy_raw  <= dxdy_full[31:0];
-			end
+			dx2_raw  <= dx2_full[31:0];
+			dxdy_raw <= dxdy_full[31:0];
 
 			// Compute term_c (row-invariant)
 			term_c <= $signed({1'b0, cov_c_fp}) * dy2_s;

@@ -64,6 +64,11 @@ endfunction
 reg [31:0] pixel0;
 reg [31:0] pixel1;
 
+// Combinational address computation (avoids truncation warning)
+wire [31:0] tw_pixel_addr = {3'd0, fb_base} +
+	(({14'd0, tile_py} + {14'd0, 11'd0, row}) * (FB_STRIDE_BYTES >> 3)) +
+	(({14'd0, tile_px} + {14'd0, 11'd0, col}) >> 1);
+
 always @(posedge clk) begin
 	if (reset) begin
 		state  <= S_IDLE;
@@ -135,9 +140,7 @@ always @(posedge clk) begin
 			// Compute DDR3 address for this pixel pair
 			// byte_addr = FB_BASE_BYTES + (tile_py + row) * STRIDE + (tile_px + col) * 4
 			// ddram_addr = byte_addr >> 3
-			wr_addr <= fb_base +
-			           (({14'd0, tile_py} + {14'd0, 11'd0, row}) * (FB_STRIDE_BYTES >> 3)) +
-			           (({14'd0, tile_px} + {14'd0, 11'd0, col}) >> 1);
+			wr_addr <= tw_pixel_addr[28:0];
 			wr_burstcnt <= 8'd1;
 			wr_data <= {pixel1, pixel0};  // two 32-bit pixels in one 64-bit word
 			wr_be   <= 8'hFF;

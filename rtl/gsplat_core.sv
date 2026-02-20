@@ -404,8 +404,13 @@ always @(posedge clk) begin
 						state <= S_SPLAT_RAST;  // last splat, no more prefetch
 					end
 				end else begin
-					// Rasterizer done but read not yet complete - wait for read
-					state <= S_SPLAT_READ;
+					// Rasterizer done but read not yet complete.
+					// Only safe to go to S_SPLAT_READ if the DDR3 read was
+					// already acknowledged. Otherwise stay here to keep
+					// asserting rd_req until the arbiter grants it.
+					if (prefetch_rd_issued)
+						state <= S_SPLAT_READ;
+					// else: stay in S_SPLAT_RAST_PREFETCH, rd_req stays asserted
 				end
 			end
 		end
