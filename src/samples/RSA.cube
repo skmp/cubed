@@ -1,0 +1,115 @@
+-- RSA: Runtime Shor's Algorithm — Delta VCO Noise Visualization
+-- Factors N=15 using VCO thermal noise for random base selection,
+-- while visualizing per-pixel timing deltas on all RGB channels.
+--
+-- Each DAC node (117, 617, 717) reads its own VCO counter via the
+-- DATA port (0x141) and outputs the difference from the previous
+-- reading. Since VCO frequency varies with temperature and read
+-- timing depends on instruction execution jitter, the result is a
+-- thermal noise pattern that reveals chip-level timing structure.
+--
+-- Architecture: 8 nodes
+--   VGA: 117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
+--   Compute: 416 (noise counter) → 417 (Shor's algorithm)
+--   Serial: 317 (IO output)
+
+-- ============================================================
+-- RED DAC — DELTA VCO (node 117, analog)
+-- ============================================================
+
+node 117
+
+/\
+
+loop{n=480}
+/\ deltarelay{port=0x141, count=640}
+/\ send{port=0x145, value=0}
+/\ again{}
+
+-- ============================================================
+-- GREEN DAC — DELTA VCO (node 617, analog)
+-- ============================================================
+
+node 617
+
+/\
+
+loop{n=480}
+/\ deltarelay{port=0x141, count=640}
+/\ again{}
+
+-- ============================================================
+-- BLUE DAC — DELTA VCO (node 717, analog)
+-- ============================================================
+
+node 717
+
+/\
+
+loop{n=480}
+/\ deltarelay{port=0x141, count=640}
+/\ again{}
+
+-- ============================================================
+-- SYNC SIGNALS (node 217 pin17 GPIO)
+-- ============================================================
+
+node 217
+
+/\
+
+loop{n=480}
+/\ recv{port=0x145}
+/\ send{port=0x15D, value=0x20000}
+/\ again{}
+
+/\
+
+-- End of frame: VSYNC
+send{port=0x15D, value=0x30000}
+
+-- ============================================================
+-- NOISE COUNTER (node 416 — free-running)
+-- ============================================================
+-- Increments a counter and sends it east to node 417.
+-- The send blocks until 417 reads; thermal timing jitter means
+-- the counter value at each read is nondeterministic.
+
+node 416
+
+/\
+
+x = 0
+
+/\
+
+loop{n=32767}
+/\ plus{a=x, b=1, c=x}
+/\ send{port=0x1D5, value=x}
+/\ again{}
+
+-- ============================================================
+-- SHOR'S COMPUTE (node 417 — 1-pin GPIO)
+-- ============================================================
+-- Reads noise from west (node 416), computes Shor's factoring
+-- of N=15, sends results south to node 317 for serial output.
+
+node 417
+
+/\
+
+shor15{noise_port=0x1D5, out_port=0x145}
+
+-- ============================================================
+-- SERIAL OUTPUT (node 317 — 1-pin GPIO)
+-- ============================================================
+-- Relays 5 values from north (node 417) to IO register.
+-- Values: N=15, a, r, p, q — captured by emulator ring buffer.
+
+node 317
+
+/\
+
+loop{n=32767}
+/\ relay{port=0x145, count=5}
+/\ again{}

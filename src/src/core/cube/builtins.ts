@@ -139,6 +139,8 @@ export function emitBuiltin(
       return emitRelay(builder, argMappings);
     case 'noiserelay':
       return emitNoiseRelay(builder, argMappings);
+    case 'deltarelay':
+      return emitDeltaRelay(builder, argMappings);
     case 'shor15':
       return emitShor15(builder, argMappings, ctx);
     default:
@@ -740,6 +742,81 @@ function emitNoiseRelay(
   emitLoadLiteral(builder, port.literal);                  // T = port addr
   builder.emitOp(OPCODE_MAP.get('a!')!);                   // A = port addr, pop
   builder.flushWithJump();                                  // skip slot 3
+  builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+  return true;
+}
+
+// ---- deltarelay{port, count}: relay delta (current - prev) to IO ----
+// Reads from `port` (e.g. VCO DATA 0x141), computes the difference from
+// the previous reading, writes the delta to IO via !b.  Uses RAM[0x3F]
+// to store the previous value across iterations.
+//
+// Uses one's complement subtraction (current + ~prev) which gives
+// (current - prev - 1).  The constant -1 offset is a uniform DC bias
+// invisible in noise visualisation.
+//
+// Inner loop per iteration:
+//   @          read current from [A=port]
+//   dup        duplicate current (need a copy for storing as prev)
+//   lit(0x3F) a!   switch A to prev storage
+//   @          read prev from RAM
+//   -          T = ~prev  (one's complement negate)
+//   +          T = current + ~prev = delta - 1
+//   !b         write delta to [B=IO]
+//   !          store current to [A=0x3F] (new prev)
+//   lit(port) a!   restore A to port
+//   next
+
+function emitDeltaRelay(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const port = args.get('port');
+  const count = args.get('count');
+  if (!port || port.literal === undefined) return false;
+  if (!count || count.literal === undefined) return false;
+  if (count.literal <= 0) return true;
+
+  const PREV_ADDR = 0x3F; // RAM location for previous value
+
+  // Initialize prev = 0
+  emitLoadLiteral(builder, 0);                                // T = 0
+  emitLoadLiteral(builder, PREV_ADDR);                        // T = 0x3F, S = 0
+  builder.emitOp(OPCODE_MAP.get('a!')!);                      // A = 0x3F
+  builder.emitOp(OPCODE_MAP.get('!')!);                       // RAM[0x3F] = 0, pop
+
+  // Setup: A = port, R = count-1
+  emitLoadLiteral(builder, port.literal);                     // T = port
+  builder.emitOp(OPCODE_MAP.get('a!')!);                      // A = port
+  emitLoadLiteral(builder, count.literal - 1);                // T = count-1
+  builder.emitOp(OPCODE_MAP.get('push')!);                    // R = count-1
+  builder.flushWithJump();                                     // skip slot 3
+
+  const loopAddr = builder.getLocationCounter();
+
+  // Read current value from port
+  builder.emitOp(OPCODE_MAP.get('@')!);                       // T = current
+  builder.emitOp(OPCODE_MAP.get('dup')!);                     // T = current, S = current
+
+  // Load prev from RAM[0x3F]
+  emitLoadLiteral(builder, PREV_ADDR);                        // T = 0x3F, S = current, S2 = current
+  builder.emitOp(OPCODE_MAP.get('a!')!);                      // A = 0x3F
+  builder.emitOp(OPCODE_MAP.get('@')!);                       // T = prev, S = current, S2 = current
+  builder.flushWithJump();                                     // skip slot 3 (avoid ';' popping R)
+
+  // Compute delta: current + ~prev (one's complement subtraction)
+  builder.emitOp(OPCODE_MAP.get('-')!);                       // T = ~prev
+  builder.emitOp(OPCODE_MAP.get('+')!);                       // T = current + ~prev = delta
+  builder.flushWithJump();                                     // skip slot 3
+
+  // Output delta, store current as new prev
+  builder.emitOp(OPCODE_MAP.get('!b')!);                      // write delta to [B=IO], pop → T = current
+  builder.emitOp(OPCODE_MAP.get('!')!);                       // write current to [A=0x3F], pop → stack empty
+
+  // Restore A to port for next iteration
+  emitLoadLiteral(builder, port.literal);                     // T = port
+  builder.emitOp(OPCODE_MAP.get('a!')!);                      // A = port
+  builder.flushWithJump();                                     // skip slot 3
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
   return true;
 }

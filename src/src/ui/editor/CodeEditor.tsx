@@ -27,10 +27,12 @@ import sampleNL from '../../../samples/NL.cube?raw';
 import sampleUN from '../../../samples/UN.cube?raw';
 import sampleShor from '../../../samples/shor.cube?raw';
 import sampleRSX from '../../../samples/RSX.cube?raw';
+import sampleRSA from '../../../samples/RSA.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'RSA (Delta VCO)': sampleRSA,
   'RSX (Shor N=15)': sampleRSX,
   'Shor (N=15)': sampleShor,
   'FR': sampleFR,

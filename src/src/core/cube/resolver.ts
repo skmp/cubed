@@ -68,6 +68,7 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   setb:     ['addr'],                    // set B register (redirects fill{}/!b target)
   relay:    ['port', 'count'],          // read from port and write to IO, count times
   noiserelay: ['port', 'noiseport', 'count'], // relay XORed with noise from noiseport
+  deltarelay: ['port', 'count'],              // relay delta (current - prev) to IO
   loop:     ['n'],                      // begin counted loop (push n-1 to R)
   again:    [],                         // end counted loop (next back to loop start)
   delay:    ['n'],                      // burn n cycles in a tight loop (no IO)
