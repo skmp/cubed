@@ -2,9 +2,11 @@
 // GSplat rasterizer core - processes a single tile.
 //
 // The coordinator pre-reads tile descriptor headers and passes tile parameters.
-// This core handles: clear tile buffer → read inline splats → rasterize → flush to DDR3.
+// This core handles: clear tile buffer -> read inline splats -> rasterize -> flush to DDR3.
 //
-// Instantiated twice for 2-core parallelism.
+// Splat prefetching: DDR3 read of splat N+1 overlaps with rasterization of splat N.
+// Shadow registers decouple the splat_reader from the rasterizer so the reader
+// can begin receiving the next splat while the current one is being processed.
 //
 
 module gsplat_core (
@@ -45,13 +47,14 @@ module gsplat_core (
 // FSM
 // ============================================================
 
-localparam S_IDLE           = 4'd0;
-localparam S_TILE_CLEAR     = 4'd1;
-localparam S_SPLAT_READ_REQ = 4'd2;
-localparam S_SPLAT_READ     = 4'd3;
-localparam S_SPLAT_RAST     = 4'd4;
-localparam S_TILE_FLUSH     = 4'd5;
-localparam S_DONE           = 4'd6;
+localparam S_IDLE              = 4'd0;
+localparam S_TILE_CLEAR        = 4'd1;
+localparam S_SPLAT_READ_REQ    = 4'd2;
+localparam S_SPLAT_READ        = 4'd3;
+localparam S_SPLAT_RAST        = 4'd4;
+localparam S_TILE_FLUSH        = 4'd5;
+localparam S_DONE              = 4'd6;
+localparam S_SPLAT_RAST_PREFETCH = 4'd7;  // rasterizing + prefetching next
 
 reg [3:0] state;
 
@@ -102,6 +105,16 @@ splat_reader splat_reader_inst (
 );
 
 // ============================================================
+// Shadow registers (decouple splat_reader from rasterizer)
+// ============================================================
+
+reg signed [31:0] rast_sx_fp, rast_sy_fp;
+reg        [15:0] rast_cov_a_fp, rast_cov_c_fp;
+reg signed [31:0] rast_cov_b2_fp;
+reg         [7:0] rast_r, rast_g, rast_b, rast_opacity;
+reg signed [15:0] rast_bbox_x0, rast_bbox_y0, rast_bbox_x1, rast_bbox_y1;
+
+// ============================================================
 // Tile buffer
 // ============================================================
 
@@ -128,7 +141,7 @@ tile_buffer tile_buffer_inst (
 );
 
 // ============================================================
-// Tile rasterizer
+// Tile rasterizer (wired to shadow registers)
 // ============================================================
 
 wire [10:0] rast_lut_addr;
@@ -139,19 +152,19 @@ reg         rast_start;
 tile_rasterizer rasterizer_inst (
 	.clk(clk),
 	.reset(reset),
-	.sx_fp(sr_sx_fp),
-	.sy_fp(sr_sy_fp),
-	.cov_a_fp(sr_cov_a_fp),
-	.cov_c_fp(sr_cov_c_fp),
-	.cov_b2_fp(sr_cov_b2_fp),
-	.r(sr_r),
-	.g(sr_g),
-	.b_in(sr_b),
-	.opacity(sr_opacity),
-	.bbox_x0(sr_bbox_x0),
-	.bbox_y0(sr_bbox_y0),
-	.bbox_x1(sr_bbox_x1),
-	.bbox_y1(sr_bbox_y1),
+	.sx_fp(rast_sx_fp),
+	.sy_fp(rast_sy_fp),
+	.cov_a_fp(rast_cov_a_fp),
+	.cov_c_fp(rast_cov_c_fp),
+	.cov_b2_fp(rast_cov_b2_fp),
+	.r(rast_r),
+	.g(rast_g),
+	.b_in(rast_b),
+	.opacity(rast_opacity),
+	.bbox_x0(rast_bbox_x0),
+	.bbox_y0(rast_bbox_y0),
+	.bbox_x1(rast_bbox_x1),
+	.bbox_y1(rast_bbox_y1),
 	.tile_px(cur_tile_px),
 	.tile_py(cur_tile_py),
 	.start(rast_start),
@@ -207,7 +220,7 @@ tile_writer tile_writer_inst (
 
 always @(*) begin
 	case (state)
-	S_SPLAT_RAST: begin
+	S_SPLAT_RAST, S_SPLAT_RAST_PREFETCH: begin
 		tb_rd_addr = rast_tb_rd_addr;
 		tb_wr_addr = rast_tb_wr_addr;
 		tb_wr_data = rast_tb_wr_data;
@@ -227,6 +240,13 @@ always @(*) begin
 	end
 	endcase
 end
+
+// ============================================================
+// Prefetch tracking
+// ============================================================
+
+reg prefetch_read_done;   // next splat data has been fully read
+reg prefetch_rd_issued;   // DDR3 read request has been acknowledged
 
 // ============================================================
 // Core FSM
@@ -292,15 +312,101 @@ always @(posedge clk) begin
 
 		S_SPLAT_READ: begin
 			if (sr_splat_valid) begin
+				// Latch splat data into shadow registers
+				rast_sx_fp     <= sr_sx_fp;
+				rast_sy_fp     <= sr_sy_fp;
+				rast_cov_a_fp  <= sr_cov_a_fp;
+				rast_cov_c_fp  <= sr_cov_c_fp;
+				rast_cov_b2_fp <= sr_cov_b2_fp;
+				rast_r         <= sr_r;
+				rast_g         <= sr_g;
+				rast_b         <= sr_b;
+				rast_opacity   <= sr_opacity;
+				rast_bbox_x0   <= sr_bbox_x0;
+				rast_bbox_y0   <= sr_bbox_y0;
+				rast_bbox_x1   <= sr_bbox_x1;
+				rast_bbox_y1   <= sr_bbox_y1;
+
 				rast_start <= 1;
-				state      <= S_SPLAT_RAST;
+				splat_idx  <= splat_idx + 32'd1;
+
+				// Start prefetch of next splat if available
+				if (splat_idx + 32'd1 < cur_splat_count) begin
+					rd_addr     <= cur_tile_addr + 29'd2 +
+					               {(splat_idx[26:0] + 27'd1), 2'b00};
+					rd_burstcnt <= 8'd4;
+					sr_start    <= 1;
+					rd_req      <= 1;
+					prefetch_read_done <= 0;
+					prefetch_rd_issued <= 0;
+					state <= S_SPLAT_RAST_PREFETCH;
+				end else begin
+					state <= S_SPLAT_RAST;
+				end
 			end
 		end
 
 		S_SPLAT_RAST: begin
+			// No prefetch - just wait for rasterizer
 			if (rast_done) begin
-				splat_idx <= splat_idx + 32'd1;
-				state     <= S_SPLAT_READ_REQ;
+				state <= S_SPLAT_READ_REQ;
+			end
+		end
+
+		S_SPLAT_RAST_PREFETCH: begin
+			// Rasterizing current splat AND reading next splat simultaneously.
+			// DDR3 read port is free during rasterization (rasterizer uses BRAM only).
+
+			// Track DDR3 read acknowledgement
+			if (rd_ack) begin
+				rd_req <= 0;
+				prefetch_rd_issued <= 1;
+			end else if (!prefetch_rd_issued) begin
+				rd_req <= 1;  // keep requesting until ack
+			end
+
+			// Track splat reader completion
+			if (sr_splat_valid)
+				prefetch_read_done <= 1;
+
+			// Wait for both rasterizer done AND prefetch read done
+			if (rast_done) begin
+				if (prefetch_read_done || sr_splat_valid) begin
+					// Next splat is ready - latch and start immediately
+					rast_sx_fp     <= sr_sx_fp;
+					rast_sy_fp     <= sr_sy_fp;
+					rast_cov_a_fp  <= sr_cov_a_fp;
+					rast_cov_c_fp  <= sr_cov_c_fp;
+					rast_cov_b2_fp <= sr_cov_b2_fp;
+					rast_r         <= sr_r;
+					rast_g         <= sr_g;
+					rast_b         <= sr_b;
+					rast_opacity   <= sr_opacity;
+					rast_bbox_x0   <= sr_bbox_x0;
+					rast_bbox_y0   <= sr_bbox_y0;
+					rast_bbox_x1   <= sr_bbox_x1;
+					rast_bbox_y1   <= sr_bbox_y1;
+
+					rast_start <= 1;
+					splat_idx  <= splat_idx + 32'd1;
+
+					// Continue prefetching if more splats
+					if (splat_idx + 32'd1 < cur_splat_count) begin
+						rd_addr     <= cur_tile_addr + 29'd2 +
+						               {(splat_idx[26:0] + 27'd1), 2'b00};
+						rd_burstcnt <= 8'd4;
+						sr_start    <= 1;
+						rd_req      <= 1;
+						prefetch_read_done <= 0;
+						prefetch_rd_issued <= 0;
+						// stay in S_SPLAT_RAST_PREFETCH
+					end else begin
+						state <= S_SPLAT_RAST;  // last splat, no more prefetch
+					end
+				end else begin
+					// Rasterizer done but read not yet complete - wait for read
+					state <= S_SPLAT_READ;
+				end
 			end
 		end
 
