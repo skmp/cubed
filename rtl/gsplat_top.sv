@@ -428,6 +428,7 @@ always @(posedge clk) begin
 						core_soft_reset <= 1;
 						reset_counter   <= 8'd16;
 						rendering       <= 0;
+						core_dispatched <= 4'd0;
 						state           <= S_RESET_ACK;
 					end else if (poll_data[63:32] != 0 && poll_data[28:0] != 0) begin
 						first_tile_addr <= poll_data[28:0];
