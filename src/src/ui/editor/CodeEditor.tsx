@@ -77,7 +77,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  const [selectedSample, setSelectedSample] = useState('FR');
+  const [selectedSample, setSelectedSample] = useState('RSA (Delta VCO)');
 
   useEffect(() => {
     onCompileRef.current = onCompile;
