@@ -1,12 +1,14 @@
 //
 // GSplat rasterizer core - processes a single tile.
 //
-// The coordinator pre-reads tile descriptor headers and passes tile parameters.
-// This core handles: clear tile buffer -> read inline splats -> rasterize -> flush to DDR3.
-//
-// Splat prefetching: DDR3 read of splat N+1 overlaps with rasterization of splat N.
-// Shadow registers decouple the splat_reader from the rasterizer so the reader
-// can begin receiving the next splat while the current one is being processed.
+// Architecture:
+//   - Dual tile buffers (A/B): rasterizer writes to active buffer while
+//     tile_writer flushes the inactive buffer to DDR3 in the background.
+//   - Splat input FIFO (32-deep): decouples DDR3 burst reads from splat
+//     consumption, enabling deeper prefetching.
+//   - Unified S_PROCESS state: DDR3 read pump and rasterize pump run
+//     concurrently. The read pump fills the FIFO, splat_reader drains it,
+//     and the rasterizer processes splats as they become available.
 //
 
 module gsplat_core (
@@ -47,29 +49,54 @@ module gsplat_core (
 // FSM
 // ============================================================
 
-localparam S_IDLE              = 4'd0;
-localparam S_TILE_CLEAR        = 4'd1;
-localparam S_SPLAT_READ_REQ    = 4'd2;
-localparam S_SPLAT_READ        = 4'd3;
-localparam S_SPLAT_RAST        = 4'd4;
-localparam S_TILE_FLUSH        = 4'd5;
-localparam S_DONE              = 4'd6;
-localparam S_SPLAT_RAST_PREFETCH = 4'd7;  // rasterizing + prefetching next
+localparam S_IDLE       = 3'd0;
+localparam S_TILE_CLEAR = 3'd1;
+localparam S_PROCESS    = 3'd2;  // read pump + rasterize pump
+localparam S_TILE_FLUSH = 3'd3;  // start flush, then done
+localparam S_DONE       = 3'd4;
+localparam S_FLUSH_WAIT = 3'd5;  // wait for previous flush before starting new tile
 
-reg [3:0] state;
+reg [2:0] state;
 
 // Latched tile parameters
 reg [28:0] cur_tile_addr;
 reg [15:0] cur_tile_px;
 reg [15:0] cur_tile_py;
 reg [31:0] cur_splat_count;
-reg [31:0] splat_idx;
 
 // Tile clear
 reg  [9:0] clear_addr;
 
 // ============================================================
-// Splat reader
+// Splat input FIFO
+// ============================================================
+
+wire [63:0] fifo_rd_data;
+wire        fifo_rd_valid;
+wire        fifo_full;
+wire  [5:0] fifo_count;
+reg         fifo_flush;
+
+// FIFO write: directly from DDR3 read data
+// FIFO read: consumed by splat_reader via word_ready backpressure
+splat_fifo splat_fifo_inst (
+	.clk(clk),
+	.reset(reset),
+	.wr_data(rd_data),
+	.wr_en(rd_data_valid),
+	.full(fifo_full),
+	.rd_data(fifo_rd_data),
+	.rd_valid(fifo_rd_valid),
+	.rd_ack(sr_word_ready & fifo_rd_valid),
+	.count(fifo_count),
+	.flush(fifo_flush)
+);
+
+// FIFO has room for a full burst (4 words)?
+wire fifo_has_room = (fifo_count <= 6'd28);
+
+// ============================================================
+// Splat reader (fed from FIFO)
 // ============================================================
 
 wire        sr_word_ready;
@@ -84,8 +111,8 @@ reg                sr_start;
 splat_reader splat_reader_inst (
 	.clk(clk),
 	.reset(reset),
-	.word_data(rd_data),
-	.word_valid(rd_data_valid),
+	.word_data(fifo_rd_data),
+	.word_valid(fifo_rd_valid),
 	.word_ready(sr_word_ready),
 	.start(sr_start),
 	.sx_fp(sr_sx_fp),
@@ -115,34 +142,56 @@ reg         [7:0] rast_r, rast_g, rast_b, rast_opacity;
 reg signed [15:0] rast_bbox_x0, rast_bbox_y0, rast_bbox_x1, rast_bbox_y1;
 
 // ============================================================
-// Tile buffer
+// Dual tile buffers
 // ============================================================
 
-reg   [9:0] tb_rd_addr;
-wire [63:0] tb_rd_data;
-reg   [9:0] tb_wr_addr;
-reg  [63:0] tb_wr_data;
-reg         tb_wr_en;
+reg active_buf;  // 0 = rasterizer uses A, writer uses B
+                 // 1 = rasterizer uses B, writer uses A
+
+// Buffer A
+reg   [9:0] tb_A_rd_addr;
+wire [63:0] tb_A_rd_data;
+reg   [9:0] tb_A_wr_addr;
+reg  [63:0] tb_A_wr_data;
+reg         tb_A_wr_en;
+
+tile_buffer tile_buffer_A (
+	.clk(clk),
+	.rd_addr(tb_A_rd_addr),
+	.rd_data(tb_A_rd_data),
+	.wr_addr(tb_A_wr_addr),
+	.wr_data(tb_A_wr_data),
+	.wr_en(tb_A_wr_en)
+);
+
+// Buffer B
+reg   [9:0] tb_B_rd_addr;
+wire [63:0] tb_B_rd_data;
+reg   [9:0] tb_B_wr_addr;
+reg  [63:0] tb_B_wr_data;
+reg         tb_B_wr_en;
+
+tile_buffer tile_buffer_B (
+	.clk(clk),
+	.rd_addr(tb_B_rd_addr),
+	.rd_data(tb_B_rd_data),
+	.wr_addr(tb_B_wr_addr),
+	.wr_data(tb_B_wr_data),
+	.wr_en(tb_B_wr_en)
+);
+
+// Muxed read data for rasterizer and tile_writer
+wire [63:0] rast_tb_rd_data = active_buf ? tb_B_rd_data : tb_A_rd_data;
+wire [63:0] tw_tb_rd_data   = active_buf ? tb_A_rd_data : tb_B_rd_data;
+
+// ============================================================
+// Tile rasterizer (wired to shadow registers)
+// ============================================================
 
 wire  [9:0] rast_tb_rd_addr;
 wire  [9:0] rast_tb_wr_addr;
 wire [63:0] rast_tb_wr_data;
 wire        rast_tb_wr_en;
-
-wire  [9:0] tw_tb_rd_addr;
-
-tile_buffer tile_buffer_inst (
-	.clk(clk),
-	.rd_addr(tb_rd_addr),
-	.rd_data(tb_rd_data),
-	.wr_addr(tb_wr_addr),
-	.wr_data(tb_wr_data),
-	.wr_en(tb_wr_en)
-);
-
-// ============================================================
-// Tile rasterizer (wired to shadow registers)
-// ============================================================
 
 wire [10:0] rast_lut_addr;
 wire [15:0] rast_lut_data;
@@ -170,7 +219,7 @@ tile_rasterizer rasterizer_inst (
 	.start(rast_start),
 	.done(rast_done),
 	.tb_rd_addr(rast_tb_rd_addr),
-	.tb_rd_data(tb_rd_data),
+	.tb_rd_data(rast_tb_rd_data),
 	.tb_wr_addr(rast_tb_wr_addr),
 	.tb_wr_data(rast_tb_wr_data),
 	.tb_wr_en(rast_tb_wr_en),
@@ -189,22 +238,28 @@ gauss_lut gauss_lut_inst (
 );
 
 // ============================================================
-// Tile writer
+// Tile writer (latched parameters for background flush)
 // ============================================================
 
 wire        tw_done;
 reg         tw_start;
+wire  [9:0] tw_tb_rd_addr;
+
+// Latched parameters for tile_writer (may differ from cur_tile_*)
+reg  [15:0] tw_tile_px;
+reg  [15:0] tw_tile_py;
+reg  [28:0] tw_fb_base;
 
 tile_writer tile_writer_inst (
 	.clk(clk),
 	.reset(reset),
 	.start(tw_start),
 	.done(tw_done),
-	.tile_px(cur_tile_px),
-	.tile_py(cur_tile_py),
-	.fb_base(fb_base),
+	.tile_px(tw_tile_px),
+	.tile_py(tw_tile_py),
+	.fb_base(tw_fb_base),
 	.tb_rd_addr(tw_tb_rd_addr),
-	.tb_rd_data(tb_rd_data),
+	.tb_rd_data(tw_tb_rd_data),
 	.wr_addr(wr_addr),
 	.wr_burstcnt(wr_burstcnt),
 	.wr_data(wr_data),
@@ -214,39 +269,85 @@ tile_writer tile_writer_inst (
 	.wr_busy(wr_busy)
 );
 
+// Tile writer running state
+reg tw_running;
+
 // ============================================================
-// Tile buffer mux
+// Tile buffer mux - connect rasterizer and writer to their buffers
 // ============================================================
+
+// Rasterizer-side signals (clear or rasterize, always on active buffer)
+reg  [9:0] rast_side_rd_addr;
+reg  [9:0] rast_side_wr_addr;
+reg [63:0] rast_side_wr_data;
+reg        rast_side_wr_en;
 
 always @(*) begin
 	case (state)
-	S_SPLAT_RAST, S_SPLAT_RAST_PREFETCH: begin
-		tb_rd_addr = rast_tb_rd_addr;
-		tb_wr_addr = rast_tb_wr_addr;
-		tb_wr_data = rast_tb_wr_data;
-		tb_wr_en   = rast_tb_wr_en;
+	S_PROCESS: begin
+		rast_side_rd_addr = rast_tb_rd_addr;
+		rast_side_wr_addr = rast_tb_wr_addr;
+		rast_side_wr_data = rast_tb_wr_data;
+		rast_side_wr_en   = rast_tb_wr_en;
 	end
-	S_TILE_FLUSH: begin
-		tb_rd_addr = tw_tb_rd_addr;
-		tb_wr_addr = 10'd0;
-		tb_wr_data = 64'd0;
-		tb_wr_en   = 1'b0;
+	S_TILE_CLEAR: begin
+		rast_side_rd_addr = 10'd0;
+		rast_side_wr_addr = clear_addr;
+		rast_side_wr_data = 64'd0;
+		rast_side_wr_en   = 1'b1;
 	end
 	default: begin
-		tb_rd_addr = 10'd0;
-		tb_wr_addr = clear_addr;
-		tb_wr_data = 64'd0;
-		tb_wr_en   = (state == S_TILE_CLEAR);
+		rast_side_rd_addr = 10'd0;
+		rast_side_wr_addr = 10'd0;
+		rast_side_wr_data = 64'd0;
+		rast_side_wr_en   = 1'b0;
 	end
 	endcase
 end
 
+// Connect muxed signals to buffers based on active_buf
+always @(*) begin
+	if (active_buf == 1'b0) begin
+		// Rasterizer -> buffer A, Writer -> buffer B
+		tb_A_rd_addr = rast_side_rd_addr;
+		tb_A_wr_addr = rast_side_wr_addr;
+		tb_A_wr_data = rast_side_wr_data;
+		tb_A_wr_en   = rast_side_wr_en;
+
+		tb_B_rd_addr = tw_tb_rd_addr;
+		tb_B_wr_addr = 10'd0;
+		tb_B_wr_data = 64'd0;
+		tb_B_wr_en   = 1'b0;
+	end else begin
+		// Rasterizer -> buffer B, Writer -> buffer A
+		tb_B_rd_addr = rast_side_rd_addr;
+		tb_B_wr_addr = rast_side_wr_addr;
+		tb_B_wr_data = rast_side_wr_data;
+		tb_B_wr_en   = rast_side_wr_en;
+
+		tb_A_rd_addr = tw_tb_rd_addr;
+		tb_A_wr_addr = 10'd0;
+		tb_A_wr_data = 64'd0;
+		tb_A_wr_en   = 1'b0;
+	end
+end
+
 // ============================================================
-// Prefetch tracking
+// Read pump tracking
 // ============================================================
 
-reg prefetch_read_done;   // next splat data has been fully read
-reg prefetch_rd_issued;   // DDR3 read request has been acknowledged
+reg [31:0] read_idx;       // next splat to request from DDR3
+reg [31:0] rast_idx;       // next splat to rasterize (counts completions)
+reg        rd_req_pending; // DDR3 read request issued but not yet acked
+reg        rast_busy;      // rasterizer is active
+
+// First splat_reader start needs to be pulsed once at the start
+// of S_PROCESS. After that, splat_reader auto-restarts via sr_splat_valid.
+reg        sr_first_started;
+
+// Splat ready flag: set by sr_splat_valid, cleared when latched into shadow regs.
+// Needed because sr_splat_valid is a 1-cycle pulse and the rasterizer may be busy.
+reg        splat_ready;
 
 // ============================================================
 // Core FSM
@@ -254,65 +355,118 @@ reg prefetch_rd_issued;   // DDR3 read request has been acknowledged
 
 always @(posedge clk) begin
 	if (reset) begin
-		state      <= S_IDLE;
-		busy       <= 0;
-		tile_done  <= 0;
-		rd_req     <= 0;
-		sr_start   <= 0;
-		rast_start <= 0;
-		tw_start   <= 0;
+		state        <= S_IDLE;
+		busy         <= 0;
+		tile_done    <= 0;
+		rd_req       <= 0;
+		sr_start     <= 0;
+		rast_start   <= 0;
+		tw_start     <= 0;
+		tw_running   <= 0;
+		active_buf   <= 0;
+		fifo_flush   <= 0;
+		rd_req_pending <= 0;
+		rast_busy    <= 0;
+		splat_ready  <= 0;
 	end else begin
 		tile_done  <= 0;
 		sr_start   <= 0;
 		rast_start <= 0;
 		tw_start   <= 0;
-		rd_req     <= 0;
+		fifo_flush <= 0;
+
+		// Track tile_writer completion (runs in background)
+		if (tw_done)
+			tw_running <= 0;
+
+		// Track rasterizer completion
+		if (rast_done)
+			rast_busy <= 0;
 
 		case (state)
 
 		S_IDLE: begin
 			busy <= 0;
 			if (tile_start) begin
-				busy           <= 1;
-				cur_tile_addr  <= tile_addr;
-				cur_tile_px    <= tile_px;
-				cur_tile_py    <= tile_py;
+				busy            <= 1;
+				cur_tile_addr   <= tile_addr;
+				cur_tile_px     <= tile_px;
+				cur_tile_py     <= tile_py;
 				cur_splat_count <= tile_splat_count;
-				clear_addr     <= 0;
-				state          <= S_TILE_CLEAR;
+				clear_addr      <= 0;
+				fifo_flush      <= 1;  // clear any stale FIFO data
+				if (tw_running) begin
+					// Previous flush still in progress - wait
+					state <= S_FLUSH_WAIT;
+				end else begin
+					state <= S_TILE_CLEAR;
+				end
+			end
+		end
+
+		S_FLUSH_WAIT: begin
+			// Wait for previous tile_writer to finish before clearing
+			// the active buffer (which the writer might still be reading)
+			if (!tw_running) begin
+				clear_addr <= 0;
+				state      <= S_TILE_CLEAR;
 			end
 		end
 
 		S_TILE_CLEAR: begin
 			clear_addr <= clear_addr + 10'd1;
 			if (clear_addr == 10'd1023) begin
-				splat_idx <= 0;
-				state     <= S_SPLAT_READ_REQ;
+				read_idx       <= 0;
+				rast_idx       <= 0;
+				rd_req_pending <= 0;
+				sr_first_started <= 0;
+				state          <= S_PROCESS;
 			end
 		end
 
-		S_SPLAT_READ_REQ: begin
-			if (splat_idx >= cur_splat_count) begin
-				state <= S_TILE_FLUSH;
-				tw_start <= 1;
-			end else begin
-				// Inline splats start at tile_addr + 2, each is 4 qwords
+		// ============================================================
+		// S_PROCESS: concurrent read pump + rasterize pump
+		// ============================================================
+		S_PROCESS: begin
+
+			// -- Read pump: DDR3 -> FIFO --
+
+			// Track rd_ack
+			if (rd_ack) begin
+				rd_req         <= 0;
+				rd_req_pending <= 0;
+			end
+
+			// Issue next burst read if possible
+			if (!rd_req_pending && read_idx < cur_splat_count && fifo_has_room) begin
 				rd_addr     <= cur_tile_addr + 29'd2 +
-				               {splat_idx[26:0], 2'b00};
+				               {read_idx[26:0], 2'b00};
 				rd_burstcnt <= 8'd4;
-				sr_start    <= 1;
-				if (rd_ack) begin
-					rd_req <= 0;
-					state  <= S_SPLAT_READ;
-				end else begin
-					rd_req <= 1;
+				rd_req      <= 1;
+				rd_req_pending <= 1;
+				read_idx    <= read_idx + 32'd1;
+
+				// Start splat_reader for the first splat
+				if (!sr_first_started) begin
+					sr_start         <= 1;
+					sr_first_started <= 1;
 				end
 			end
-		end
 
-		S_SPLAT_READ: begin
-			if (sr_splat_valid) begin
-				// Latch splat data into shadow registers
+			// FIFO write side is automatic (rd_data_valid -> fifo wr_en)
+
+			// -- Track splat_reader output --
+			// sr_splat_valid is a 1-cycle pulse. Capture it in splat_ready
+			// so we don't miss it if the rasterizer is busy.
+			if (sr_splat_valid)
+				splat_ready <= 1;
+
+			// -- Rasterize pump: splat_reader -> rasterizer --
+
+			// When a splat is available and rasterizer is idle, consume it.
+			// Use rast_done (just finished) or !rast_busy (already idle).
+			if ((splat_ready || sr_splat_valid) && (rast_done || !rast_busy)) begin
+				// Latch into shadow registers
 				rast_sx_fp     <= sr_sx_fp;
 				rast_sy_fp     <= sr_sy_fp;
 				rast_cov_a_fp  <= sr_cov_a_fp;
@@ -327,102 +481,57 @@ always @(posedge clk) begin
 				rast_bbox_x1   <= sr_bbox_x1;
 				rast_bbox_y1   <= sr_bbox_y1;
 
-				rast_start <= 1;
-				splat_idx  <= splat_idx + 32'd1;
+				rast_start  <= 1;
+				rast_busy   <= 1;
+				splat_ready <= 0;
+				rast_idx    <= rast_idx + 32'd1;
 
-				// Start prefetch of next splat if available
-				if (splat_idx + 32'd1 < cur_splat_count) begin
-					rd_addr     <= cur_tile_addr + 29'd2 +
-					               {(splat_idx[26:0] + 27'd1), 2'b00};
-					rd_burstcnt <= 8'd4;
-					sr_start    <= 1;
-					rd_req      <= 1;
-					prefetch_read_done <= 0;
-					prefetch_rd_issued <= 0;
-					state <= S_SPLAT_RAST_PREFETCH;
-				end else begin
-					state <= S_SPLAT_RAST;
-				end
+				// Start reading next splat from FIFO
+				if (rast_idx + 32'd1 < cur_splat_count)
+					sr_start <= 1;
 			end
-		end
 
-		S_SPLAT_RAST: begin
-			// No prefetch - just wait for rasterizer
-			if (rast_done) begin
-				state <= S_SPLAT_READ_REQ;
-			end
-		end
-
-		S_SPLAT_RAST_PREFETCH: begin
-			// Rasterizing current splat AND reading next splat simultaneously.
-			// DDR3 read port is free during rasterization (rasterizer uses BRAM only).
-
-			// Track DDR3 read acknowledgement
-			if (rd_ack) begin
+			// Check if all splats are rasterized
+			// rast_done fires when the last splat completes.
+			// rast_idx is already incremented when the splat was latched.
+			if (rast_done && rast_idx >= cur_splat_count) begin
 				rd_req <= 0;
-				prefetch_rd_issued <= 1;
-			end else if (!prefetch_rd_issued) begin
-				rd_req <= 1;  // keep requesting until ack
+				state  <= S_TILE_FLUSH;
 			end
 
-			// Track splat reader completion
-			if (sr_splat_valid)
-				prefetch_read_done <= 1;
-
-			// Wait for both rasterizer done AND prefetch read done
-			if (rast_done) begin
-				if (prefetch_read_done || sr_splat_valid) begin
-					// Next splat is ready - latch and start immediately
-					rast_sx_fp     <= sr_sx_fp;
-					rast_sy_fp     <= sr_sy_fp;
-					rast_cov_a_fp  <= sr_cov_a_fp;
-					rast_cov_c_fp  <= sr_cov_c_fp;
-					rast_cov_b2_fp <= sr_cov_b2_fp;
-					rast_r         <= sr_r;
-					rast_g         <= sr_g;
-					rast_b         <= sr_b;
-					rast_opacity   <= sr_opacity;
-					rast_bbox_x0   <= sr_bbox_x0;
-					rast_bbox_y0   <= sr_bbox_y0;
-					rast_bbox_x1   <= sr_bbox_x1;
-					rast_bbox_y1   <= sr_bbox_y1;
-
-					rast_start <= 1;
-					splat_idx  <= splat_idx + 32'd1;
-
-					// Continue prefetching if more splats
-					if (splat_idx + 32'd1 < cur_splat_count) begin
-						rd_addr     <= cur_tile_addr + 29'd2 +
-						               {(splat_idx[26:0] + 27'd1), 2'b00};
-						rd_burstcnt <= 8'd4;
-						sr_start    <= 1;
-						rd_req      <= 1;
-						prefetch_read_done <= 0;
-						prefetch_rd_issued <= 0;
-						// stay in S_SPLAT_RAST_PREFETCH
-					end else begin
-						state <= S_SPLAT_RAST;  // last splat, no more prefetch
-					end
-				end else begin
-					// Rasterizer done but read not yet complete.
-					// Only safe to go to S_SPLAT_READ if the DDR3 read was
-					// already acknowledged. Otherwise stay here to keep
-					// asserting rd_req until the arbiter grants it.
-					if (prefetch_rd_issued)
-						state <= S_SPLAT_READ;
-					// else: stay in S_SPLAT_RAST_PREFETCH, rd_req stays asserted
-				end
+			// Handle zero-splat tiles
+			if (cur_splat_count == 0) begin
+				rd_req <= 0;
+				state  <= S_TILE_FLUSH;
 			end
 		end
 
+		// ============================================================
+		// S_TILE_FLUSH: start background flush and signal done
+		// ============================================================
 		S_TILE_FLUSH: begin
-			if (tw_done) begin
+			if (tw_running) begin
+				// Previous flush still active - wait
+				// (shouldn't normally happen with proper pipelining)
+			end else begin
+				// Latch parameters for tile_writer
+				tw_tile_px  <= cur_tile_px;
+				tw_tile_py  <= cur_tile_py;
+				tw_fb_base  <= fb_base;
+				tw_start    <= 1;
+				tw_running  <= 1;
+
+				// Toggle active buffer: rasterizer moves to the other buffer,
+				// writer continues reading from the one we just filled
+				active_buf <= ~active_buf;
+
 				state <= S_DONE;
 			end
 		end
 
 		S_DONE: begin
 			tile_done <= 1;
+			rd_req    <= 0;
 			state     <= S_IDLE;
 		end
 

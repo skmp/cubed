@@ -12,7 +12,7 @@ module splat_reader (
 	input         clk,
 	input         reset,
 
-	// Input: 64-bit words from DDR3
+	// Input: 64-bit words from DDR3 (or FIFO)
 	input  [63:0] word_data,
 	input         word_valid,
 	output        word_ready,   // backpressure
@@ -50,11 +50,6 @@ always @(posedge clk) begin
 	end else begin
 		splat_valid <= 0;
 
-		if (start) begin
-			word_idx <= 0;
-			active   <= 1;
-		end
-
 		if (active && word_valid) begin
 			case (word_idx)
 			2'd0: begin
@@ -83,6 +78,14 @@ always @(posedge clk) begin
 			end
 			endcase
 			word_idx <= word_idx + 2'd1;
+		end
+
+		// start has higher priority than word consumption:
+		// if start arrives on the same cycle as word_idx==3 completion,
+		// active stays 1 (overrides active<=0) and word_idx resets to 0.
+		if (start) begin
+			word_idx <= 0;
+			active   <= 1;
 		end
 	end
 end
