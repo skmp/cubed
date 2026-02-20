@@ -94,8 +94,10 @@ splat_fifo splat_fifo_inst (
 	.flush(fifo_flush)
 );
 
-// FIFO has room for a full burst (4 words)?
-wire fifo_has_room = (fifo_count <= 6'd28);
+// FIFO has room for a full burst (4 words) PLUS 4 in-flight words
+// from a previous burst that was acked but whose data hasn't arrived yet.
+// With 32-deep FIFO: 32 - 4 (new burst) - 4 (in-flight) = 24.
+wire fifo_has_room = (fifo_count <= 6'd24);
 
 // ============================================================
 // Splat reader (fed from FIFO)
