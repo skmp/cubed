@@ -56,7 +56,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['Shor (N=15)'];
+const DEFAULT_CUBE = CUBE_SAMPLES['RSA (Delta VCO)'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
