@@ -77,13 +77,15 @@ wire        fifo_full;
 wire  [5:0] fifo_count;
 reg         fifo_flush;
 
-// FIFO write: directly from DDR3 read data
+// FIFO write: from DDR3 read data, gated to S_PROCESS for safety
 // FIFO read: consumed by splat_reader via word_ready backpressure
+wire fifo_wr_en = rd_data_valid && (state == S_PROCESS);
+
 splat_fifo splat_fifo_inst (
 	.clk(clk),
 	.reset(reset),
 	.wr_data(rd_data),
-	.wr_en(rd_data_valid),
+	.wr_en(fifo_wr_en),
 	.full(fifo_full),
 	.rd_data(fifo_rd_data),
 	.rd_valid(fifo_rd_valid),
@@ -416,11 +418,13 @@ always @(posedge clk) begin
 		S_TILE_CLEAR: begin
 			clear_addr <= clear_addr + 10'd1;
 			if (clear_addr == 10'd1023) begin
-				read_idx       <= 0;
-				rast_idx       <= 0;
-				rd_req_pending <= 0;
+				read_idx         <= 0;
+				rast_idx         <= 0;
+				rd_req_pending   <= 0;
 				sr_first_started <= 0;
-				state          <= S_PROCESS;
+				splat_ready      <= 0;
+				rast_busy        <= 0;
+				state            <= S_PROCESS;
 			end
 		end
 
