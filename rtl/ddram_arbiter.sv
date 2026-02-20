@@ -20,6 +20,7 @@ module ddram_arbiter #(
 ) (
 	input         clk,
 	input         reset,
+	input         soft_reset,    // reset grant FSM only (cores being reset)
 
 	// Downstream: single ddram_ctrl interface
 	output [28:0] dc_rd_addr,
@@ -101,7 +102,7 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
-	if (reset) begin
+	if (reset || soft_reset) begin
 		gstate          <= GS_IDLE;
 		grant           <= {GRANT_W{1'b0}};
 		last_grant      <= {GRANT_W{1'b0}};

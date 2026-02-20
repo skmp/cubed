@@ -67,6 +67,8 @@ localparam S_HDR_DISPATCH  = 4'd7;   // send tile to core
 localparam S_VBLANK_WAIT   = 4'd8;   // wait for vblank before swapping FB
 localparam S_FRAME_DONE_WR = 4'd9;
 localparam S_FRAME_DONE    = 4'd10;
+localparam S_SOFT_RESET    = 4'd11;  // soft reset: hold cores in reset
+localparam S_RESET_ACK     = 4'd12;  // write back to clear reset flag
 
 reg [3:0] state;
 
@@ -93,6 +95,15 @@ reg [1:0] dispatch_core;
 
 // Poll delay
 reg [15:0] poll_delay;
+
+// Soft reset
+reg        core_soft_reset;   // asserted to reset all cores
+reg        core_soft_reset_prev; // for edge detection
+reg  [7:0] reset_counter;     // counts down during reset
+
+// Watchdog: if coordinator is stuck for too long, auto-reset
+reg [29:0] watchdog;           // ~10s at 70 MHz (700M cycles)
+localparam [29:0] WATCHDOG_LIMIT = 30'd700_000_000;
 
 // CDC synchronizer for fb_vbl (may be in clk_vid domain)
 reg fb_vbl_sync1, fb_vbl_sync2;
@@ -209,7 +220,7 @@ generate
 	for (gi = 0; gi < N_CORES; gi = gi + 1) begin : cores
 		gsplat_core core_inst (
 			.clk(clk),
-			.reset(reset),
+			.reset(reset | core_soft_reset),
 			.tile_start(core_tile_start[gi]),
 			.tile_addr(core_tile_addr[gi]),
 			.tile_px(core_tile_px[gi]),
@@ -303,6 +314,7 @@ endgenerate
 ddram_arbiter #(.N_REQ(N_REQ)) arbiter_inst (
 	.clk(clk),
 	.reset(reset),
+	.soft_reset(core_soft_reset && !core_soft_reset_prev),
 
 	// Downstream to ddram_ctrl
 	.dc_rd_addr(dc_rd_addr),
@@ -359,10 +371,15 @@ always @(posedge clk) begin
 		poll_delay      <= 0;
 		back_buf        <= 1;          // first frame renders to B
 		fb_base_addr    <= FB_A_BYTE;  // start displaying buffer A (empty/black)
+		core_soft_reset      <= 0;
+		core_soft_reset_prev <= 0;
+		reset_counter        <= 0;
+		watchdog             <= 0;
 	end else begin
-		core_tile_start <= 4'd0;
-		coord_rd_req    <= 0;
-		coord_wr_req    <= 0;
+		core_tile_start      <= 4'd0;
+		core_soft_reset_prev <= core_soft_reset;
+		coord_rd_req         <= 0;
+		coord_wr_req         <= 0;
 
 		// Clear dispatch flags once core acknowledges by going busy
 		core_dispatched <= core_dispatched & ~(core_dispatched & core_busy);
@@ -386,7 +403,8 @@ always @(posedge clk) begin
 
 		S_POLL_REQ: begin
 			coord_rd_addr     <= CTRL_ADDR;
-			coord_rd_burstcnt <= 8'd1;
+			coord_rd_burstcnt <= 8'd2;  // read qword 0 (request) + qword 1 (done/reset)
+			hdr_word_cnt      <= 0;
 			if (coord_rd_ack) begin
 				coord_rd_req <= 0;
 				state <= S_POLL_WAIT;
@@ -397,23 +415,52 @@ always @(posedge clk) begin
 
 		S_POLL_WAIT: begin
 			if (coord_rd_data_valid) begin
-				poll_data <= coord_rd_data;
-				if (coord_rd_data[63:32] != 0 && coord_rd_data[28:0] != 0) begin
-					first_tile_addr <= coord_rd_data[28:0];
-					state           <= S_FRAME_START;
+				if (!hdr_word_cnt) begin
+					// Qword 0: {frame_request[63:32], first_tile_addr[28:0]}
+					poll_data    <= coord_rd_data;
+					hdr_word_cnt <= 1;
 				end else begin
-					state <= S_IDLE;
+					// Qword 1: {tile_count[63:48], frame_done[31:0]}
+					// Check bit 16 of upper word for HPS-triggered reset
+					if (coord_rd_data[48]) begin
+						// HPS requested reset via ctrl[3] bit 16
+						// Reset all cores and return to idle
+						core_soft_reset <= 1;
+						reset_counter   <= 8'd16;
+						rendering       <= 0;
+						state           <= S_RESET_ACK;
+					end else if (poll_data[63:32] != 0 && poll_data[28:0] != 0) begin
+						first_tile_addr <= poll_data[28:0];
+						state           <= S_FRAME_START;
+					end else begin
+						state <= S_IDLE;
+					end
 				end
 			end
 		end
 
-		// ---- Frame start ----
+		// ---- Frame start: reset all cores before dispatching ----
 		S_FRAME_START: begin
 			rendering       <= 1;
 			cur_tile_addr   <= first_tile_addr;
 			tiles_remaining <= 1;
 			tile_num        <= 0;
-			state           <= S_DISPATCH;
+			core_soft_reset <= 1;         // assert reset to all cores
+			reset_counter   <= 8'd16;     // hold reset for 16 cycles
+			core_dispatched <= 4'd0;
+			state           <= S_SOFT_RESET;
+		end
+
+		// ---- Hold core reset for several cycles ----
+		S_SOFT_RESET: begin
+			reset_counter <= reset_counter - 8'd1;
+			if (reset_counter == 8'd1) begin
+				core_soft_reset <= 0;     // release reset
+				if (rendering)
+					state <= S_DISPATCH;  // frame start: proceed to dispatch
+				else
+					state <= S_IDLE;      // watchdog: return to polling
+			end
 		end
 
 		// ---- Dispatch: find idle core, read header, send tile ----
@@ -530,8 +577,44 @@ always @(posedge clk) begin
 			end
 		end
 
+		// ---- Acknowledge HPS reset: write back to clear reset flag ----
+		S_RESET_ACK: begin
+			coord_wr_addr     <= CTRL_ADDR + 29'd1;
+			coord_wr_burstcnt <= 8'd1;
+			coord_wr_data     <= 64'd0;   // clear frame_done + reset flag
+			coord_wr_be       <= 8'hFF;
+			if (coord_wr_ack) begin
+				coord_wr_req <= 0;
+				state        <= S_SOFT_RESET;
+			end else begin
+				coord_wr_req <= 1;
+			end
+		end
+
 		default: state <= S_IDLE;
 		endcase
+
+		// Watchdog: reset coordinator + cores if stuck too long
+		// Placed AFTER case statement so its NBA overrides all other assignments
+		if (state == S_IDLE || state == S_POLL_REQ || state == S_POLL_WAIT ||
+		    state == S_SOFT_RESET || state == S_RESET_ACK) begin
+			watchdog <= 0;
+		end else begin
+			if (watchdog < WATCHDOG_LIMIT)
+				watchdog <= watchdog + 30'd1;
+		end
+
+		if (watchdog == WATCHDOG_LIMIT) begin
+			core_soft_reset <= 1;
+			reset_counter   <= 8'd16;
+			coord_rd_req    <= 0;
+			coord_wr_req    <= 0;
+			core_tile_start <= 4'd0;
+			core_dispatched <= 4'd0;
+			poll_delay      <= 16'd50000;
+			rendering       <= 0;
+			state           <= S_SOFT_RESET;
+		end
 	end
 end
 

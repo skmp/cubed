@@ -1036,11 +1036,25 @@ int fpga_init(fpga_ctx_t *ctx)
         ctx->fb = (volatile uint32_t *)ctx->fb_map;
     }
 
-    /* Clear control block */
-    ctx->ctrl[0] = 0;  /* splat_count */
-    ctx->ctrl[1] = 0;  /* frame_request */
-    ctx->ctrl[2] = 0;  /* frame_done */
-    ctx->ctrl[3] = 0;  /* frame_number */
+    /* Trigger FPGA soft reset: set bit 16 of ctrl[3] */
+    ctx->ctrl[0] = 0;  /* clear first_tile_addr */
+    ctx->ctrl[1] = 0;  /* clear frame_request */
+    ctx->ctrl[2] = 0;  /* clear frame_done */
+    ctx->ctrl[3] = (1 << 16);  /* reset flag */
+    __sync_synchronize();
+
+    /* Wait for FPGA to acknowledge reset (clears ctrl[3] bit 16) */
+    for (int i = 0; i < 100; i++) {
+        usleep(10000);  /* 10ms */
+        __sync_synchronize();
+        if (!(ctx->ctrl[3] & (1 << 16)))
+            break;
+    }
+    /* Clear everything for a fresh start */
+    ctx->ctrl[0] = 0;
+    ctx->ctrl[1] = 0;
+    ctx->ctrl[2] = 0;
+    ctx->ctrl[3] = 0;
     __sync_synchronize();
 
     fprintf(stderr, "FPGA offload: ctrl@%p desc@%p\n",
