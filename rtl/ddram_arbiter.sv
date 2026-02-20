@@ -11,6 +11,10 @@
 // Read data is broadcast to all requestors but rd_data_valid is gated
 // so only the granted requestor sees it.
 //
+// soft_reset: On rising edge, if a transaction is in progress, the arbiter
+// enters GS_DRAIN to consume remaining data without forwarding to any
+// requestor. After drain completes, returns to GS_IDLE.
+//
 // Port convention: per-requestor signals are packed flat.
 //   Requestor i's rd_addr = req_rd_addr[i*29 +: 29]
 //
@@ -20,7 +24,7 @@ module ddram_arbiter #(
 ) (
 	input         clk,
 	input         reset,
-	input         soft_reset,    // reset grant FSM only (cores being reset)
+	input         soft_reset,    // pulse: drain stale transactions, then idle
 
 	// Downstream: single ddram_ctrl interface
 	output [28:0] dc_rd_addr,
@@ -60,18 +64,21 @@ module ddram_arbiter #(
 // Grant FSM
 // ============================================================
 
-localparam GS_IDLE     = 2'd0;
-localparam GS_RD_WAIT  = 2'd1;  // waiting for read burst data
-localparam GS_WR_WAIT  = 2'd2;  // waiting for write ack
+localparam GS_IDLE      = 3'd0;
+localparam GS_RD_WAIT   = 3'd1;  // waiting for read burst data
+localparam GS_WR_WAIT   = 3'd2;  // waiting for write ack
+localparam GS_DRAIN_RD  = 3'd3;  // draining stale read (after soft_reset)
+localparam GS_DRAIN_WR  = 3'd4;  // draining stale write (after soft_reset)
 
 // Grant width: ceil(log2(N_REQ))
 localparam GRANT_W = (N_REQ <= 2) ? 1 :
                      (N_REQ <= 4) ? 2 : 3;
 
-reg [1:0] gstate;
+reg [2:0] gstate;
 reg [GRANT_W-1:0] grant;
 reg [GRANT_W-1:0] last_grant;
 reg [7:0] rd_burst_remain;
+reg [7:0] rd_burst_total;     // latched burstcnt at grant time (for drain)
 
 // Detect any pending request from each requestor
 wire [N_REQ-1:0] any_req_vec = req_rd_req | req_wr_req;
@@ -102,20 +109,47 @@ always @(*) begin
 end
 
 always @(posedge clk) begin
-	if (reset || soft_reset) begin
+	if (reset) begin
 		gstate          <= GS_IDLE;
 		grant           <= {GRANT_W{1'b0}};
 		last_grant      <= {GRANT_W{1'b0}};
 		rd_burst_remain <= 8'd0;
+		rd_burst_total  <= 8'd0;
 	end else begin
+
+		// soft_reset: transition to drain state if mid-transaction
+		if (soft_reset) begin
+			case (gstate)
+			GS_RD_WAIT: begin
+				// Need to drain remaining read burst data
+				// rd_burst_remain may be 0 if we haven't gotten rd_ack yet
+				// In that case, we need to wait for rd_ack first then drain data
+				gstate <= GS_DRAIN_RD;
+			end
+			GS_WR_WAIT: begin
+				// Need to wait for wr_ack to complete
+				gstate <= GS_DRAIN_WR;
+			end
+			default: begin
+				// GS_IDLE or already draining - just go idle
+				gstate          <= GS_IDLE;
+				grant           <= {GRANT_W{1'b0}};
+				last_grant      <= {GRANT_W{1'b0}};
+				rd_burst_remain <= 8'd0;
+			end
+			endcase
+		end else begin
+
 		case (gstate)
 		GS_IDLE: begin
 			if (any_req) begin
 				grant <= next_grant;
 				// Default to write wait, override if read
 				gstate <= GS_WR_WAIT;
-				if (req_rd_req[next_grant])
-					gstate <= GS_RD_WAIT;
+				if (req_rd_req[next_grant]) begin
+					gstate         <= GS_RD_WAIT;
+					rd_burst_total <= req_rd_burstcnt[next_grant*8 +: 8];
+				end
 			end
 		end
 
@@ -144,12 +178,48 @@ always @(posedge clk) begin
 			end
 		end
 
+		// Drain stale read: same counting as GS_RD_WAIT but
+		// uses latched rd_burst_total (core may have been reset)
+		// and doesn't forward data to any requestor
+		GS_DRAIN_RD: begin
+			if (dc_rd_ack && dc_rd_data_valid) begin
+				rd_burst_remain <= rd_burst_total - 8'd1;
+				if (rd_burst_total == 8'd1) begin
+					gstate          <= GS_IDLE;
+					grant           <= {GRANT_W{1'b0}};
+					last_grant      <= {GRANT_W{1'b0}};
+				end
+			end else if (dc_rd_ack) begin
+				rd_burst_remain <= rd_burst_total;
+			end else if (dc_rd_data_valid) begin
+				rd_burst_remain <= rd_burst_remain - 8'd1;
+				if (rd_burst_remain == 8'd1) begin
+					gstate          <= GS_IDLE;
+					grant           <= {GRANT_W{1'b0}};
+					last_grant      <= {GRANT_W{1'b0}};
+				end
+			end
+		end
+
+		// Drain stale write: wait for wr_ack then go idle
+		GS_DRAIN_WR: begin
+			if (dc_wr_ack) begin
+				gstate          <= GS_IDLE;
+				grant           <= {GRANT_W{1'b0}};
+				last_grant      <= {GRANT_W{1'b0}};
+			end
+		end
+
 		default: gstate <= GS_IDLE;
 		endcase
+
+		end // !soft_reset
 	end
 end
 
-wire granted = (gstate != GS_IDLE);
+// Active grant: forwarding signals to/from requestors
+// In drain states, granted is false so nothing is forwarded
+wire granted = (gstate == GS_RD_WAIT) || (gstate == GS_WR_WAIT);
 
 // ============================================================
 // Mux downstream signals based on grant

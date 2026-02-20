@@ -536,7 +536,24 @@ always @(posedge clk) begin
 		S_DONE: begin
 			tile_done <= 1;
 			rd_req    <= 0;
-			state     <= S_IDLE;
+			// Check for immediate re-dispatch (tile_start may arrive
+			// while we're still in S_DONE, before S_IDLE sees it)
+			if (tile_start) begin
+				busy            <= 1;
+				cur_tile_addr   <= tile_addr;
+				cur_tile_px     <= tile_px;
+				cur_tile_py     <= tile_py;
+				cur_splat_count <= tile_splat_count;
+				clear_addr      <= 0;
+				fifo_flush      <= 1;
+				if (tw_running) begin
+					state <= S_FLUSH_WAIT;
+				end else begin
+					state <= S_TILE_CLEAR;
+				end
+			end else begin
+				state <= S_IDLE;
+			end
 		end
 
 		default: state <= S_IDLE;
