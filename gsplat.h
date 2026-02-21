@@ -123,6 +123,7 @@ void cam_lookat(camera_t *cam, float *eye, float *target, float *up);
 
 /* PNG splat loading */
 int  load_splats_png(const char *path, splat_store_t *store);
+int  load_splats_png_packed(const char *path, splat_store_t *store);
 
 /* FPGA offload - rasterization via FPGA fabric over DDR3 shared memory.
  *

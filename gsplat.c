@@ -969,6 +969,91 @@ int load_splats_png(const char *path, splat_store_t *store)
 }
 
 /* ================================================================
+ * PNG SPLAT LOADING - PACKED 18-BYTE FORMAT
+ *
+ * Interprets PNG image data as raw bytes (3 bytes per pixel).
+ *
+ *   Header (first 6 bytes = 2 pixels):
+ *     Bytes 0-1: splat count (uint16 little-endian)
+ *     Bytes 2-5: reserved
+ *
+ *   Per splat (18 bytes = 6 pixels):
+ *     Bytes  0-1:  X, int16 LE, s7.8 fixed-point
+ *     Bytes  2-3:  Y, int16 LE, s7.8 fixed-point
+ *     Bytes  4-5:  Z, int16 LE, s7.8 fixed-point
+ *     Bytes  6-11: cov[0..5], uint8 each, u0.8 (range [0,1))
+ *     Bytes 12-14: R, G, B (uint8)
+ *     Bytes 15:    alpha (uint8)
+ *     Bytes 16-17: reserved
+ * ================================================================ */
+
+static int16_t read_i16le(const uint8_t *p)
+{
+    return (int16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+}
+
+static uint16_t read_u16le(const uint8_t *p)
+{
+    return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+int load_splats_png_packed(const char *path, splat_store_t *store)
+{
+    int w, h, channels;
+    uint8_t *img = stbi_load(path, &w, &h, &channels, 3);
+    if (!img) {
+        fprintf(stderr, "Failed to load PNG: %s\n", stbi_failure_reason());
+        return -1;
+    }
+
+    int total_bytes = w * h * 3;
+    if (total_bytes < 18) {
+        fprintf(stderr, "PNG too small for packed format\n");
+        stbi_image_free(img);
+        return -1;
+    }
+
+    /* Read header */
+    uint16_t count = read_u16le(img);
+    int max_splats = (total_bytes - 18) / 18;
+    if (count > max_splats) count = max_splats;
+    if (count > MAX_SPLATS) count = MAX_SPLATS;
+
+    fprintf(stderr, "PNG %dx%d, packed format: %d splats\n", w, h, count);
+
+    store_init(store);
+
+    const uint8_t *sp = img + 18;  /* skip 18-byte header */
+    for (int i = 0; i < count; i++, sp += 18) {
+        splat_3d_t s;
+
+        /* s7.8 fixed-point -> float */
+        s.x = read_i16le(sp + 0) / 256.0f;
+        s.y = read_i16le(sp + 2) / 256.0f;
+        s.z = read_i16le(sp + 4) / 256.0f;
+
+        /* u0.8 -> float covariance */
+        s.cov[0] = sp[6]  / 255.0f;
+        s.cov[1] = sp[7]  / 255.0f;
+        s.cov[2] = sp[8]  / 255.0f;
+        s.cov[3] = sp[9]  / 255.0f;
+        s.cov[4] = sp[10] / 255.0f;
+        s.cov[5] = sp[11] / 255.0f;
+
+        s.r     = sp[12];
+        s.g     = sp[13];
+        s.b     = sp[14];
+        s.alpha = sp[15];
+
+        store_add(store, &s);
+    }
+
+    stbi_image_free(img);
+    fprintf(stderr, "Loaded %d splats (packed) from %s\n", store->count, path);
+    return store->count;
+}
+
+/* ================================================================
  * FPGA OFFLOAD
  *
  * The FPGA reads sorted splat_2d_t data from DDR3 and rasterizes

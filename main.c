@@ -42,7 +42,8 @@ static void usage(const char *prog)
     fprintf(stderr,
         "Usage: %s [options]\n"
         "  -n COUNT    Number of test splats (default 10000)\n"
-        "  -i FILE     Load splats from packed PNG file\n"
+        "  -i FILE     Load splats from PNG file\n"
+        "  -packed     Interpret PNG as 18-byte packed binary splats\n"
         "  -s DEVICE   GA144 serial device (e.g. /dev/ttyS0)\n"
         "  -fpga       Offload rasterization to FPGA fabric\n"
         "  -seed N     Animation seed (default: random)\n"
@@ -81,6 +82,7 @@ int main(int argc, char **argv)
     int splat_count = 10000;
     const char *serial_dev = NULL;
     const char *png_path = NULL;
+    int packed_png = 0;
     int max_frames = 0;
     int dump_ppm = 0;
     int bench = 0;
@@ -96,6 +98,8 @@ int main(int argc, char **argv)
             png_path = argv[++i];
         else if (!strcmp(argv[i], "-s") && i + 1 < argc)
             serial_dev = argv[++i];
+        else if (!strcmp(argv[i], "-packed"))
+            packed_png = 1;
         else if (!strcmp(argv[i], "-fpga"))
             use_fpga = 1;
         else if (!strcmp(argv[i], "-seed") && i + 1 < argc) {
@@ -173,7 +177,9 @@ int main(int argc, char **argv)
     int serdes_fd = -1;
 
     if (png_path) {
-        if (load_splats_png(png_path, store) < 0) {
+        int rc = packed_png ? load_splats_png_packed(png_path, store)
+                            : load_splats_png(png_path, store);
+        if (rc < 0) {
             fprintf(stderr, "Failed to load %s, using test splats\n", png_path);
             generate_test_splats(store, splat_count);
         }
