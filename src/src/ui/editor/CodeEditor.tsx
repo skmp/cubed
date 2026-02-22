@@ -28,13 +28,13 @@ import sampleUN from '../../../samples/UN.cube?raw';
 import sampleShor from '../../../samples/shor.cube?raw';
 import sampleRSX from '../../../samples/RSX.cube?raw';
 import sampleRSA from '../../../samples/RSA.cube?raw';
-import sampleRSB from '../../../samples/RSB.cube?raw';
+import sampleRSC from '../../../samples/RSC.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'RSC (Serial TX)': sampleRSC,
   'RSA (Delta VCO)': sampleRSA,
-  'RSB (Serial TX)': sampleRSB,
   'RSX (Shor N=15)': sampleRSX,
   'Shor (N=15)': sampleShor,
   'FR': sampleFR,
@@ -58,7 +58,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['RSB (Serial TX)'];
+const DEFAULT_CUBE = CUBE_SAMPLES['RSC (Serial TX)'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
@@ -79,7 +79,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  const [selectedSample, setSelectedSample] = useState('RSB (Serial TX)');
+  const [selectedSample, setSelectedSample] = useState('RSC (Serial TX)');
 
   useEffect(() => {
     onCompileRef.current = onCompile;
