@@ -74,6 +74,8 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   delay:    ['n'],                      // burn n cycles in a tight loop (no IO)
   // Shor's algorithm
   shor15:   ['noise_port', 'out_port'], // real Shor's factoring of N=15 (infinite loop)
+  // Async serial TX
+  asynctx:  ['port', 'count'],          // bit-bang async serial TX of 18-bit words
 };
 
 // F18A opcode names mapped to clean identifiers
