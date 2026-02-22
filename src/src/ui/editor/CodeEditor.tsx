@@ -58,7 +58,7 @@ const CUBE_SAMPLES: Record<string, string> = {
 
 const CUBE_SAMPLE_NAMES = Object.keys(CUBE_SAMPLES);
 
-const DEFAULT_CUBE = CUBE_SAMPLES['RSA (Delta VCO)'];
+const DEFAULT_CUBE = CUBE_SAMPLES['RSB (Serial TX)'];
 
 export type EditorLanguage = 'arrayforth' | 'recurse' | 'cube';
 
@@ -79,7 +79,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
-  const [selectedSample, setSelectedSample] = useState('RSA (Delta VCO)');
+  const [selectedSample, setSelectedSample] = useState('RSB (Serial TX)');
 
   useEffect(() => {
     onCompileRef.current = onCompile;

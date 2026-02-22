@@ -124,7 +124,13 @@ export class CodeBuilder {
   }
 
   emitJump(opcode: number, addr: number): void {
-    if (this.slotPointer >= 3) {
+    // 'if' (6) and '-if' (7) use a conditional branch address.
+    // Slot 2 only has 3 bits (0–7), far too small for any realistic target.
+    // Flush so they land in slot 0 (13-bit) or slot 1 (8-bit) at most.
+    const IF_OPCODE = 6, MIF_OPCODE = 7;
+    if ((opcode === IF_OPCODE || opcode === MIF_OPCODE) && this.slotPointer >= 2) {
+      this.flush();
+    } else if (this.slotPointer >= 3) {
       this.flush();
     }
     const slot = this.slotPointer;

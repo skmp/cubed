@@ -143,6 +143,8 @@ export function emitBuiltin(
       return emitDeltaRelay(builder, argMappings);
     case 'shor15':
       return emitShor15(builder, argMappings, ctx);
+    case 'asynctx':
+      return emitAsyncTx(builder, argMappings);
     default:
       return false;
   }
@@ -980,6 +982,129 @@ function emitShor15(
   // Resolve forward references within this builtin
   const refErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(refErrors, 'shor15');
+
+  return true;
+}
+
+// ---- asynctx{port, count}: async serial TX of 18-bit words ----
+//
+// Reads `count` 18-bit words from inter-node `port` (blocking @) and
+// transmits each as 3 async serial bytes over the IO pin (B=0x15D),
+// using the standard boot wire protocol from rom-dump-bootstream.rkt:
+//
+//   emit1(bit): (bit & 1) XOR 3 → !b   then 865-cycle delay
+//               F18A 'or' = XOR, so: bit=0 → 0b11 (drive high/idle),
+//                                    bit=1 → 0b10 (drive low/mark)
+//   emit8(n):   start-bit(0), 8 data bits LSB-first via (dup emit1 2/), stop-bit(1)
+//   emit18(n):  3× emit8  (low byte, mid byte, high byte)
+//
+// B register must be set to IO (0x15D) before use; this builtin sets it.
+// A is set to port for blocking reads; restored each outer-loop iteration.
+//
+// RAM: none. R-stack depth: max 5 (outer next, emit18 ret, emit8 ret, bit-loop next, emit1 delay).
+// Total words: ~40 (fits comfortably in 64-word node RAM).
+
+function emitAsyncTx(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const port = args.get('port');
+  const count = args.get('count');
+  if (!port || port.literal === undefined) return false;
+  if (!count || count.literal === undefined) return false;
+  if (count.literal <= 0) return true;
+
+  const op = (name: string) => OPCODE_MAP.get(name)!;
+  const lit = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj = () => builder.flushWithJump();
+
+  // === SETUP ===
+  // B = IO (0x15D), A = port, R = count-1 (outer loop counter)
+  lit(0x15D);
+  emit('b!');
+  lit(port.literal);
+  emit('a!');
+  lit(count.literal - 1);
+  emit('push');                    // R = [count-1]
+  fwj();
+
+  // === OUTER LOOP: read one word and transmit it ===
+  const outerLoop = builder.getLocationCounter();
+  emit('@');                       // T = word from port (blocking)
+  fwj();
+  builder.addForwardRef('__asynctx_emit18');
+  jmp('call', 0);                  // call emit18(T)
+
+  // Restore A to port (emit18 clobbers A via emit8/emit1)
+  lit(port.literal);
+  emit('a!');
+  fwj();
+  jmp('next', outerLoop);         // decrement R, loop
+
+  // === EMIT18: send 18-bit word T as 3 bytes ===
+  // ( n -- ) clobbers T, uses R for return address + emit8/emit1 R-stack
+  builder.label('__asynctx_emit18');
+  builder.addForwardRef('__asynctx_emit8');
+  jmp('call', 0);                  // emit8: send bits [7:0], T = T >> 8
+  builder.addForwardRef('__asynctx_emit8');
+  jmp('call', 0);                  // emit8: send bits [15:8], T = T >> 8
+  builder.addForwardRef('__asynctx_emit8');
+  jmp('call', 0);                  // emit8: send bits [17:16] (+ zeros), T dropped
+  emit('drop');                    // clean up leftover shifted value
+  builder.flush();                 // ';' at slot 3 → return
+
+  // === EMIT8: send 8 bits LSB-first with start/stop bits ===
+  // ( n -- n>>8 ) start-bit(0), 8 data bits, stop-bit(1)
+  // R-stack at entry: R=[ret_emit18 | ret_outer]
+  builder.label('__asynctx_emit8');
+  // Start bit: transmit 0
+  lit(0);
+  builder.addForwardRef('__asynctx_emit1');
+  jmp('call', 0);                  // emit1(0) — start bit (drive low)
+
+  // Data bits: 7 for dup emit1 2/ next
+  lit(7);
+  emit('push');                    // R = [7, ret]
+  fwj();
+  const bitLoop = builder.getLocationCounter();
+  emit('dup');                     // T = n, S = n
+  builder.addForwardRef('__asynctx_emit1');
+  jmp('call', 0);                  // emit1(T) — sends LSB
+  emit('2/');                      // T = T >> 1 (logical shift right)
+  fwj();
+  jmp('next', bitLoop);           // loop 8 times
+
+  // Stop bit: transmit 1
+  lit(1);
+  builder.addForwardRef('__asynctx_emit1');
+  jmp('call', 0);                  // emit1(1) — stop bit (drive high)
+  builder.flush();                 // ';' at slot 3 → return
+
+  // === EMIT1: transmit one bit over IO ===
+  // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b, then 865-cycle delay
+  // F18A 'or' = XOR: bit=0 → 0b11 (drive high/idle), bit=1 → 0b10 (drive low)
+  builder.label('__asynctx_emit1');
+  lit(1);
+  emit('and');                     // T = bit & 1
+  lit(3);
+  emit('or');                      // T = (bit & 1) XOR 3  (F18A 'or' = XOR)
+  emit('!b');                      // drive IO pin, pop
+  // Baud rate delay: ~865 cycles ≈ 1.3 µs/bit at ~660 MHz (GA144 typical)
+  // Uses next loop (like emitDelay) — dup/drop body keeps stack intact
+  lit(864);
+  emit('push');                    // R = [864, ...]
+  fwj();
+  const delayLoop = builder.getLocationCounter();
+  emit('dup'); emit('drop');       // 2-cycle body, stack-neutral
+  fwj();
+  jmp('next', delayLoop);         // decrement R, loop 865 times
+  builder.flush();                 // ';' at slot 3 → return from emit1
+
+  // Resolve all forward refs within this builtin
+  const refErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(refErrors, 'asynctx');
 
   return true;
 }

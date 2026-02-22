@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
-import { SERIAL_NODE } from '../../core/constants';
+import { SERIAL_NODES } from '../../core/constants';
 import { readIoWrite, taggedCoord, taggedValue } from './vgaResolution';
 
 interface SerialOutputProps {
@@ -16,18 +16,23 @@ const SCAN_WINDOW = 50000; // only scan recent writes
 export const SerialOutput: React.FC<SerialOutputProps> = ({
   ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq,
 }) => {
-  const values = useMemo(() => {
-    // Scan backwards from the most recent writes to find the last complete burst
+  const { values, sourceNode } = useMemo(() => {
+    // Scan backwards to find the most recent serial node that has written,
+    // then collect its last SERIAL_FIELDS writes.
     const scanStart = Math.max(0, ioWriteCount - SCAN_WINDOW);
+    let activeNode: number | null = null;
     const result: number[] = [];
     for (let i = ioWriteCount - 1; i >= scanStart; i--) {
       const tagged = readIoWrite(ioWrites, ioWriteStart, i);
-      if (taggedCoord(tagged) === SERIAL_NODE) {
-        result.unshift(taggedValue(tagged));
-        if (result.length >= SERIAL_FIELDS) break;
-      }
+      const coord = taggedCoord(tagged);
+      if (!SERIAL_NODES.has(coord)) continue;
+      // Latch onto whichever serial node we see first (most recent)
+      if (activeNode === null) activeNode = coord;
+      if (coord !== activeNode) break; // stop if we hit a different serial node
+      result.unshift(taggedValue(tagged));
+      if (result.length >= SERIAL_FIELDS) break;
     }
-    return result;
+    return { values: result, sourceNode: activeNode };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq]);
 
@@ -47,7 +52,7 @@ export const SerialOutput: React.FC<SerialOutputProps> = ({
         variant="caption"
         sx={{ fontFamily: 'monospace', fontSize: '11px', color: '#0f0' }}
       >
-        SERIAL [{SERIAL_NODE}]: {pairs.join('  ')}{factorStr}
+        SERIAL [{sourceNode}]: {pairs.join('  ')}{factorStr}
       </Typography>
     </Box>
   );

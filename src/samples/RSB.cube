@@ -1,16 +1,17 @@
 -- RSB: Runtime Shor's Algorithm — Serial Boot Output via Node 708
--- Same as RSA but routes Shor's results to node 708 (async serial TX)
--- instead of node 317 (IO register capture).
+-- Same as RSA but node 708 uses its native ROM function rom.ibits18
+-- (0xcb) to receive 18-bit words from the async serial input pin,
+-- writing each to IO. This is the ROM-idiomatic path for node 708.
 --
--- After boot, node 708 receives the 5 result values from the relay
--- chain (417 → 317 → 308 → 408 → 508 → 608 → 708) and writes each
--- to its IO register — the async serial TX pin — so results are
--- continuously transmitted over the same serial port used for booting.
+-- Node 417 still sends Shor's results south to node 317 (relay chain
+-- to IO for emulator capture). Node 708 independently reads from the
+-- async serial pin using its ROM receive primitive — no hand-coded
+-- @ loop needed.
 --
--- Architecture: 7 declared nodes + wire relay chain
+-- Architecture: 8 declared nodes
 --   VGA: 117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
 --   Compute: 416 (noise counter) → 417 (Shor's algorithm)
---   Serial: 317 308 408 508 608 (wire relays) → 708 (async serial TX)
+--   Serial: 317 (IO output) + 708 (async serial RX via rom.ibits18)
 
 -- ============================================================
 -- RED DAC — DELTA VCO (node 117, analog)
@@ -91,8 +92,7 @@ loop{n=32767}
 -- SHOR'S COMPUTE (node 417 — 1-pin GPIO)
 -- ============================================================
 -- Reads noise from west (node 416), computes Shor's factoring
--- of N=15, sends results south toward node 317 (relay chain
--- continues to node 708 for async serial TX).
+-- of N=15, sends results south to node 317 for serial output.
 -- out_port=0x145: node 417 is even-y (y=4), south→UP=0x145.
 
 node 417
@@ -102,17 +102,37 @@ node 417
 shor15{noise_port=0x1D5, out_port=0x145}
 
 -- ============================================================
--- ASYNC SERIAL TX (node 708 — boot node)
+-- SERIAL OUTPUT (node 317 — 1-pin GPIO)
 -- ============================================================
--- Receives 5 result words from the relay chain via south port
--- (node 708 is odd-y (y=7), south→DOWN=0x115) and writes each
--- to the IO register (async serial TX pin).
--- Values: N=15, a, r, p, q — transmitted continuously.
+-- Relays 5 values from north (node 417) to IO register.
+-- Values: N=15, a, r, p, q — captured by emulator ring buffer.
+
+node 317
+
+/\
+
+loop{n=32767}
+/\ relay{port=0x145, count=5}
+/\ again{}
+
+-- ============================================================
+-- ASYNC SERIAL RX (node 708 — boot node)
+-- ============================================================
+-- Uses rom.ibits18 (0xcb) — node 708's native ROM receive
+-- primitive — to read 18-bit words from the async serial input
+-- pin and write each to IO via f18a.storeb.
+-- On real hardware: receives values sent by the host over serial
+-- after boot and echoes them to IO.
+-- 5 calls per loop matching the Shor's result frame format.
 
 node 708
 
 /\
 
 loop{n=32767}
-/\ relay{port=0x115, count=5}
+/\ rom.ibits18 /\ f18a.storeb
+/\ rom.ibits18 /\ f18a.storeb
+/\ rom.ibits18 /\ f18a.storeb
+/\ rom.ibits18 /\ f18a.storeb
+/\ rom.ibits18 /\ f18a.storeb
 /\ again{}
