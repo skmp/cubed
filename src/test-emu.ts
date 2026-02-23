@@ -1,22 +1,7 @@
 import { readFileSync } from 'fs';
 import { compileCube } from './src/core/cube/compiler';
 import { GA144 } from './src/core/ga144';
-
-const OPCODES = [
-  ';', 'ex', 'jump', 'call', 'unext', 'next', 'if', '-if',
-  '@p', '@+', '@b', '@', '!p', '!+', '!b', '!',
-  '+*', '2*', '2/', '-', '+', 'and', 'or', 'drop',
-  'dup', 'pop', 'over', 'a', '.', 'push', 'b!', 'a!',
-];
-
-function disassemble(raw: number): string {
-  const decoded = raw ^ 0x15555;
-  const s0 = (decoded >> 13) & 0x1F;
-  const s1 = (decoded >> 8) & 0x1F;
-  const s2 = (decoded >> 3) & 0x1F;
-  const s3 = (decoded & 0x07) << 2;
-  return `${OPCODES[s0]} ${OPCODES[s1]} ${OPCODES[s2]} ${OPCODES[s3]}`;
-}
+import { formatDisassembly } from './src/core/disassembler';
 
 const source = readFileSync('samples/blue-rectangle.cube', 'utf-8');
 const result = compileCube(source);
@@ -36,7 +21,7 @@ if (node117data) {
     if (raw === null) { console.log(`  ${addr.toString().padStart(3)}: (null)`); continue; }
     const hex = '0x' + raw.toString(16).padStart(5, '0');
     const decoded = raw ^ 0x15555;
-    console.log(`  ${addr.toString().padStart(3)}: ${hex}  ${disassemble(raw)}  (raw: 0x${decoded.toString(16).padStart(5, '0')}, dec: ${raw})`);
+    console.log(`  ${addr.toString().padStart(3)}: ${hex}  ${formatDisassembly(raw)}  (raw: 0x${decoded.toString(16).padStart(5, '0')}, dec: ${raw})`);
   }
 }
 

@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { compileCube } from './src/core/cube/compiler';
 import { tokenizeCube } from './src/core/cube/tokenizer';
 import { parseCube } from './src/core/cube/parser';
+import { disassembleNode } from './src/core/disassembler';
 import { layoutAST } from './src/ui/cube3d/layoutEngine';
 import { sceneGraphToSVG } from './src/ui/cube3d/svgExport';
 
@@ -166,35 +167,17 @@ if (verbose) {
 if (disasm) {
   console.log('  \x1b[1mDisassembly:\x1b[0m');
 
-  // Opcode table for decoding (F18A instruction set)
-  const OPCODES = [
-    'ret', 'exec', 'jmp', 'call', 'unext', 'next', 'if', '-if',
-    '@p', '@+', '@b', '@', '!p', '!+', '!b', '!',
-    '+*', '2*', '2/', 'not', '+', 'and', 'or', 'drop',
-    'dup', 'pop', 'over', 'a', '.', 'push', 'b!', 'a!',
-  ];
-
   for (const node of result.nodes) {
     console.log(`\n  Node ${node.coord.toString().padStart(3, '0')}:`);
-    for (let addr = 0; addr < node.mem.length; addr++) {
-      const raw = node.mem[addr];
-      if (raw === null || raw === 0) continue;
-      const decoded = raw ^ 0x15555;
-      const s0 = (decoded >> 13) & 0x1F;
-      const s1 = (decoded >> 8) & 0x1F;
-      const s2 = (decoded >> 3) & 0x1F;
-      const s3 = decoded & 0x07;
-      const ops = [OPCODES[s0] || '?', OPCODES[s1] || '?', OPCODES[s2] || '?', OPCODES[s3] || '?'];
-      const hex = '0x' + raw.toString(16).padStart(5, '0');
-
+    const lines = disassembleNode(node);
+    for (let i = 0; i < lines.length; i++) {
       // Check if this address has a source map label
       let label = '';
       if (result.sourceMap) {
-        const entry = result.sourceMap.find(e => e.addr === addr);
+        const entry = result.sourceMap.find(e => e.addr === i);
         if (entry) label = `  \x1b[33m; ${entry.label}\x1b[0m`;
       }
-
-      console.log(`    ${addr.toString().padStart(3)}: ${hex}  ${ops.join(' ').padEnd(24)}${label}`);
+      console.log(`    ${lines[i]}${label}`);
     }
   }
   console.log('');
