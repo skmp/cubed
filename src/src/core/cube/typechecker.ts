@@ -15,14 +15,15 @@ export function typeCheck(resolved: ResolvedProgram): { errors: CompileError[] }
   // Structural validation: arity and parameter checks
   for (const item of program.conjunction.items) {
     if (item.kind === 'application') {
-      if (item.functor === '__node') continue;
+      if (item.functor === '__node' || item.functor === '__include') continue;
 
       const sym = symbols.get(item.functor);
       if (sym && sym.params) {
         if (sym.kind === SymbolKind.BUILTIN) {
           const provided = item.args.map(a => a.name);
           const missing = sym.params.filter(p => !provided.includes(p));
-          if (sym.name === 'greater' || sym.name === 'not' || sym.name === 'equal') {
+          const bareName = sym.name.startsWith('std.') ? sym.name.slice(4) : sym.name;
+          if (bareName === 'greater' || bareName === 'not' || bareName === 'equal') {
             if (missing.length > 0) {
               errors.push({
                 line: item.loc.line,
@@ -38,7 +39,7 @@ export function typeCheck(resolved: ResolvedProgram): { errors: CompileError[] }
     if (item.kind === 'predicate_def') {
       for (const clause of item.clauses) {
         for (const ci of clause.items) {
-          if (ci.kind === 'application' && ci.functor !== '__node') {
+          if (ci.kind === 'application' && ci.functor !== '__node' && ci.functor !== '__include') {
             const sym = symbols.get(ci.functor);
             if (sym && sym.kind === SymbolKind.USER_PRED && sym.params) {
               const provided = ci.args.map(a => a.name);

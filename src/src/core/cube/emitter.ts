@@ -172,7 +172,7 @@ function emitItem(ctx: EmitContext, item: ConjunctionItem): void {
 // ---- Application ----
 
 function emitApplication(ctx: EmitContext, app: Application): void {
-  if (app.functor === '__node') return;
+  if (app.functor === '__node' || app.functor === '__include') return;
 
   const sym = ctx.resolved.symbols.get(app.functor);
   if (!sym) return;

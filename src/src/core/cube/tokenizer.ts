@@ -25,7 +25,8 @@ export const CubeTokenType = {
   RENAME_ARROW: 17,// <-
   NODE: 18,        // node (directive)
   STRING_LIT: 19,  // "string literal"
-  EOF: 20,
+  INCLUDE: 20,     // #include <name>
+  EOF: 21,
 } as const;
 export type CubeTokenType = typeof CubeTokenType[keyof typeof CubeTokenType];
 
@@ -143,6 +144,41 @@ export function tokenizeCube(source: string): { tokens: CubeToken[]; errors: Com
           tokens.push({ type: CubeTokenType.TYPE_IDENT, value: word, line: lineNum + 1, col: startCol + 1 });
         } else {
           tokens.push({ type: CubeTokenType.IDENT, value: word, line: lineNum + 1, col: startCol + 1 });
+        }
+        continue;
+      }
+
+      // #include directive: #include <name>
+      if (ch === '#') {
+        const startCol = col;
+        col++; // skip #
+        // Read the directive keyword
+        let directive = '';
+        while (col < line.length && /[a-zA-Z_]/.test(line[col])) {
+          directive += line[col];
+          col++;
+        }
+        if (directive === 'include') {
+          // Skip whitespace
+          while (col < line.length && /\s/.test(line[col])) col++;
+          // Read the module name
+          let moduleName = '';
+          while (col < line.length && /[a-zA-Z0-9_.]/.test(line[col])) {
+            moduleName += line[col];
+            col++;
+          }
+          if (moduleName) {
+            tokens.push({
+              type: CubeTokenType.INCLUDE,
+              value: moduleName,
+              line: lineNum + 1,
+              col: startCol + 1,
+            });
+          } else {
+            errors.push({ line: lineNum + 1, col: startCol + 1, message: `Expected module name after #include` });
+          }
+        } else {
+          errors.push({ line: lineNum + 1, col: startCol + 1, message: `Unknown directive: #${directive}` });
         }
         continue;
       }

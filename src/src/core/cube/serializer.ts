@@ -122,6 +122,14 @@ function serializeApplication(app: Application): string {
     }
   }
 
+  // Special handling for __include → #include <name>
+  if (app.functor === '__include') {
+    const mod = app.args[0]?.value;
+    if (mod && mod.kind === 'var') {
+      return `#include ${mod.name}`;
+    }
+  }
+
   if (app.args.length === 0) {
     return app.functor;
   }

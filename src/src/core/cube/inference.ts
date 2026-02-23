@@ -349,15 +349,19 @@ function inferApplication(
   symbols: Map<string, ResolvedSymbol>,
   errors: CompileError[],
 ): void {
-  if (app.functor === '__node') return;
+  if (app.functor === '__node' || app.functor === '__include') return;
 
   const sym = symbols.get(app.functor);
   if (!sym) return;
 
   // Get the type scheme for this predicate/constructor
+  // For std.xxx builtins, fall back to the bare name scheme
   let scheme: TypeScheme | undefined;
   if (sym.kind === SymbolKind.BUILTIN || sym.kind === SymbolKind.USER_PRED) {
     scheme = env.predicates.get(app.functor);
+    if (!scheme && app.functor.startsWith('std.')) {
+      scheme = env.predicates.get(app.functor.slice(4));
+    }
   } else if (sym.kind === SymbolKind.CONSTRUCTOR) {
     scheme = env.constructors.get(app.functor);
   }

@@ -126,14 +126,39 @@ const F18A_NAMES: Record<string, string> = {
   'a!':   'astore',
 };
 
+/** Standard library builtin names that get the std. prefix */
+export const STD_BUILTINS = Object.keys(BUILTIN_PARAMS).filter(n => !n.startsWith('lit.'));
+/** Literal builtins (already namespaced under lit.*) */
+const LIT_BUILTINS = Object.keys(BUILTIN_PARAMS).filter(n => n.startsWith('lit.'));
+
 export function resolve(program: CubeProgram, targetCoord: number = 408): { resolved: ResolvedProgram; errors: CompileError[] } {
   const errors: CompileError[] = [];
   const symbols = new Map<string, ResolvedSymbol>();
   const variables = new Set<string>();
 
-  // Register builtins
+  // Register builtins under bare names (backward compatibility)
   for (const [name, params] of Object.entries(BUILTIN_PARAMS)) {
     symbols.set(name, { kind: SymbolKind.BUILTIN, name, params });
+  }
+
+  // Detect #include directives and register std.* aliases
+  for (const item of program.conjunction.items) {
+    if (item.kind === 'application' && item.functor === '__include') {
+      const moduleArg = item.args.find(a => a.name === 'module');
+      if (moduleArg && moduleArg.value.kind === 'var' && moduleArg.value.name === 'std') {
+        // Register std.xxxx aliases for all standard builtins
+        for (const name of STD_BUILTINS) {
+          const params = BUILTIN_PARAMS[name];
+          const stdName = `std.${name}`;
+          symbols.set(stdName, { kind: SymbolKind.BUILTIN, name: stdName, params });
+        }
+      } else if (moduleArg && moduleArg.value.kind === 'var') {
+        errors.push({
+          line: item.loc.line, col: item.loc.col,
+          message: `Unknown module: '${moduleArg.value.name}'. Available modules: std`,
+        });
+      }
+    }
   }
 
   // Register F18A primitives as f18a.xxx
@@ -252,7 +277,7 @@ function resolveItem(item: ConjunctionItem, symbols: Map<string, ResolvedSymbol>
 }
 
 function resolveApplication(app: Application, symbols: Map<string, ResolvedSymbol>, variables: Set<string>, errors: CompileError[]): void {
-  if (app.functor === '__node') return; // Skip node directives
+  if (app.functor === '__node' || app.functor === '__include') return; // Skip directives
 
   const sym = symbols.get(app.functor);
   if (!sym) {

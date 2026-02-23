@@ -127,6 +127,21 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
   function parseConjunctionItem(): ConjunctionItem {
     const tok = peek();
 
+    // #include directive: #include name
+    if (tok.type === CubeTokenType.INCLUDE) {
+      advance();
+      return {
+        kind: 'application',
+        functor: '__include',
+        args: [{
+          name: 'module',
+          value: { kind: 'var', name: tok.value, loc: { line: tok.line, col: tok.col } },
+          loc: { line: tok.line, col: tok.col },
+        }],
+        loc: { line: tok.line, col: tok.col },
+      };
+    }
+
     // node directive: node NNN /\ ...
     if (tok.type === CubeTokenType.NODE) {
       return parseNodeDirective();

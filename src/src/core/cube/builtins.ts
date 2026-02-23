@@ -93,7 +93,9 @@ export function emitBuiltin(
   argMappings: Map<string, ArgInfo>,
   ctx: BuiltinContext = {},
 ): boolean {
-  switch (name) {
+  // Strip std. prefix for standard library builtins
+  const bareName = name.startsWith('std.') ? name.slice(4) : name;
+  switch (bareName) {
     case 'plus':
       return emitPlus(builder, argMappings);
     case 'minus':
