@@ -172,3 +172,9 @@ In the CUBE 3D visualization, multi-node programs use the YXX coordinate to posi
 each node group on a grid matching the physical chip layout. The X axis maps to the
 column (0-17), Y axis to the row (0-7), and Z axis represents code depth within each
 node. See `docs/cube-language.md` section 12 for details.
+
+## References
+
+- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — GA144 chip overview: 8x18 array, node types, pinout, I/O capabilities
+- [g144poster - GA144 Poster](../reference/greenarrays/pdfs/g144poster.A1.txt) — Visual pinout and node diagram for the GA144 chip
+- [PB004 - F18A I/O Facilities](../reference/greenarrays/pdfs/PB004-110412-F18A-IO.txt) — Node I/O types: GPIO, analog, SERDES, parallel bus nodes

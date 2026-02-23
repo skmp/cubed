@@ -163,3 +163,10 @@ Loading code into node 500 via async serial boot at node 708:
 | io reset | 0x15555 | All pins weak pulldown, ports idle |
 | RAM size | 64 words | Maximum code per node per boot frame |
 | ROM entry | 0x0AA (typical) | Boot ROM start address (varies by node) |
+
+## References
+
+- [BOOT-02 - Boot Protocols](../reference/greenarrays/pdfs/BOOT-02.txt) — Specification of SPI Flash, 2-wire sync, 1-wire, and UART boot protocols with frame structure and timing
+- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Boot ROM entry points and node-specific boot behavior
+- [AN021 - Getting Started with EVB002 (2022)](../reference/greenarrays/pdfs/AN021-220819-GS-EVB002.txt) — Practical boot setup and jumper configuration for EVB002
+- [DB014 - EVB002 Evaluation Board Reference](../reference/greenarrays/pdfs/DB014-190520-EVB002.txt) — EVB002 hardware boot interfaces and dual-chip configuration

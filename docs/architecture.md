@@ -68,3 +68,9 @@ structural editing of CUBE programs. It is the first tab ("3D Editor") in the la
 
 WebGL initialization is guarded with compile/link checks.
 Context loss is handled by reinitializing the WebGL state and reuploading the texture.
+
+## References
+
+- [DB014 - EVB002 Evaluation Board Reference](../reference/greenarrays/pdfs/DB014-190520-EVB002.txt) — Hardware platform this emulator models
+- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — GA144 chip architecture overview
+- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — F18A processor specification used as emulation reference

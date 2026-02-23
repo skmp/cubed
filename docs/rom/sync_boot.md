@@ -100,3 +100,8 @@ ROM address range: 0x80 - 0xBF (64 words)
   [0xbe]  0x256c0  dup | call(0xc0)
   [0xbf]  0x134c0  call(0xc0)
 ```
+
+## References
+
+- [BOOT-02 - Boot Protocols](../../reference/greenarrays/pdfs/BOOT-02.txt) — 2-wire synchronous boot protocol specification
+- [DB001 - F18A Technology Reference (2022)](../../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Node 300 ROM and sync boot behavior

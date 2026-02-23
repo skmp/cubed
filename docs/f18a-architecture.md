@@ -157,3 +157,10 @@ The F18A prefetches the next instruction word while executing the current one:
 - Avoid placing `@p` (literal fetch) in slot 3 — the literal will be the prefetched word, not the intended one
 - After a `;` (return), `jump`, `call`, or `next` that takes the branch, the prefetched word is discarded
 - Memory-mapped I/O reads in the last slot may interact with prefetch timing
+
+## References
+
+- [DB001 - F18A Technology Reference (2017)](../reference/greenarrays/pdfs/DB001-171107-F18A.txt) — Comprehensive F18A processor documentation: registers, stacks, memory, instruction encoding
+- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Revised edition of the F18A reference
+- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — GA144 chip overview including F18A core specifications
+- [PB005 - F18B Computer](../reference/greenarrays/pdfs/PB005-100501-F18B.txt) — F18B evolutionary improvement over F18A architecture

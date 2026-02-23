@@ -101,3 +101,9 @@ ROM address range: 0x80 - 0xBF (64 words)
   [0xbe]  0x228b2  a | push | . | .
   [0xbf]  0x134b0  call(0xb0)
 ```
+
+## References
+
+- [BOOT-02 - Boot Protocols](../../reference/greenarrays/pdfs/BOOT-02.txt) — SERDES boot protocol specification
+- [DB001 - F18A Technology Reference (2022)](../../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Nodes 001/701 ROM and SERDES boot behavior
+- [PB004 - F18A I/O Facilities](../../reference/greenarrays/pdfs/PB004-110412-F18A-IO.txt) — SERDES I/O pin configuration and protocol

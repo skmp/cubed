@@ -217,3 +217,9 @@ A full 18×18 multiply requires 18 consecutive `+*` instructions. The result is 
 ### No Operation
 
 - **`.` (nop)**: No operation. Used to pad instruction words.
+
+## References
+
+- [DB001 - F18A Technology Reference (2017)](../reference/greenarrays/pdfs/DB001-171107-F18A.txt) — Instruction set encoding, opcode table, slot restrictions, XOR encoding
+- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Revised edition with updated instruction details
+- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — Instruction timing and performance specifications

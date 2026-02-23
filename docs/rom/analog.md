@@ -100,3 +100,9 @@ ROM address range: 0x80 - 0xBF (64 words)
   [0xbe]  0x3c8bf  + | push | push | @p
   [0xbf]  0x00155  (data: 341)
 ```
+
+## References
+
+- [PB004 - F18A I/O Facilities](../../reference/greenarrays/pdfs/PB004-110412-F18A-IO.txt) — Analog I/O: VCO-based ADC, DAC control
+- [PB006 - F18B I/O Facilities](../../reference/greenarrays/pdfs/PB006-100501-F18B-IO.txt) — Improved DAC and ADC multiplexor facilities
+- [WP001 - Noise Reduction in ADC](../../reference/greenarrays/pdfs/WP001-090805-noise.txt) — VCO-based A/D converter noise filtering analysis

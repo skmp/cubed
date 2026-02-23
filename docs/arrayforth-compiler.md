@@ -288,3 +288,11 @@ Encoded: same as word 0
 Raw: 0x20000
 Encoded: 0x20000 XOR 0x15555 = 0x35555
 ```
+
+## References
+
+- [DB004 - arrayForth User's Manual](../reference/greenarrays/pdfs/DB004-131030-aFUSER.txt) — Original arrayForth IDE: assembler, simulator, development environment
+- [DB013 - arrayForth 3 User's Manual](../reference/greenarrays/pdfs/DB013-221112-aFUSER.txt) — Contemporary development system combining arrayForth with polyFORTH
+- [DB005 - polyFORTH Reference Manual](../reference/greenarrays/pdfs/DB005-120825-PF-REF.txt) — polyFORTH virtual machine environment reference
+- [DB006 - G144A12 polyFORTH Supplement](../reference/greenarrays/pdfs/DB006-221112-PF-G144A12.txt) — GA144-specific polyFORTH implementation details
+- [dpans94 - ANS Forth Standard](../reference/greenarrays/pdfs/dpans94.txt) — ANSI X3.215-1994 Forth language standard

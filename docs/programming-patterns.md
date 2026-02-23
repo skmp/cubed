@@ -352,3 +352,12 @@ This sequence:
 2. Initializes the neighbor's B register to point to its io register
 3. Clears the local I/O pins to high-Z
 4. Points local B to the io register for convenient access
+
+## References
+
+- [AB004 - Port Execution Communication](../reference/greenarrays/pdfs/AB004-141021-PORTEX.txt) — Inter-node communication via port execution
+- [AB005 - Delay Lines/Buffers](../reference/greenarrays/pdfs/AB005-220623-DELAY.txt) — FIFO buffer implementation using port execution across nodes
+- [AB006 - Transparent Port Bridge](../reference/greenarrays/pdfs/AB006-171108-BRIDGE.txt) — Two-chip connection via port bridging
+- [AN016 - PID Motor Controller](../reference/greenarrays/pdfs/AN016-141111-DCMOTOR.txt) — Multi-node coordination pattern with PID feedback loop
+- [AN011 - Ganglia Mark 1](../reference/greenarrays/pdfs/AN011-130608-GANGLIA1.txt) — Dynamic message routing patterns across the chip
+- [WP002 - Energy Conservation](../reference/greenarrays/pdfs/WP002-100405-energycons.txt) — Power management patterns and sleep/wake strategies

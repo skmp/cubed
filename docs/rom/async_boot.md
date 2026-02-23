@@ -107,3 +107,8 @@ ROM address range: 0x80 - 0xBF (64 words)
   [0xbe]  0x24d4b  dup | dup | call(0x3)
   [0xbf]  0x386ba  or | - | push | .
 ```
+
+## References
+
+- [BOOT-02 - Boot Protocols](../../reference/greenarrays/pdfs/BOOT-02.txt) — UART async serial boot protocol specification
+- [DB001 - F18A Technology Reference (2022)](../../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Node 708 ROM and async boot behavior

@@ -102,3 +102,8 @@ ROM address range: 0x80 - 0xBF (64 words)
   [0xbe]  0x134d9  call(0xd9)
   [0xbf]  0x0f0be  !+ | next(0xbe)
 ```
+
+## References
+
+- [BOOT-02 - Boot Protocols](../../reference/greenarrays/pdfs/BOOT-02.txt) — SPI Flash boot protocol specification
+- [DB001 - F18A Technology Reference (2022)](../../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Node 705 ROM and SPI boot behavior
