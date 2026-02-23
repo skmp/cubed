@@ -1,0 +1,38 @@
+-- HELLO-PF: "Hello World" via Port B, polyForth-style
+--
+-- Mirrors the architecture of polyForth's serial terminal nodes
+-- (pFDISK.blk blocks 1995/1996), loaded via HOST LOAD to Port B.
+--
+-- Node 200 (pin17 ← Port B RX): auto-baud from first incoming byte,
+-- receives bytes and relays them UP to node 100.
+--
+-- Node 100 (pin17 → Port B TX): receives baud calibration from node 200,
+-- then for each trigger byte sends "HELLO WORLD\r\n" using polyForth's
+-- putchar / !bit protocol.
+--
+-- TX bit encoding (non-maxim EVB002):
+--   mark/idle = x25555 (pin17 low),  space/start = x35555 (pin17 high)
+--   matches polyForth block 1995: "start hi, data 1 is low"
+--
+-- Both nodes communicate via their shared UP port (0x145).
+-- Load to Host chip via HOST LOAD (Port B = Host nodes 100/200).
+
+-- ============================================================
+-- RX NODE (node 200 — one-wire boot node, pin17 ← Port B RX)
+-- ============================================================
+
+node 200
+
+/\
+
+pf_rx{}
+
+-- ============================================================
+-- TX NODE (node 100 — basic node, pin17 → Port B TX)
+-- ============================================================
+
+node 100
+
+/\
+
+pf_tx{}

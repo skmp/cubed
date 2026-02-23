@@ -1,0 +1,14 @@
+-- HELLO: Async Serial "Hello World" via Node 708
+-- Waits for any input byte, then transmits "HELLO WORLD\r\n"
+-- over the async serial pin using the boot-wire bit-bang protocol.
+-- Loops forever.
+--
+-- Auto-bauds from the first incoming byte start bit (rom.sync).
+-- String bytes stored as data words at RAM 0x30–0x3C.
+-- Node 708 (odd-y=7): async boot ROM, pin 17 via IO (0x15D).
+
+node 708
+
+/\
+
+hellotx{}

@@ -29,10 +29,18 @@ import sampleShor from '../../../samples/shor.cube?raw';
 import sampleRSX from '../../../samples/RSX.cube?raw';
 import sampleRSA from '../../../samples/RSA.cube?raw';
 import sampleRSC from '../../../samples/RSC.cube?raw';
+import sampleEcho from '../../../samples/ECHO.cube?raw';
+import sampleHello from '../../../samples/HELLO.cube?raw';
+import sampleHello2 from '../../../samples/HELLO2.cube?raw';
+import sampleHelloPF from '../../../samples/HELLO-PF.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'HELLO-PF (Port B, polyForth)': sampleHelloPF,
+  'HELLO2 (Port B, bit-bang)': sampleHello2,
+  'HELLO (Serial)': sampleHello,
+  'ECHO (Serial RX/TX)': sampleEcho,
   'RSC (Serial TX)': sampleRSC,
   'RSA (Delta VCO)': sampleRSA,
   'RSX (Shor N=15)': sampleRSX,

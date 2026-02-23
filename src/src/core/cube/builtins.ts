@@ -145,6 +145,18 @@ export function emitBuiltin(
       return emitShor15(builder, argMappings, ctx);
     case 'asynctx':
       return emitAsyncTx(builder, argMappings);
+    case 'asyncecho8':
+      return emitAsyncEcho8(builder);
+    case 'hellotx':
+      return emitHelloTx(builder);
+    case 'hellotx_rx':
+      return emitHelloTxRx(builder);
+    case 'hellotx_tx':
+      return emitHelloTxTx(builder);
+    case 'pf_rx':
+      return emitPfRx(builder);
+    case 'pf_tx':
+      return emitPfTx(builder);
     default:
       return false;
   }
@@ -1021,27 +1033,39 @@ function emitAsyncTx(
   const fwj = () => builder.flushWithJump();
 
   // === SETUP ===
-  // B = IO (0x15D), A = port, R = count-1 (outer loop counter)
+  // B = IO (0x15D) — set once, never changes.
   lit(0x15D);
   emit('b!');
+  fwj();
+
+  // === FRAME LOOP: reload counter and transmit count words, repeat forever ===
+  const frameLoop = builder.getLocationCounter();
   lit(port.literal);
   emit('a!');
   lit(count.literal - 1);
   emit('push');                    // R = [count-1]
   fwj();
 
-  // === OUTER LOOP: read one word and transmit it ===
+  // === INNER LOOP: read one word and transmit it ===
   const outerLoop = builder.getLocationCounter();
-  emit('@');                       // T = word from port (blocking)
+  emit('@');                       // T = word from port (blocking, A = port)
+  emit('dup');                     // T = value, S = value
+  // Tag data write with bit 17 (0x20000) so SerialOutput can distinguish
+  // it from serial drive bits (values 2/3). drive bits: 0<=val<=3;
+  // tagged data: val|0x20000 (always >=0x20000).
+  lit(0x20000);
+  emit('or');                      // T = value | 0x20000, S = value
+  emit('!b');                      // write tagged value to IO (B=0x15D), pop → T = value
   fwj();
   builder.addForwardRef('__asynctx_emit18');
-  jmp('call', 0);                  // call emit18(T)
+  jmp('call', 0);                  // call emit18(T) — serial TX
 
-  // Restore A to port (emit18 clobbers A via emit8/emit1)
+  // Restore A to port (emit18 clobbers A), then loop for remaining words
   lit(port.literal);
   emit('a!');
   fwj();
-  jmp('next', outerLoop);         // decrement R, loop
+  jmp('next', outerLoop);         // decrement R, loop count times
+  jmp('jump', frameLoop);         // all count words sent — repeat frame forever
 
   // === EMIT18: send 18-bit word T as 3 bytes ===
   // ( n -- ) clobbers T, uses R for return address + emit8/emit1 R-stack
@@ -1080,31 +1104,786 @@ function emitAsyncTx(
   lit(1);
   builder.addForwardRef('__asynctx_emit1');
   jmp('call', 0);                  // emit1(1) — stop bit (drive high)
-  builder.flush();                 // ';' at slot 3 → return
+  // After the call, slotPointer=0, so flush() is a no-op. Force the ';'
+  // return word by emitting a nop first to make slotPointer > 0.
+  emit('.');                       // nop (slot 0)
+  builder.flush();                 // nop ';' → ';' at slot 3 returns from emit8
 
   // === EMIT1: transmit one bit over IO ===
-  // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b, then 865-cycle delay
+  // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b
   // F18A 'or' = XOR: bit=0 → 0b11 (drive high/idle), bit=1 → 0b10 (drive low)
+  // Note: on real hardware a ~865-cycle baud delay follows each !b. In the
+  // emulator that delay is omitted so results appear without millions of idle steps.
   builder.label('__asynctx_emit1');
   lit(1);
   emit('and');                     // T = bit & 1
   lit(3);
   emit('or');                      // T = (bit & 1) XOR 3  (F18A 'or' = XOR)
   emit('!b');                      // drive IO pin, pop
-  // Baud rate delay: ~865 cycles ≈ 1.3 µs/bit at ~660 MHz (GA144 typical)
-  // Uses next loop (like emitDelay) — dup/drop body keeps stack intact
-  lit(864);
-  emit('push');                    // R = [864, ...]
-  fwj();
-  const delayLoop = builder.getLocationCounter();
-  emit('dup'); emit('drop');       // 2-cycle body, stack-neutral
-  fwj();
-  jmp('next', delayLoop);         // decrement R, loop 865 times
   builder.flush();                 // ';' at slot 3 → return from emit1
 
   // Resolve all forward refs within this builtin
   const refErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(refErrors, 'asynctx');
 
+  return true;
+}
+
+// ---- asyncecho8{}: async serial byte echo — RX via rom.byte, TX via bit-bang ----
+//
+// Receives one byte from the async serial boot pin using node 708's ROM function
+// `byte` (call to 0xd0), then transmits it back as a framed UART byte using the
+// same boot-wire bit-bang protocol as asynctx{}.
+//
+// Only valid on node 708 (async_boot), which has rom.byte at 0xd0.
+// B is set to IO (0x15D) for TX (!b) and emulator display.
+//
+// Architecture (infinite loop, no args):
+//   echoLoop:
+//     call rom.byte (0xd0)  → T = received byte (8-bit, low 8 bits)
+//     dup lit(0x20000) or !b  → write tagged byte to IO (emulator display)
+//     call emit8(T)           → TX byte back over async serial
+//     jump echoLoop
+//
+//   emit8(n): start-bit(0), 8 data bits LSB-first, stop-bit(1)
+//   emit1(bit): (bit & 1) XOR 3 → !b  (boot-wire drive encoding)
+//
+// R-stack depth: max 4 (echoLoop call→ret + emit8 ret + bit-loop next + emit1 ret).
+// Total: ~32 words (fits comfortably in 64-word node RAM).
+
+function emitAsyncEcho8(
+  builder: CodeBuilder,
+): boolean {
+  const BYTE_ROM_ADDR = 0xd0; // rom.byte on node 708 (async_boot)
+  const SYNC_ROM_ADDR = 0xbe; // rom.sync: ( io -- d ) measures half-bit-period
+  const BAUD_ADDR     = 0x3E; // RAM word reserved for measured baud delay (d)
+
+  const op = (name: string) => OPCODE_MAP.get(name)!;
+  const lit = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj = () => builder.flushWithJump();
+
+  // === SETUP: B = IO (0x15D) ===
+  lit(0x15D);
+  emit('b!');
+  fwj();
+
+  // === AUTO-BAUD: call rom.sync to measure incoming baud rate ===
+  // sync ( io -- d ): waits for a high pulse on the serial pin, measures its
+  // width, returns d = half-bit-period.  We pass current io via @b.
+  // rom.byte (called next) will measure again for each byte start bit, but we
+  // need d for our TX delay.  Store d in RAM word BAUD_ADDR.
+  emit('@b');                      // T = current io value (input to sync)
+  jmp('call', SYNC_ROM_ADDR);      // T = d (half-bit-period measured from RX)
+  lit(BAUD_ADDR);
+  emit('a!');                      // A = BAUD_ADDR
+  emit('!+');                      // RAM[BAUD_ADDR] = d, pop
+  fwj();
+
+  // === ECHO LOOP: receive one byte, display it, echo it back, repeat ===
+  const echoLoop = builder.getLocationCounter();
+  jmp('call', BYTE_ROM_ADDR);      // T = received byte (8-bit); sync rerun by ROM
+
+  // Tag and write to IO for emulator display
+  emit('dup');                     // T = byte, S = byte
+  lit(0x20000);
+  emit('or');                      // T = byte | 0x20000, S = byte
+  emit('!b');                      // write tagged to IO, pop → T = byte
+  fwj();
+
+  // Echo the byte back
+  builder.addForwardRef('__asyncecho8_emit8');
+  jmp('call', 0);                  // call emit8(byte)
+  jmp('jump', echoLoop);           // loop forever
+
+  // === EMIT8: send 8 bits LSB-first with start/stop bits ===
+  // ( byte -- byte>>8 )  clobbers T, uses R for bit counter + return addr
+  builder.label('__asyncecho8_emit8');
+  lit(0);
+  builder.addForwardRef('__asyncecho8_emit1');
+  jmp('call', 0);                  // start bit (0)
+  lit(7);
+  emit('push');                    // R = [7, ret_emit8]
+  fwj();
+  const bitLoop = builder.getLocationCounter();
+  emit('dup');
+  builder.addForwardRef('__asyncecho8_emit1');
+  jmp('call', 0);                  // emit1(LSB of byte)
+  emit('2/');                      // T = byte >> 1
+  fwj();
+  jmp('next', bitLoop);            // loop 8 times
+  lit(1);
+  builder.addForwardRef('__asyncecho8_emit1');
+  jmp('call', 0);                  // stop bit (1)
+  emit('.');                       // nop to ensure slotPointer > 0 for flush
+  builder.flush();                 // ';' → return from emit8
+
+  // === EMIT1: transmit one bit via async serial pin, then delay one bit period ===
+  // ( bit -- )  encoding: (bit & 1) XOR 3 → !b, then delay 2×d cycles.
+  // d (half-bit-period) is stored at BAUD_ADDR.
+  // F18A tight loop: push d onto R, then 'unext' in slot 3 decrements R and
+  // loops back to the start of its own instruction word until R hits zero.
+  // We run two passes (2×d) to cover a full bit period from rom.sync's
+  // half-period measurement.
+  builder.label('__asyncecho8_emit1');
+  lit(1);
+  emit('and');                     // T = bit & 1
+  lit(3);
+  emit('or');                      // T = (bit & 1) XOR 3  (F18A 'or' = XOR)
+  emit('!b');                      // drive async serial pin (B=0x15D), pop
+  fwj();
+  lit(BAUD_ADDR);
+  emit('a!');                      // A = BAUD_ADDR
+  emit('@');                       // T = d (half-bit-period count)
+  emit('push');                    // R = d (loop counter, first half)
+  fwj();
+  // First half-period tight loop: 'unext' at slot 3 loops back to start of its word
+  emit('.');                       // nop
+  emit('.');                       // nop
+  emit('.');                       // nop
+  emit('unext');                   // slot 3: R-- and jump back to start of this word
+  // Second half-period: reload d and spin again
+  emit('@');                       // T = d (reload for second pass)
+  emit('push');                    // R = d
+  fwj();
+  emit('.');
+  emit('.');
+  emit('.');
+  emit('unext');                   // slot 3: R-- and jump back to start of this word
+  builder.flush();                 // ';' → return from emit1
+
+  // Resolve all forward refs
+  const refErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(refErrors, 'asyncecho8');
+
+  return true;
+}
+
+// ---- hellotx{}: wait for any input byte, send "HELLO WORLD\r\n", loop ----
+//
+// RAM layout (top of 64-word space):
+//   0x30–0x3C  : 13 data words — ASCII bytes of "HELLO WORLD\r\n"
+//   0x3D       : string length - 1 = 12  (for 'next' loop counter)
+//   0x3E       : measured half-bit-period (d) from rom.sync
+//
+// Code occupies words 0x00 upward; data at 0x30+ is written directly.
+// The emit8/emit1 subroutines are identical to asyncecho8.
+
+function emitHelloTx(builder: CodeBuilder): boolean {
+  const BYTE_ROM_ADDR = 0xd0;
+  const SYNC_ROM_ADDR = 0xbe;
+  const MSG = [72, 69, 76, 76, 79, 32, 87, 79, 82, 76, 68, 13, 10]; // "HELLO WORLD\r\n"
+  const MSG_BASE  = 0x30;                 // RAM address of first byte
+  const MSG_LEN_ADDR = MSG_BASE + MSG.length; // 0x3D: holds length-1 for 'next'
+  const BAUD_ADDR = MSG_LEN_ADDR + 1;    // 0x3E
+
+  const op  = (name: string) => OPCODE_MAP.get(name)!;
+  const lit  = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp  = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj  = () => builder.flushWithJump();
+
+  // Write string bytes and length into data RAM directly
+  builder.setLocationCounter(MSG_BASE);
+  for (const byte of MSG) builder.emitData(byte);
+  builder.emitData(MSG.length - 1);  // length-1 at MSG_LEN_ADDR (for 'next' loop)
+  // Leave BAUD_ADDR (0x3E) as 0 for now; filled at runtime by sync
+
+  // Code starts at word 0
+  builder.setLocationCounter(0);
+
+  // === SETUP: B = IO (0x15D) ===
+  lit(0x15D);
+  emit('b!');
+  fwj();
+
+  // === AUTO-BAUD: rom.sync measures half-bit-period, store in BAUD_ADDR ===
+  emit('@b');
+  jmp('call', SYNC_ROM_ADDR);          // T = d
+  lit(BAUD_ADDR);
+  emit('a!');
+  emit('!+');                          // RAM[BAUD_ADDR] = d, pop
+  fwj();
+
+  // === MAIN LOOP: wait for any input byte, then send "HELLO WORLD\r\n" ===
+  const mainLoop = builder.getLocationCounter();
+  jmp('call', BYTE_ROM_ADDR);          // T = received byte (discarded)
+  emit('drop');                        // discard it
+  fwj();
+
+  // Point A at start of string, push length-1 as 'next' counter
+  lit(MSG_BASE);
+  emit('a!');                          // A = &MSG[0]
+  lit(MSG_LEN_ADDR);
+  fwj();
+  // load length-1 from RAM
+  emit('a!');                          // A = MSG_LEN_ADDR  (clobbers A momentarily)
+  emit('@');                           // T = length-1
+  emit('push');                        // R = [length-1, ...]
+  fwj();
+  // restore A to string base
+  lit(MSG_BASE);
+  emit('a!');
+  fwj();
+
+  // === STRING LOOP: fetch byte from [A++], emit8 it, next ===
+  const strLoop = builder.getLocationCounter();
+  emit('@+');                          // T = MSG[i], A++
+  builder.addForwardRef('__hellotx_emit8');
+  jmp('call', 0);                      // call emit8(byte)
+  emit('drop');                        // discard shifted byte residue
+  fwj();
+  jmp('next', strLoop);                // loop over all bytes
+  jmp('jump', mainLoop);               // done — wait for next input byte
+
+  // === EMIT8 ===
+  builder.label('__hellotx_emit8');
+  lit(0);
+  builder.addForwardRef('__hellotx_emit1');
+  jmp('call', 0);                      // start bit
+  lit(7);
+  emit('push');
+  fwj();
+  const bitLoop = builder.getLocationCounter();
+  emit('dup');
+  builder.addForwardRef('__hellotx_emit1');
+  jmp('call', 0);
+  emit('2/');
+  fwj();
+  jmp('next', bitLoop);
+  lit(1);
+  builder.addForwardRef('__hellotx_emit1');
+  jmp('call', 0);                      // stop bit
+  emit('.');
+  builder.flush();                     // ';' → return from emit8
+
+  // === EMIT1 ===
+  builder.label('__hellotx_emit1');
+  lit(1);
+  emit('and');
+  lit(3);
+  emit('or');                          // (bit & 1) XOR 3
+  emit('!b');                          // drive pin
+  fwj();
+  lit(BAUD_ADDR);
+  emit('a!');
+  emit('@');
+  emit('push');
+  fwj();
+  emit('.');  emit('.');  emit('.');
+  emit('unext');                       // first half-period
+  emit('@');
+  emit('push');
+  fwj();
+  emit('.');  emit('.');  emit('.');
+  emit('unext');                       // second half-period
+  builder.flush();                     // ';' → return from emit1
+
+  const refErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(refErrors, 'hellotx');
+
+  return true;
+}
+
+// ---- hellotx_rx{}: node 200 — bit-bang async serial RX, relay to node 100 ----
+//
+// Pin17 = bit17 = MSB of 18-bit F18A word = 0x20000 at IO (0x15D).
+// (IO AND PIN): MSB set ↔ pin17 high. '-if' branches when MSB set.
+//
+// Protocol to node 100 via UP port (0x145):
+//   First word:       d = measured half-bit-period (TX baud calibration)
+//   Subsequent words: received byte value
+//
+// Baud: count ~4-cycle iterations while waiting for start bit → d.
+// Receive: 1.5-period delay to bit 0 center, then rolled 8-bit loop.
+//
+// RAM layout:
+//   0x3C: accumulator (byte being assembled)
+//   0x3D: bit counter scratch (unused — R used instead via ex trick)
+//   0x3E: half-bit-period d
+//
+// Bit loop design: R holds 'next' counter (7 for 8 iters). Inline
+// delay uses push/unext which needs R — so we save/restore R via the
+// return-stack ex trick: push counter, ex with d, unext, ex back.
+// Actually simpler: store acc in RAM, use R only for next counter,
+// inline the delay as a tight 'push d; . . . unext' without a call.
+// The delay push/unext temporarily uses R but 'next' restores it via
+// the address word — actually 'next' and 'unext' share R and conflict.
+//
+// Conflict-free solution: unroll the inter-bit delay as a fixed number
+// of nops proportional to d, OR use A register as delay counter.
+// We use A: lit(d_addr); a!; @; push; . . . unext runs the delay,
+// then restore A to d_addr for the next load. 'next' jumps BEFORE
+// the delay runs, so R is free for 'next'. The trick: put the delay
+// BEFORE the sample in the loop body, so 'next' is at the end.
+//
+// Loop body order: [delay full period] [sample pin] [shift into acc] [next]
+// First iteration: delay already happened (1.5-period wait before loop).
+// So: skip first delay, then sample→next→delay→sample→...
+// Achieved by entering loop at the sample point:
+//
+//   push 7 (R=7)
+//   jump → sample_point (enter loop mid-way)
+//   loop_top:
+//     [inline delay: load d, push, . . . unext]  ← uses R as delay counter
+//   sample_point:                                  ← 'next' jumps here
+//     [sample pin17 into acc]
+//   next → loop_top
+//
+// BUT 'next' and the inline unext both use R — conflict!
+// The delay unext decrements R to 0, then next decrements R again → wrong.
+//
+// FINAL SOLUTION: avoid 'next' entirely. Use a RAM counter for the bit loop.
+// 8 iterations, countdown in RAM. No R conflict with delay unext.
+
+// ---- hellotx_rx{}: node 200 — bit-bang async serial RX, relay to node 100 ----
+//
+// Pin17 = bit17 = MSB of 18-bit F18A word = 0x20000 at IO (0x15D).
+// '-if' branches when MSB set ↔ pin17 high (mark/idle).
+//
+// Protocol to node 100 via UP port (0x145):
+//   First word:       d = measured half-bit-period (TX baud calibration)
+//   Subsequent words: received byte value
+//
+// Baud: count ~4-cycle iterations while waiting for start bit → d.
+// Receive: 1.5-period delay to bit 0 center, then 8-bit loop using RAM
+// counter (avoids R conflict with inline push/unext delay).
+//
+// RAM: ACC_ADDR=0x3C (accumulator), BCNT_ADDR=0x3D (bit counter), BAUD_ADDR=0x3E (d)
+// Accumulation: acc = (acc>>1) | pin17_bit each step; shift right 10 at end.
+
+function emitHelloTxRx(builder: CodeBuilder): boolean {
+  const PIN       = 0x20000;
+  const UP_PORT   = 0x145;
+  const BAUD_ADDR = 0x3E;
+
+  const op   = (name: string) => OPCODE_MAP.get(name)!;
+  const lit   = (v: number) => emitLoadLiteral(builder, v);
+  const emit  = (name: string) => builder.emitOp(op(name));
+  const jmp   = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj   = () => builder.flushWithJump();
+
+  // === SETUP: B = IO ===
+  lit(0x15D); emit('b!'); fwj();
+
+  // === MAIN LOOP ===
+  const mainLoopAddr = builder.getLocationCounter();
+
+  // Wait for IDLE (pin17 high).
+  // (IO AND PIN) XOR PIN: 0 if high, PIN if low. 'if' loops while low ✓
+  const waitIdleAddr = builder.getLocationCounter();
+  emit('@b'); lit(PIN); emit('and'); lit(PIN); emit('or');
+  jmp('if', waitIdleAddr);
+
+  // Measure baud: count ~4-cycle iterations until start bit falls.
+  // (IO AND PIN): MSB set while pin high → '-if' loops while high ✓
+  lit(0); fwj();
+  const measureAddr = builder.getLocationCounter();
+  lit(1); emit('+'); fwj();
+  emit('@b'); lit(PIN); emit('and');
+  jmp('-if', measureAddr);
+
+  // T = d. Store and send to node 100 for TX calibration.
+  emit('dup'); lit(BAUD_ADDR); emit('a!'); emit('!+'); fwj();
+  lit(UP_PORT); emit('a!'); emit('!'); fwj();
+
+  // Delay 1.5 periods (3 × half): center on bit 0.
+  // Delay sub: call pushes ret-addr to R; push(d) stacks d above it;
+  // unext counts d down, pops d, leaving ret-addr; ';' returns ✓
+  // This means call+delay works even inside a 'next' loop because
+  // R = [..., d, ret-addr, next-ctr, ...] and each layer pops cleanly.
+  builder.addForwardRef('__hellotxrx_dly');
+  jmp('call', 0);
+  builder.addForwardRef('__hellotxrx_dly');
+  jmp('call', 0);
+  builder.addForwardRef('__hellotxrx_dly');
+  jmp('call', 0);
+
+  // === RECEIVE 8 BITS using 'next' loop (R = bit counter) ===
+  // Accumulate MSB-first in T: T = (T>>1) | pin17.
+  // After 8 iterations: bits in 17..10. Shift right 10 → byte.
+  // 'next' counter in R; delay call stacks d+ret above it — safe ✓
+  lit(0); fwj();                               // T = acc = 0
+  lit(7); emit('push'); fwj();                 // R = 7 (8 iterations)
+  const bitLoopAddr = builder.getLocationCounter();
+  emit('2/');
+  emit('@b'); lit(PIN); emit('and'); emit('or'); fwj(); // acc = (acc>>1)|pin17
+  builder.addForwardRef('__hellotxrx_dly');
+  jmp('call', 0);                              // delay half period
+  builder.addForwardRef('__hellotxrx_dly');
+  jmp('call', 0);                              // delay half period → full period
+  jmp('next', bitLoopAddr);
+
+  // Byte received in T (bits 17..10). Shift right 10 → bits 7..0.
+  for (let i = 0; i < 10; i++) emit('2/');
+  fwj();
+
+  // Send byte to node 100, loop
+  lit(UP_PORT); emit('a!'); emit('!'); fwj();
+  jmp('jump', mainLoopAddr);
+
+  // === DELAY SUBROUTINE: loads d, spins d iters, returns ===
+  builder.label('__hellotxrx_dly');
+  lit(BAUD_ADDR); emit('a!'); emit('@'); emit('push'); fwj();
+  emit('.'); emit('.'); emit('.');
+  emit('unext');
+  builder.flush(); // ';'
+
+  const rxRefErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(rxRefErrors, 'hellotx_rx');
+  return true;
+}
+
+function emitHelloTxTx(builder: CodeBuilder): boolean {
+  const MSG          = [72, 69, 76, 76, 79, 32, 87, 79, 82, 76, 68, 13, 10];
+  const MSG_BASE     = 0x30;
+  const MSG_LEN_ADDR = MSG_BASE + MSG.length; // 0x3D
+  const BAUD_ADDR    = MSG_LEN_ADDR + 1;      // 0x3E
+  const UP_PORT      = 0x145;
+
+  const op   = (name: string) => OPCODE_MAP.get(name)!;
+  const lit   = (v: number) => emitLoadLiteral(builder, v);
+  const emit  = (name: string) => builder.emitOp(op(name));
+  const jmp   = (opName: string, addr: number) => builder.emitJump(op(opName), addr);
+  const fwj   = () => builder.flushWithJump();
+
+  // Write string data into high RAM
+  builder.setLocationCounter(MSG_BASE);
+  for (const byte of MSG) builder.emitData(byte);
+  builder.emitData(MSG.length - 1);
+  builder.setLocationCounter(0);
+
+  // === SETUP: B = IO, receive d from node 200 ===
+  lit(0x15D); emit('b!'); fwj();
+  lit(UP_PORT); emit('a!');
+  emit('@');
+  lit(BAUD_ADDR); emit('a!'); emit('!+'); fwj();
+
+  // === MAIN LOOP: wait for trigger, send string ===
+  const mainLoop = builder.getLocationCounter();
+  lit(UP_PORT); emit('a!'); emit('@'); emit('drop'); fwj();
+
+  lit(MSG_LEN_ADDR); emit('a!'); emit('@'); emit('push'); fwj(); // R = length-1
+  lit(MSG_BASE); emit('a!'); fwj();
+
+  const strLoop = builder.getLocationCounter();
+  emit('@+');
+  builder.addForwardRef('__hellotxtx_emit8');
+  jmp('call', 0);
+  emit('drop'); fwj();
+  jmp('next', strLoop);
+  jmp('jump', mainLoop);
+
+  // === EMIT8: start(0) + 8 data bits LSB-first + stop(1) ===
+  builder.label('__hellotxtx_emit8');
+  lit(0); builder.addForwardRef('__hellotxtx_emit1'); jmp('call', 0);
+  lit(7); emit('push'); fwj();
+  const bitLoop = builder.getLocationCounter();
+  emit('dup'); builder.addForwardRef('__hellotxtx_emit1'); jmp('call', 0);
+  emit('2/'); fwj();
+  jmp('next', bitLoop);
+  lit(1); builder.addForwardRef('__hellotxtx_emit1'); jmp('call', 0);
+  emit('.'); builder.flush(); // ';'
+
+  // === EMIT1: (bit&1) XOR 3 → !b, then delay 2×d ===
+  builder.label('__hellotxtx_emit1');
+  lit(1); emit('and'); lit(3); emit('or'); emit('!b'); fwj();
+  lit(BAUD_ADDR); emit('a!'); emit('@'); emit('push'); fwj();
+  emit('.'); emit('.'); emit('.');
+  emit('unext');
+  emit('@'); emit('push'); fwj();
+  emit('.'); emit('.'); emit('.');
+  emit('unext');
+  builder.flush(); // ';'
+
+  const txRefErrors: Array<{ message: string }> = [];
+  builder.resolveForwardRefs(txRefErrors, 'hellotx_tx');
+  return true;
+}
+
+// ---- pf_rx{}: node 200 — polyForth-style auto-baud async serial RX ----
+//
+// Architecture mirrors polyForth pFDISK.blk block 1996.
+// Auto-bauds from first received byte, then relays each byte UP to node 100.
+//
+// F18A conditional branch idiom: '-if' at slot 0 is the only safe encoding.
+// When '-if' does NOT branch, slot 1 contains ';' (from addr bits 12:8=0 for
+// small RAM addresses). This ';' pops R and jumps — it is INTENTIONAL as the
+// subroutine return. Every loop that exits to sequential code MUST use 'call'
+// so that R holds the correct return address when '-if' falls through.
+//
+// waitHigh sub: @b|-if(top) — loops while LOW (bit17=0→branch), returns via ';' when HIGH.
+// waitLow sub:  @b|-|-if(top) — loops while HIGH (bit17=0 after NOT→branch), returns via ';' when LOW.
+// cntSub: counts iterations while LOW using @b|-if(cntBody) with counter in S.
+//   '-if' with raw @b (no NOT): branches when bit17=0 (LOW=loop), falls-through when HIGH (done).
+//
+// Bit accumulation: acc = (acc>>1) or @b, repeated 8×.
+//   After >>10 + &0xFF, noise bits 0–16 are fully shifted out.
+//   pin17 of @b contributes to bit 7 of the final byte.
+//
+// RAM: BAUD_D=0x3E (half-period), BAUD15=0x3D (1.5× period for entry delay).
+// Word budget: 64 max.
+
+function emitPfRx(builder: CodeBuilder): boolean {
+  const UP_PORT = 0x145;
+  const BAUD_D  = 0x3E;
+  const BAUD15  = 0x3D;
+
+  const op  = (name: string) => OPCODE_MAP.get(name)!;
+  const lit  = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp  = (o: string, a: number) => builder.emitJump(op(o), a);
+  const fwj  = () => builder.flushWithJump();
+
+  // ── Setup ────────────────────────────────────────────────────────────────
+  // Load 0x3FFFF into IO register via !b.  B=0x15D (IO port) at reset.
+  // The waitHigh subroutine body immediately follows the initial lit so we
+  // fold !b into the first iteration of waitHigh (saves 1 word).
+  lit(0x3FFFF);
+
+  // ── call waitHigh (initial idle wait) ───────────────────────────────────
+  // addForwardRef records this call word so resolveForwardRefs patches the
+  // 13-bit addr field to the waitHigh subroutine entry point.
+  builder.addForwardRef('__pfrx_wH');
+  jmp('call', 0);                   // addr patched to wH label below
+
+  // ── call waitLow (start-bit detection) ──────────────────────────────────
+  builder.addForwardRef('__pfrx_wL');
+  jmp('call', 0);                   // addr patched to wL label below
+
+  // ── Auto-baud counter ───────────────────────────────────────────────────
+  // Push initial counter=0, call cntSub.
+  // Returns: T=last IO value (HIGH), S=count. Caller drops T → T=count=d.
+  lit(0); fwj();
+  builder.addForwardRef('__pfrx_cnt');
+  jmp('call', 0);
+  emit('drop'); fwj();              // drop last IO val → T = count = d
+
+  // ── Store d and 1.5d timing constants ──────────────────────────────────
+  emit('dup'); lit(BAUD_D); emit('a!'); emit('!'); fwj();
+  emit('dup'); emit('2/'); fwj();
+  emit('+');
+  lit(BAUD15); emit('a!'); emit('!'); fwj();
+
+  // ── Send d to node 100 for TX calibration ──────────────────────────────
+  lit(BAUD_D); emit('a!'); emit('@'); fwj();
+  lit(UP_PORT); emit('a!'); emit('!'); fwj();
+
+  // ── Main receive loop ────────────────────────────────────────────────────
+  const mainLoopAddr = builder.getLocationCounter();
+  builder.addForwardRef('__pfrx_wL');   // re-use same waitLow sub
+  jmp('call', 0);
+
+  // Entry delay: 1.5 baud periods to centre on bit 0.
+  lit(BAUD15); emit('a!'); emit('@'); fwj();
+  emit('push'); fwj();
+  emit('.'); emit('.'); emit('.'); emit('unext');
+
+  // Receive 8 bits: acc = (acc >> 1) | @b, 8 times.
+  lit(0); fwj();
+  lit(7); emit('push'); fwj();
+  const bitAddr = builder.getLocationCounter();
+  emit('2/'); emit('@b'); fwj();
+  emit('or');
+  builder.addForwardRef('__pfrx_dly');
+  jmp('call', bitAddr);             // full-period delay
+  jmp('next', bitAddr);
+
+  // Extract byte: 10× 2/ then mask.
+  emit('2/'); emit('2/'); fwj();
+  emit('2/'); emit('2/'); fwj();
+  emit('2/'); emit('2/'); fwj();
+  emit('2/'); emit('2/'); fwj();
+  emit('2/'); emit('2/'); fwj();
+  lit(0xFF); emit('and'); fwj();
+
+  // Send byte to node 100, loop.
+  lit(UP_PORT); emit('a!'); emit('!'); fwj();
+  jmp('jump', mainLoopAddr);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Subroutines (placed after main code; reached via forward-ref 'call').
+  // Each uses the F18A idiom: '-if' at slot 0.  When NOT branching, slot 1
+  // decodes as ';' (bits 12:8 of the small target addr = 0), which pops R
+  // and returns to the caller.  This is INTENTIONAL.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── waitHigh: loops while pin17=LOW, returns via ';' when HIGH ───────────
+  // First word also does '!b' (writes IO=0x3FFFF on every pass — harmless).
+  // '-if' with raw @b: bit17=0(LOW)→branch; bit17=1(HIGH)→';'→return.
+  builder.label('__pfrx_wH');
+  emit('!b'); emit('@b'); fwj();    // !b|@b|jump(next word)
+  jmp('-if', builder.getLabel('__pfrx_wH')!);   // at slot0; fall-through=';'=return
+
+  // ── waitLow: loops while pin17=HIGH, returns via ';' when LOW ────────────
+  // '@b -' (NOT): HIGH→bit17=0→branch(loop); LOW→bit17=1→';'→return.
+  builder.label('__pfrx_wL');
+  emit('@b'); emit('-'); fwj();     // @b|-|jump(next word)
+  jmp('-if', builder.getLabel('__pfrx_wL')!);   // at slot0; fall-through=';'=return
+
+  // ── cntSub: counts while LOW, returns (via ';') when HIGH ───────────────
+  // Entry: T=counter (0). @b pushes IO → T=IO, S=counter.
+  // '-if' with raw @b: LOW(bit17=0)→branch to cntBody; HIGH(bit17=1)→';'→return.
+  // On return: T=IO, S=count. Caller does 'drop' → T=count=d.
+  // cntBody: drop IO → T=count; count++; loop.
+  builder.label('__pfrx_cnt');
+  emit('@b'); fwj();                // push IO
+  builder.addForwardRef('__pfrx_cntBody');
+  jmp('-if', 0);                    // at slot0: LOW→cntBody; HIGH→';'→return
+  // cntBody:
+  builder.label('__pfrx_cntBody');
+  emit('drop'); fwj();              // drop IO → T=count
+  lit(1); emit('+'); fwj();        // count++
+  jmp('jump', builder.getLabel('__pfrx_cnt')!);  // loop
+
+  // ── delay sub: spins 2×BAUD_D steps, then returns ───────────────────────
+  // 'next' at slot0 with small address: when R=0, slot1 bits = (addr>>8)&31 = 0 = ';'
+  // This gives the subroutine return implicitly — no explicit ';' word needed.
+  builder.label('__pfrx_dly');
+  lit(BAUD_D); emit('a!'); emit('@'); fwj();
+  emit('dup'); emit('+'); fwj();   // T = 2d
+  emit('push'); fwj();             // push to R as loop counter
+  const dlyLoop = builder.getLocationCounter();
+  jmp('next', dlyLoop);            // loops; on exit, slot1=';' returns to caller
+
+  builder.resolveForwardRefs([], 'pf_rx');
+  return true;
+}
+
+// ---- pf_tx{}: node 100 — polyForth-style bit-bang async serial TX ----
+//
+// Branchless bit output — avoids 'if'/'then' whose fall-through on F18A
+// aliases small addresses as ';' (return) in slot1, crashing the node.
+//
+// Strategy: MARK=0x25555, SPACE=0x35555 differ only at bit16.
+//   output = MARK XOR (bit << 16)  where bit = 0 or 1 (F18A 'or' = XOR).
+//   Shift 'bit' left 16 places via a call to doShift16 (inner unext loop).
+//
+// F18A jump bit-width rule:
+//   Slot 0 = 13-bit addr, Slot 1 = 8-bit addr, Slot 2 = 3-bit addr.
+//   CRITICAL: never pack two ops followed by fwj() when the continuation
+//   address > 7 — the slot-2 jump only encodes 3 bits and silently
+//   corrupts the target.  Safe rule: at most 1 non-literal op per word.
+//
+// putchar (char_inv --):  char_inv = char XOR 0xFF  (pre-inverted in data)
+//   frame = char_inv << 1       ; start bit = 0 at bit0
+//   A = BAUD_D RAM addr (for delay reads throughout)
+//   R = 9 (10 iterations: start + 8 data + stop)
+//   bitloop:
+//     dup                         ; T=frame, S=frame
+//     lit(1) and                  ; T=bit(0|1), S=frame
+//     call(doShift16)             ; T=bit<<16, S=frame
+//     lit(MARK) or !b             ; XOR: MARK^0=MARK  MARK^0x10000=SPACE
+//     2/                          ; next bit
+//     @ push [. . . unext]        ; delay d iterations
+//   next(bitloop)
+//   drop ; (return)
+//
+// doShift16: ( bit -- bit<<16 )
+//   lit(15) push                  ; R=15
+//   [2* . . unext]                ; 16× 2*  (unext in slot3 is valid)
+//   ; (return)                    ; R restored by unext's rPop = P_ret from call
+//
+// RAM layout (MSG pre-inverted — no runtime XOR needed):
+//   0x30 = MSG_BASE  : "HELLO" XOR 0xFF each byte (5 bytes)
+//   0x35             : MSG.length-1 = 4  (for outer string next-loop)
+//   0x3E = BAUD_D    : d (written at runtime by setup)
+//
+// Code layout (48 words, data starts at 0x30 = 48):
+//   0x00–0x05 : setup        (6 words)  — slot-2 jumps OK: targets 3,6 ≤ 7
+//   0x06–0x10 : main loop    (11 words)
+//   0x11–0x13 : string loop  (3 words)
+//   0x14–0x1A : putchar      (7 words)
+//   0x1B–0x2A : bit loop     (16 words)
+//   0x2B–0x2F : doShift16    (5 words)
+
+function emitPfTx(builder: CodeBuilder): boolean {
+  // Pre-invert message bytes: putchar receives char XOR 0xFF (avoids runtime XOR).
+  const MSG_RAW  = [72, 69, 76, 76, 79]; // "HELLO"
+  const MSG      = MSG_RAW.map(b => (b ^ 0xFF) & 0xFF);
+  const MSG_BASE = 0x33;  // moved up: code now uses 51 words (0-50)
+  const BAUD_D   = 0x3E;
+  const UP_PORT  = 0x145;
+  const MARK     = 0x25555;
+
+  const op   = (name: string) => OPCODE_MAP.get(name)!;
+  const lit  = (v: number) => emitLoadLiteral(builder, v);
+  const emit = (name: string) => builder.emitOp(op(name));
+  const jmp  = (o: string, a: number) => builder.emitJump(op(o), a);
+  const fwj  = () => builder.flushWithJump();
+
+  // ── Data: write pre-inverted string + length into high RAM ────────────
+  builder.setLocationCounter(MSG_BASE);
+  for (const b of MSG) builder.emitData(b);
+  builder.emitData(MSG.length - 1);   // length-1 for 'next' loop (at 0x38)
+  builder.setLocationCounter(0);
+
+  // ── Setup (words 0–5): receive d from UP port, store at BAUD_D ──────────
+  lit(UP_PORT); emit('a!'); emit('@'); fwj(); // [0,1,2]: a!|@|jump(3)
+  lit(BAUD_D);  emit('a!'); emit('!+'); fwj(); // [3,4,5]: a!|!+|jump(6)
+
+  // ── Main loop (words 6–16) ─────────────────────────────────────────
+  const mainLoopAddr = builder.getLocationCounter(); // = 6
+  lit(UP_PORT); emit('a!'); fwj();            // [6,7,8]   A = UP port
+  emit('@'); fwj();                           // [9]       blocking read → trigger byte
+  emit('drop'); fwj();                        // [10]      discard
+  lit(MSG_BASE); emit('a!'); fwj();           // [11,12,13] A = string base
+  lit(MSG.length - 1); emit('push'); fwj();   // [14,15,16] R = 4 (string loop counter)
+
+  // ── String loop (words 17–22): save/restore A across putchar ────────
+  // Putchar uses A for baud-delay reads, corrupting the string pointer.
+  // Save A (string ptr) on the return stack before calling putchar,
+  // restore it afterward using pop + a!.
+  //
+  // Stack trace:
+  //   @+ : T=char_inv, A=ptr+1
+  //   a  : T=ptr+1, S=char_inv
+  //   push: rPush(ptr+1); T=char_inv.  R=ptr+1, rstack=[..,loop_ctr]
+  //   call(pc): rPush(P); P=pc.  R=ret_addr, rstack=[..,loop_ctr,ptr+1]
+  //   ... putchar transmits char ...
+  //   (return via ;): P=R=ret_addr, rPop: R=ptr+1, rstack=[..,loop_ctr]
+  //   pop : T=ptr+1, rPop: R=loop_ctr
+  //   a!  : A=ptr+1 (restored)
+  //   next: loop back
+  const strLoopAddr = builder.getLocationCounter(); // = 17
+  emit('@+'); fwj();                                    // [17] read char, A=ptr+1
+  emit('a'); emit('push'); fwj();                       // [18] save A to rstack
+  builder.addForwardRef('__pftx_pc'); jmp('call', 0);   // [19] call putchar
+  emit('pop'); emit('a!'); fwj();                       // [20] restore A from rstack
+  jmp('next', strLoopAddr);                              // [21]
+  jmp('jump', mainLoopAddr);                             // [22]
+
+  // ── putchar (words 23–29): transmit 8N1 frame branchlessly ──────────
+  builder.label('__pftx_pc');
+  emit('2*'); fwj();                               // [23] frame = char_inv << 1
+  lit(BAUD_D); emit('a!'); fwj();                  // [24,25,26] A = BAUD_D addr
+  lit(9); emit('push'); fwj();                     // [27,28,29] R = 9 (10-bit loop)
+
+  // ── Bit loop (words 30–45) ─────────────────────────────────────────
+  const bitLoopAddr = builder.getLocationCounter(); // = 30
+  emit('dup'); fwj();                               // [30]    T=S=frame
+  lit(1); emit('and'); fwj();                       // [31,32,33] T=bit(0|1), S=frame
+  builder.addForwardRef('__pftx_ds16'); jmp('call', 0); // [34] call(doShift16)
+  lit(MARK); emit('or'); fwj();                     // [35,36,37] T = MARK ^ (bit<<16)
+  emit('!b'); fwj();                                // [38]    write MARK or SPACE to IO
+  emit('2/'); fwj();                                // [39]    shift frame right (next bit)
+  emit('@'); emit('2*'); fwj();                     // [40]    T = 2d (scaled for unext timing)
+  emit('push'); fwj();                              // [41]    R = 2d
+  emit('.'); emit('.'); emit('.'); emit('unext');    // [42]    spin 2d iters (delay)
+  jmp('next', bitLoopAddr);                         // [43]
+  emit('drop'); fwj();                              // [44]    pop frame
+  emit(';'); builder.flush();                       // [45]    return to string loop
+
+  // ── doShift16 (words 46–50): ( bit -- bit<<16 ) ───────────────────
+  builder.label('__pftx_ds16');
+  lit(15); emit('push'); fwj();                     // [46,47,48] R = 15 (16 iters)
+  emit('2*'); emit('.'); emit('.'); emit('unext');   // [49]  2*|.|.|unext (1 word)
+  emit(';'); builder.flush();                       // [50]  return
+
+  // Code ends at word 50.  Data lives at MSG_BASE (0x33) through 0x38.
+  // Advance LC past the data so the emitter's halt-loop doesn't overwrite it.
+  builder.resolveForwardRefs([], 'pf_tx');
+  builder.setLocationCounter(MSG_BASE + MSG.length + 1);  // past data
   return true;
 }

@@ -110,7 +110,7 @@ export function useEmulator() {
       setCubeCompileResult(result.errors.length === 0 ? result : null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        ga144.load(result);
+        ga144.loadViaBootStream(result);
         if (options?.download) {
           setBootStreamBytes(buildBootStream(result.nodes).bytes);
         }
@@ -121,7 +121,7 @@ export function useEmulator() {
       setCubeCompileResult(null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        ga144.load(result);
+        ga144.loadViaBootStream(result);
         if (options?.download) {
           setBootStreamBytes(buildBootStream(result.nodes).bytes);
         }

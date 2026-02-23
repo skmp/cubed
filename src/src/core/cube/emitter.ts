@@ -2,7 +2,7 @@
  * CUBE code emitter.
  * Generates F18A machine code from a resolved CUBE program.
  */
-import { OPCODE_MAP } from '../constants';
+import { OPCODE_MAP, PORT } from '../constants';
 import { CodeBuilder } from '../codegen/builder';
 import { SymbolKind } from './resolver';
 import type { ResolvedProgram, ResolvedSymbol } from './resolver';
@@ -72,13 +72,17 @@ export function emitCode(
 
   emitConjunction(ctx, resolved.program.conjunction);
 
-  // End with a self-jump (infinite halt loop).
+  // End with a self-jump (infinite halt loop) unless the code already ends
+  // with an unconditional jump (e.g. subroutine-based builtins like pf_rx
+  // that have their own infinite loop and never fall through).
   // Using ';' would set P = R (initial 0x15555 = port space), causing the
   // node to run garbage instructions that generate spurious IO writes.
   // Use flushWithJump to avoid slot 3 ';' in the flushed word.
-  builder.flushWithJump();
-  const haltAddr = builder.getLocationCounter();
-  builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
+  if (!builder.endsWithJump()) {
+    builder.flushWithJump();
+    const haltAddr = builder.getLocationCounter();
+    builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
+  }
 
   // Resolve any forward references
   const refErrors: Array<{ message: string }> = [];
@@ -115,6 +119,7 @@ export function emitCode(
       coord: plan.nodeCoord,
       mem,
       len,
+      b: PORT.IO,  // Ensure boot descriptors restore B=0x15D (IO register)
       symbols,
     }],
     errors: ctx.errors,

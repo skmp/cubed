@@ -1,0 +1,33 @@
+-- HELLO2: "Hello World" via Port B (two-node bit-bang, no serial ROM)
+--
+-- Node 200 (pin17 ← Port B RX): waits for any input byte, measures
+-- baud rate from the start bit, receives the byte, relays it to node 100.
+--
+-- Node 100 (pin17 → Port B TX): on startup receives the measured baud
+-- period from node 200, then for each trigger sends "HELLO WORLD\r\n".
+--
+-- Both nodes communicate via their shared UP port (0x145).
+-- No serial ROM used — fully bit-banged on both sides.
+-- Auto-bauds from the first incoming byte's start bit.
+--
+-- Load to Host chip via HOST LOAD (Port B = Host nodes 100/200).
+
+-- ============================================================
+-- RX NODE (node 200 — one-wire boot node, pin17 ← Port B RX)
+-- ============================================================
+
+node 200
+
+/\
+
+hellotx_rx{}
+
+-- ============================================================
+-- TX NODE (node 100 — basic node, pin17 → Port B TX)
+-- ============================================================
+
+node 100
+
+/\
+
+hellotx_tx{}

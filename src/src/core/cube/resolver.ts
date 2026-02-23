@@ -74,8 +74,14 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   delay:    ['n'],                      // burn n cycles in a tight loop (no IO)
   // Shor's algorithm
   shor15:   ['noise_port', 'out_port'], // real Shor's factoring of N=15 (infinite loop)
-  // Async serial TX
-  asynctx:  ['port', 'count'],          // bit-bang async serial TX of 18-bit words
+  // Async serial TX / RX
+  asynctx:     ['port', 'count'],       // bit-bang async serial TX of 18-bit words
+  asyncecho8:  [],                      // async serial byte echo (RX then TX, loops forever)
+  hellotx:     [],                      // wait for any input byte, send "HELLO WORLD\r\n", loop
+  hellotx_rx:  [],                      // node 200: bit-bang RX on pin17, relay byte to node 100
+  hellotx_tx:  [],                      // node 100: receive trigger, TX "HELLO WORLD\r\n" on pin17
+  pf_rx:       [],                      // node 200: polyForth-style auto-baud RX, relay UP
+  pf_tx:       [],                      // node 100: polyForth-style putchar TX, "HELLO WORLD\r\n"
 };
 
 // F18A opcode names mapped to clean identifiers

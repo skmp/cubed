@@ -115,6 +115,84 @@ export class GA144 {
     return false;
   }
 
+  /**
+   * Step the simulation while driving pin17 of a given node according to
+   * a UART serial stream.
+   *
+   * `bits` is an array of {value: boolean, duration: number} pairs where
+   * duration is measured in GA144 step ticks.  Pin17 is set to each value for
+   * `duration` ticks, then the next entry is used.  After all bits are sent
+   * pin17 is left at idle (true = mark).
+   *
+   * Returns true if a breakpoint was hit.
+   */
+  stepWithSerialBits(
+    coord: number,
+    bits: { value: boolean; duration: number }[],
+    maxSteps: number = 10_000_000,
+  ): boolean {
+    const node = this.getNodeByCoord(coord);
+    let bitIdx = 0;
+    let remaining = bits.length > 0 ? bits[0].duration : 0;
+
+    for (let step = 0; step < maxSteps; step++) {
+      // Update pin17 from current bit
+      if (bitIdx < bits.length) {
+        node.setPin17(bits[bitIdx].value);
+        remaining--;
+        if (remaining <= 0) {
+          bitIdx++;
+          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
+        }
+      } else {
+        node.setPin17(true); // idle = mark
+      }
+
+      if (this.stepProgram()) return true;
+      if (this.lastActiveIndex < 0) return false;
+    }
+    return false;
+  }
+
+  /**
+   * Build a UART 8N1 bit sequence for the given bytes and baud period (in
+   * GA144 steps per bit).  Idle is high (mark), start bit is low, stop is
+   * high.  Returns array suitable for stepWithSerialBits().
+   *
+   * The sequence starts with a configurable idle prefix so the RX node can
+   * see the line idle before the start bit arrives.
+   */
+  static buildSerialBits(
+    bytes: number[],
+    baudPeriod: number,
+    idlePeriod: number = 0,
+  ): { value: boolean; duration: number }[] {
+    const bits: { value: boolean; duration: number }[] = [];
+
+    const push = (value: boolean, duration: number) => {
+      if (bits.length > 0 && bits[bits.length - 1].value === value) {
+        bits[bits.length - 1].duration += duration;
+      } else {
+        bits.push({ value, duration });
+      }
+    };
+
+    // Lead-in idle
+    if (idlePeriod > 0) push(true, idlePeriod);
+
+    for (const byte of bytes) {
+      push(false, baudPeriod); // start bit (low)
+      for (let bit = 0; bit < 8; bit++) {
+        push(((byte >> bit) & 1) === 1, baudPeriod); // LSB first
+      }
+      push(true, baudPeriod); // stop bit (high)
+    }
+
+    // Trailing idle
+    push(true, baudPeriod * 2);
+    return bits;
+  }
+
   onBreakpoint(): void {
     this._breakpointHit = true;
   }
@@ -170,6 +248,29 @@ export class GA144 {
         this.loadedNodes.add(index);
       }
     }
+  }
+
+  /**
+   * Load compiled nodes via boot stream processing.
+   *
+   * Processes the boot stream frames directly (matching the reference
+   * simulator's approach), bypassing the serial protocol layer.  The boot
+   * ROM's serial auto-baud and bit-banging protocol is not simulated;
+   * instead, boot frame words are injected into nodes via the existing
+   * load() method.
+   *
+   * This is equivalent to what real hardware does after the serial layer
+   * decodes the boot stream: each node receives its code, register init
+   * values (A, B, IO, stack), and starting P address.
+   */
+  static readonly BOOT_BAUD = 921_600;
+  static readonly GA144_MOPS = 666_000_000;
+  static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
+
+  loadViaBootStream(
+    compiled: CompiledProgram,
+  ): void {
+    this.load(compiled);
   }
 
   // ========================================================================

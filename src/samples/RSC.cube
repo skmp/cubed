@@ -1,11 +1,11 @@
--- RSB: Runtime Shor's Algorithm — Serial Boot Output via Node 708
+-- RSC: Runtime Shor's Algorithm — Serial Boot Output via Node 708
 -- Like RSA but the Shor's computation runs near node 708 (the GA144
 -- async boot node) so its results can be transmitted directly over the
 -- async serial pin using the standard boot-wire protocol.
 --
 -- Node 708 uses asynctx{} — a bit-bang async serial TX builtin that
 -- implements the emit1/emit8 protocol from rom-dump-bootstream.rkt:
---   emit1(bit): (bit & 1) XOR 3 → !b  then ~865-cycle baud delay
+--   emit1(bit): (bit & 1) XOR 3 → !b  (no baud delay in emulator)
 --   emit8(n):   start-bit(0), 8 data bits LSB-first, stop-bit(1)
 --   emit18(n):  three emit8 calls for the full 18-bit word
 -- (F18A 'or' opcode = XOR; drive-high = 0b11, drive-low = 0b10)
@@ -13,11 +13,16 @@
 -- Note: ROM ibits18 (0xcb) is RX-only; there is no TX ROM function
 -- on node 708. asynctx{} provides the equivalent TX path in RAM.
 --
+-- Port directions (LUDR):
+--   508 (odd-y=5):  north→UP=0x145 → 608
+--   608 (even-y=6): south→UP=0x145 ← 508, north→DOWN=0x115 → 708
+--   708 (odd-y=7):  south→DOWN=0x115 ← 608
+--
 -- Architecture: 7 declared nodes
 --   VGA:     117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
---   Noise:   508 (free-running counter → 608)
---   Compute: 608 (Shor's N=15, reads noise from 508, outputs to 708)
---   Serial:  708 (asynctx: reads 5 values from 608, transmits over pin)
+--   Noise:   508 (free-running counter) →[UP/0x145]→ 608
+--   Compute: 608 (Shor's N=15) →[DOWN/0x115]→ 708
+--   Serial:  708 (asynctx via DOWN/0x115)
 
 -- ============================================================
 -- RED DAC — DELTA VCO (node 117, analog)
@@ -77,9 +82,10 @@ send{port=0x15D, value=0x30000}
 -- ============================================================
 -- NOISE COUNTER (node 508 — free-running)
 -- ============================================================
--- Increments a counter and sends it south to node 608.
+-- Increments a counter and sends it north to node 608.
 -- The send blocks until 608 reads; thermal timing jitter means
 -- the counter value at each read is nondeterministic.
+-- 508 is odd-y (y=5): north→UP=0x145.
 
 node 508
 
@@ -91,35 +97,34 @@ x = 0
 
 loop{n=32767}
 /\ plus{a=x, b=1, c=x}
-/\ send{port=0x115, value=x}
+/\ send{port=0x145, value=x}
 /\ again{}
 
 -- ============================================================
 -- SHOR'S COMPUTE (node 608 — basic node)
 -- ============================================================
--- Reads noise from north (node 508 via DOWN=0x115), computes
--- Shor's factoring of N=15, sends results south to node 708.
+-- Reads noise from south (node 508 via UP=0x145), computes
+-- Shor's factoring of N=15, sends results north to node 708.
 -- 608 is even-y (y=6): south→UP=0x145, north→DOWN=0x115.
 
 node 608
 
 /\
 
-shor15{noise_port=0x115, out_port=0x145}
+shor15{noise_port=0x145, out_port=0x115}
 
 -- ============================================================
 -- ASYNC SERIAL TX (node 708 — async boot node)
 -- ============================================================
--- Reads 5 values from north (node 608 via UP=0x145) and
+-- Reads 5 values from south (node 608 via DOWN=0x115) and
 -- transmits each as an 18-bit async serial word using the
 -- boot-wire bit-bang protocol (emit1/emit8, ~865-cycle baud).
 -- B is set to IO (0x15D) for pin drive via !b.
 -- Values: N=15, a, r, p, q — sent in boot-wire frame format.
+-- 708 is odd-y (y=7): south→DOWN=0x115.
 
 node 708
 
 /\
 
-loop{n=32767}
-/\ asynctx{port=0x145, count=5}
-/\ again{}
+asynctx{port=0x115, count=5}

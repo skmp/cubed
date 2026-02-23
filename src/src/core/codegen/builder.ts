@@ -30,6 +30,7 @@ export class CodeBuilder {
   private labels: Map<string, number>;
   private forwardRefs: Array<{ name: string; wordAddr: number; slot: number }>;
   private extendedArith: number;
+  private _lastWasJump = false;
 
   constructor(memSize: number = 64) {
     this.mem = new Array(memSize).fill(null);
@@ -39,6 +40,16 @@ export class CodeBuilder {
     this.labels = new Map();
     this.forwardRefs = [];
     this.extendedArith = 0;
+  }
+
+  /**
+   * Returns true if the last emitted instruction was an unconditional jump
+   * at slot 0 (meaning there is no pending partial word and no fall-through).
+   * The emitter uses this to skip appending a halt loop after code that
+   * already ends with an infinite loop (e.g. subroutine-based builtins).
+   */
+  endsWithJump(): boolean {
+    return this._lastWasJump;
   }
 
   getLocationCounter(): number {
@@ -106,6 +117,9 @@ export class CodeBuilder {
   }
 
   emitOp(opcode: number): void {
+    if (opcode === undefined || opcode === null || isNaN(opcode)) {
+      throw new Error(`emitOp: invalid opcode ${opcode} — check OPCODE_MAP key spelling`);
+    }
     if (this.slotPointer >= 4) {
       this.flush();
     }
@@ -119,17 +133,25 @@ export class CodeBuilder {
         return;
       }
     }
+    this._lastWasJump = false;
     this.currentWord[this.slotPointer] = opcode;
     this.slotPointer++;
   }
 
   emitJump(opcode: number, addr: number): void {
-    // 'if' (6) and '-if' (7) use a conditional branch address.
-    // Slot 2 only has 3 bits (0–7), far too small for any realistic target.
-    // Flush so they land in slot 0 (13-bit) or slot 1 (8-bit) at most.
+    // 'if' (6) and '-if' (7) are conditional branches.
+    // When the branch is NOT taken, the F18A continues executing subsequent slots.
+    // The address bits alias into slots 1/2/3 of the word, which for small addresses
+    // (addr < 256) decode as ';' (opcode 0) in slot 1 — this pops R and corrupts P.
+    // Therefore, 'if'/'if' MUST always land at slot 0 to use the full 13-bit address.
+    // Even at slot 0, small addresses still decode as ';' at slot 1, but this is
+    // the INTENDED F18A idiom: the caller uses 'call' to push a return address,
+    // and the ';' at slot 1 serves as the subroutine return when the branch exits.
     const IF_OPCODE = 6, MIF_OPCODE = 7;
-    if ((opcode === IF_OPCODE || opcode === MIF_OPCODE) && this.slotPointer >= 2) {
-      this.flush();
+    if ((opcode === IF_OPCODE || opcode === MIF_OPCODE) && this.slotPointer >= 1) {
+      // Flush pending instructions so that 'if'/'if' lands at slot 0.
+      // Use flushWithJump to avoid leaving ';' (return) in slot 3 of the flush word.
+      this.flushWithJump();
     } else if (this.slotPointer >= 3) {
       this.flush();
     }
@@ -157,6 +179,11 @@ export class CodeBuilder {
     this.locationCounter++;
     this.slotPointer = 0;
     this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
+    // Track whether the last emitted instruction was any branch/jump instruction
+    // (jump, call, next, if, -if, unext). All of these consume a word and leave
+    // SP=0. The emitter uses this to skip appending a halt loop after code
+    // that already ends at a word boundary with a jump.
+    this._lastWasJump = true;
   }
 
   /**

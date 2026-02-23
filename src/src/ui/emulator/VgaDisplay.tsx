@@ -358,7 +358,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
           </>
         )}
         <Button
-          size="small"
+          size="small111"
           variant="outlined"
           onClick={handleExport}
           disabled={ioWriteCount === 0}

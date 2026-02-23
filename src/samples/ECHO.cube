@@ -1,0 +1,21 @@
+-- ECHO: Async Serial Byte Echo via Node 708
+-- Receives bytes on the async serial pin (boot-wire RX) using
+-- rom.byte (0xd0) and echoes each byte back using bit-bang TX.
+--
+-- Boot-wire encoding (GA144 async boot node 708):
+--   emit1(bit): (bit & 1) OR 3 → !b  (drive high = 3, drive low = 2)
+--   emit8(n):   start-bit(0), 8 data bits LSB-first, stop-bit(1)
+--
+-- Node 708 (odd-y=7): uses async boot ROM (rom.byte at 0xd0).
+-- B is set to IO (0x15D) for pin drive via !b.
+-- The asyncecho8{} builtin loops forever: recv byte → emit8 byte.
+
+-- ============================================================
+-- ASYNC SERIAL ECHO (node 708 — async boot node)
+-- ============================================================
+
+node 708
+
+/\
+
+asyncecho8{}

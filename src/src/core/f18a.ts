@@ -6,7 +6,7 @@ import { CircularStack } from './stack';
 import {
   MEM_SIZE, coordToIndex, indexToCoord,
   isPortAddr, regionIndex, PORT, IO_BITS, NODE_GPIO_PINS, ANALOG_NODES,
-  PortIndex,
+  BOOT_NODES, PortIndex,
 } from './constants';
 import { WORD_MASK, XOR_ENCODING, NodeState } from './types';
 import type { NodeSnapshot, PortHandler } from './types';
@@ -73,6 +73,7 @@ export class F18ANode {
   private pin17 = false;
   private WD = false;
   private notWD = true;
+  private waitingOnWakePin = false;
 
   // IO read mask
   private notIoReadMask = 0;
@@ -251,8 +252,10 @@ export class F18ANode {
       // Reading from wake pin
       if (this.pin17 === this.notWD) {
         this.fetchedData = this.pin17 ? 1 : 0;
+        this.waitingOnWakePin = false;
         return true;
       } else {
+        this.waitingOnWakePin = true;
         this.suspend();
         return false;
       }
@@ -296,17 +299,25 @@ export class F18ANode {
       }
     }
 
-    if (done) return true;
+    if (done) {
+      this.waitingOnWakePin = false;
+      return true;
+    }
 
     // Suspend waiting for any port
     this.multiportReadPorts = [];
+    let hasWakePin = false;
     for (const port of ports) {
+      if (port === this.wakePinPort && this.wakePinPort !== null) {
+        hasWakePin = true;
+      }
       const other = this.getPortNode(port);
       if (other) {
         other.receivePortRead(port, this);
         this.multiportReadPorts.push(port);
       }
     }
+    this.waitingOnWakePin = hasWakePin;
     this.currentReadingPort = ports;
     this.suspend();
     return false;
@@ -342,6 +353,7 @@ export class F18ANode {
 
   finishPortRead(val: number): void {
     this.fetchedData = val;
+    this.waitingOnWakePin = false;
     if (this.suspended) this.wakeup();
     if (this.fetchingInProgress) {
       this.finishFetch();
@@ -779,6 +791,7 @@ export class F18ANode {
     this.WD = false;
     this.notWD = true;
     this.pin17 = false;
+    this.waitingOnWakePin = false;
     this.unextJumpP = false;
     this.suspended = false;
     this.stepCount = 0;
@@ -806,9 +819,10 @@ export class F18ANode {
       this.P = start;
       return;
     }
-    // Default: use ROM "cold" or "warm" entry
-    // We'll default to 0xAA (cold) which is typical
-    this.P = 0xAA;
+    // Boot nodes (708, 705, 300, 200, 1, 701) have a "cold" entry at 0xAA.
+    // All other nodes only have "warm" at 0xA9 (0xAA is the "poly" function).
+    // Matches reference: reset-p! looks up "cold" first, falls back to "warm".
+    this.P = BOOT_NODES.includes(this.coord) ? 0xAA : 0xA9;
   }
 
   private setupPorts(): void {
@@ -1005,5 +1019,37 @@ export class F18ANode {
 
   getCoord(): number {
     return this.coord;
+  }
+
+  /** Drive pin17 high or low — used by serial input simulation.
+   *  If the node is suspended waiting on the wake pin port (single or
+   *  multiport read) and pin17 now satisfies the wake condition
+   *  (pin17 === notWD), the node is woken up with fetchedData set. */
+  setPin17(val: boolean): void {
+    this.pin17 = val;
+
+    // Check if this wakes the node from a port read on the wake pin
+    if (this.suspended && this.waitingOnWakePin && this.pin17 === this.notWD) {
+      this.fetchedData = this.pin17 ? 1 : 0;
+      this.waitingOnWakePin = false;
+      // Cancel any multiport reads before waking
+      if (this.multiportReadPorts) {
+        for (const port of this.multiportReadPorts) {
+          const other = this.getPortNode(port);
+          if (other) other.receivePortRead(port, null);
+        }
+        this.multiportReadPorts = null;
+      }
+      this.currentReadingPort = null;
+      this.wakeup();
+      if (this.fetchingInProgress) {
+        this.finishFetch();
+      }
+    }
+  }
+
+  /** Read current pin17 state. */
+  getPin17(): boolean {
+    return this.pin17;
   }
 }
