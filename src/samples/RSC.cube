@@ -1,7 +1,7 @@
--- RSC: Runtime Shor's Algorithm — Serial Boot Output via Node 708
+-- RSC: Runtime Shor's Algorithm — Continuous Serial Output via Node 708
 -- Like RSA but the Shor's computation runs near node 708 (the GA144
--- async boot node) so its results can be transmitted directly over the
--- async serial pin using the standard boot-wire protocol.
+-- async boot node) so its results can be transmitted continuously over
+-- the async serial pin using the standard boot-wire protocol.
 --
 -- Node 708 uses std.asynctx{} — a bit-bang async serial TX builtin that
 -- implements the emit1/emit8 protocol from rom-dump-bootstream.rkt:
@@ -22,7 +22,7 @@
 --   VGA:     117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
 --   Noise:   508 (free-running counter) →[UP/0x145]→ 608
 --   Compute: 608 (Shor's N=15) →[DOWN/0x115]→ 708
---   Serial:  708 (std.asynctx via DOWN/0x115)
+--   Serial:  708 (std.asynctx continuous via DOWN/0x115)
 
 -- ============================================================
 -- RED DAC — DELTA VCO (node 117, analog)
@@ -120,15 +120,15 @@ std.shor15{noise_port=0x145, out_port=0x115}
 -- ============================================================
 -- ASYNC SERIAL TX (node 708 — async boot node)
 -- ============================================================
--- Reads 5 values from south (node 608 via DOWN=0x115) and
--- transmits each as an 18-bit async serial word using the
+-- Continuously reads values from south (node 608 via DOWN=0x115)
+-- and transmits each as an 18-bit async serial word using the
 -- boot-wire bit-bang protocol (emit1/emit8, ~865-cycle baud).
 -- B is set to IO (0x15D) for pin drive via !b.
--- Values: N=15, a, r, p, q — sent in boot-wire frame format.
+-- Values arrive in groups of 5 (N=15, a, r, p, q) from shor15.
 -- 708 is odd-y (y=7): south→DOWN=0x115.
 
 node 708
 
 /\
 
-std.asynctx{port=0x115, count=5}
+std.asynctx{port=0x115}

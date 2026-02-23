@@ -1012,11 +1012,11 @@ function emitShor15(
   return true;
 }
 
-// ---- asynctx{port, count}: async serial TX of 18-bit words ----
+// ---- asynctx{port, count?}: async serial TX of 18-bit words ----
 //
-// Reads `count` 18-bit words from inter-node `port` (blocking @) and
-// transmits each as 3 async serial bytes over the IO pin (B=0x15D),
-// using the standard boot wire protocol from rom-dump-bootstream.rkt:
+// Reads 18-bit words from inter-node `port` (blocking @) and transmits
+// each as 3 async serial bytes over the IO pin (B=0x15D), using the
+// standard boot wire protocol from rom-dump-bootstream.rkt:
 //
 //   emit1(bit): (bit & 1) XOR 3 → !b   then 865-cycle delay
 //               F18A 'or' = XOR, so: bit=0 → 0b11 (drive high/idle),
@@ -1024,11 +1024,17 @@ function emitShor15(
 //   emit8(n):   start-bit(0), 8 data bits LSB-first via (dup emit1 2/), stop-bit(1)
 //   emit18(n):  3× emit8  (low byte, mid byte, high byte)
 //
+// If `count` is provided, transmits exactly `count` words per frame and
+// repeats the frame forever (original behavior).
+//
+// If `count` is omitted, transmits continuously — reads one word at a
+// time from the port and transmits it, looping forever.
+//
 // B register must be set to IO (0x15D) before use; this builtin sets it.
 // A is set to port for blocking reads; restored each outer-loop iteration.
 //
 // RAM: none. R-stack depth: max 5 (outer next, emit18 ret, emit8 ret, bit-loop next, emit1 delay).
-// Total words: ~40 (fits comfortably in 64-word node RAM).
+// Total words: ~35-40 (fits comfortably in 64-word node RAM).
 
 function emitAsyncTx(
   builder: CodeBuilder,
@@ -1037,8 +1043,8 @@ function emitAsyncTx(
   const port = args.get('port');
   const count = args.get('count');
   if (!port || port.literal === undefined) return false;
-  if (!count || count.literal === undefined) return false;
-  if (count.literal <= 0) return true;
+  // count is optional: if provided, transmit count words per frame; if omitted, continuous
+  const hasCount = count !== undefined && count.literal !== undefined && count.literal > 0;
 
   const op = (name: string) => OPCODE_MAP.get(name)!;
   const lit = (v: number) => emitLoadLiteral(builder, v);
@@ -1052,34 +1058,57 @@ function emitAsyncTx(
   emit('b!');
   fwj();
 
-  // === FRAME LOOP: reload counter and transmit count words, repeat forever ===
-  const frameLoop = builder.getLocationCounter();
-  lit(port.literal);
-  emit('a!');
-  lit(count.literal - 1);
-  emit('push');                    // R = [count-1]
-  fwj();
+  if (hasCount) {
+    // === FRAME LOOP: reload counter and transmit count words, repeat forever ===
+    const frameLoop = builder.getLocationCounter();
+    lit(port.literal);
+    emit('a!');
+    lit(count!.literal! - 1);
+    emit('push');                    // R = [count-1]
+    fwj();
 
-  // === INNER LOOP: read one word and transmit it ===
-  const outerLoop = builder.getLocationCounter();
-  emit('@');                       // T = word from port (blocking, A = port)
-  emit('dup');                     // T = value, S = value
-  // Tag data write with bit 17 (0x20000) so SerialOutput can distinguish
-  // it from serial drive bits (values 2/3). drive bits: 0<=val<=3;
-  // tagged data: val|0x20000 (always >=0x20000).
-  lit(0x20000);
-  emit('or');                      // T = value | 0x20000, S = value
-  emit('!b');                      // write tagged value to IO (B=0x15D), pop → T = value
-  fwj();
-  builder.addForwardRef('__asynctx_emit18');
-  jmp('call', 0);                  // call emit18(T) — serial TX
+    // === INNER LOOP: read one word and transmit it ===
+    const outerLoop = builder.getLocationCounter();
+    emit('@');                       // T = word from port (blocking, A = port)
+    emit('dup');                     // T = value, S = value
+    lit(0x20000);
+    emit('or');                      // T = value | 0x20000, S = value
+    emit('!b');                      // write tagged value to IO (B=0x15D), pop → T = value
+    fwj();
+    builder.addForwardRef('__asynctx_emit18');
+    jmp('call', 0);                  // call emit18(T) — serial TX
 
-  // Restore A to port (emit18 clobbers A), then loop for remaining words
-  lit(port.literal);
-  emit('a!');
-  fwj();
-  jmp('next', outerLoop);         // decrement R, loop count times
-  jmp('jump', frameLoop);         // all count words sent — repeat frame forever
+    // Restore A to port (emit18 clobbers A), then loop for remaining words
+    lit(port.literal);
+    emit('a!');
+    fwj();
+    jmp('next', outerLoop);         // decrement R, loop count times
+    jmp('jump', frameLoop);         // all count words sent — repeat frame forever
+  } else {
+    // === CONTINUOUS MODE: read and transmit one word at a time, forever ===
+    lit(port.literal);
+    emit('a!');
+    fwj();
+
+    const loop = builder.getLocationCounter();
+    emit('@');                       // T = word from port (blocking, A = port)
+    emit('dup');                     // T = value, S = value
+    // Tag data write with bit 17 (0x20000) so SerialOutput can distinguish
+    // it from serial drive bits (values 2/3). drive bits: 0<=val<=3;
+    // tagged data: val|0x20000 (always >=0x20000).
+    lit(0x20000);
+    emit('or');                      // T = value | 0x20000, S = value
+    emit('!b');                      // write tagged value to IO (B=0x15D), pop → T = value
+    fwj();
+    builder.addForwardRef('__asynctx_emit18');
+    jmp('call', 0);                  // call emit18(T) — serial TX
+
+    // Restore A to port (emit18 clobbers A), then loop forever
+    lit(port.literal);
+    emit('a!');
+    fwj();
+    jmp('jump', loop);              // repeat forever
+  }
 
   // === EMIT18: send 18-bit word T as 3 bytes ===
   // ( n -- ) clobbers T, uses R for return address + emit8/emit1 R-stack
