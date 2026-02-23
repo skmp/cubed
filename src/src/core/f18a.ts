@@ -525,16 +525,20 @@ export class F18ANode {
       case 6: // if (jump if T=0)
         if (this.T === 0) {
           this.P = addr | (this.P & mask);
-          return false;
         }
-        return true;
+        // Always return false: branch instructions consume the address bits
+        // in the rest of the word, so remaining slots must be skipped.
+        // Reference: f18a.rkt — (and (= T 0) (set! P ...) false) always returns false.
+        return false;
 
       case 7: // -if (jump if T>=0, bit 17 = 0)
         if (((this.T >> 17) & 1) === 0) {
           this.P = addr | (this.P & mask);
-          return false;
         }
-        return true;
+        // Always return false — same as 'if': the address field aliases the
+        // remaining slots, so they must never execute regardless of branch outcome.
+        // Reference: f18a.rkt — (and (not (bitwise-bit-set? T 17)) ...) always returns false.
+        return false;
 
       default:
         return true;

@@ -407,8 +407,12 @@ describe('control flow instructions', () => {
     const { ga, snap: s } = makeProgram(304, [word0], { stack: [1] });
 
     stepN(ga, 1);
-    // Should continue to next slot (not jump), slotIndex > 0
-    expect(s().slotIndex).not.toBe(0);
+    // if/−if always consume the address field, so remaining slots are skipped.
+    // Reference: f18a.rkt — (and (= T 0) ...) always returns false.
+    // P should advance to the next word (not jump to 0x05).
+    expect(s().slotIndex).toBe(0);
+    // P should NOT be at the jump target
+    expect(s().registers.P & 0x3F).not.toBe(0x06);
   });
 
   it('-if T>=0 (bit17=0) — jumps (branch taken)', () => {
@@ -426,7 +430,11 @@ describe('control flow instructions', () => {
     const { ga, snap: s } = makeProgram(304, [word0], { stack: [0x20000] });
 
     stepN(ga, 1);
-    expect(s().slotIndex).not.toBe(0);
+    // -if always consumes the address field, so remaining slots are skipped.
+    // Reference: f18a.rkt — always returns false.
+    expect(s().slotIndex).toBe(0);
+    // P should NOT be at the jump target
+    expect(s().registers.P & 0x3F).not.toBe(0x06);
   });
 
   it('if and -if do not pop T', () => {
