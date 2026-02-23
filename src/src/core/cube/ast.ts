@@ -126,6 +126,7 @@ export interface ArgBinding {
 export type Term =
   | VarTerm
   | LitTerm
+  | StringLitTerm
   | AppTerm
   | RenameTerm;
 
@@ -138,6 +139,12 @@ export interface VarTerm {
 export interface LitTerm {
   kind: 'literal';
   value: number;
+  loc: SourceLoc;
+}
+
+export interface StringLitTerm {
+  kind: 'string_literal';
+  value: string;
   loc: SourceLoc;
 }
 

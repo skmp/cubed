@@ -82,6 +82,12 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   hellotx_tx:  [],                      // node 100: receive trigger, TX "HELLO WORLD\r\n" on pin17
   pf_rx:       [],                      // node 200: polyForth-style auto-baud RX, relay UP
   pf_tx:       [],                      // node 100: polyForth-style putchar TX, "HELLO WORLD\r\n"
+  // Literal value push
+  'lit.hex18':  ['value'],             // push 18-bit literal onto T
+  'lit.hex9':   ['value'],             // push 9-bit literal onto T (validated)
+  'lit.hex8':   ['value'],             // push 8-bit literal onto T (validated)
+  'lit.ascii':  ['s'],                 // emit ASCII bytes packed into 18-bit words
+  'lit.utf8':   ['s'],                 // emit UTF-8 bytes packed into 18-bit words
 };
 
 // F18A opcode names mapped to clean identifiers
@@ -131,11 +137,16 @@ export function resolve(program: CubeProgram, targetCoord: number = 408): { reso
   }
 
   // Register F18A primitives as f18a.xxx
+  const ADDRESS_OPCODES = new Set([2, 3, 5, 6, 7]); // jump, call, next, if, -if
   for (let i = 0; i < OPCODES.length; i++) {
     const rawName = OPCODES[i];
     const cleanName = F18A_NAMES[rawName] ?? rawName;
     const fullName = `f18a.${cleanName}`;
-    symbols.set(fullName, { kind: SymbolKind.F18A_OP, name: fullName, opcode: i });
+    const sym: ResolvedSymbol = { kind: SymbolKind.F18A_OP, name: fullName, opcode: i };
+    if (ADDRESS_OPCODES.has(i)) {
+      sym.params = ['addr', 'rel']; // addr= absolute, rel= relative offset
+    }
+    symbols.set(fullName, sym);
   }
 
   // Detect target node from program (look for __node directive)
@@ -246,7 +257,7 @@ function resolveApplication(app: Application, symbols: Map<string, ResolvedSymbo
   const sym = symbols.get(app.functor);
   if (!sym) {
     errors.push({ line: app.loc.line, col: app.loc.col, message: `Undefined predicate or function: '${app.functor}'` });
-  } else if (sym.kind === SymbolKind.BUILTIN || sym.kind === SymbolKind.USER_PRED || sym.kind === SymbolKind.CONSTRUCTOR) {
+  } else if (sym.kind === SymbolKind.BUILTIN || sym.kind === SymbolKind.USER_PRED || sym.kind === SymbolKind.CONSTRUCTOR || (sym.kind === SymbolKind.F18A_OP && sym.params)) {
     // Validate argument names match parameter/field names
     if (sym.params) {
       for (const arg of app.args) {
@@ -269,6 +280,8 @@ function resolveTerm(term: Term, symbols: Map<string, ResolvedSymbol>, variables
       variables.add(term.name);
       break;
     case 'literal':
+      break;
+    case 'string_literal':
       break;
     case 'app_term': {
       const sym = symbols.get(term.functor);

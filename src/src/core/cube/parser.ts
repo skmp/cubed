@@ -18,7 +18,7 @@ import type {
   CubeProgram, Conjunction, ConjunctionItem, PredicateDef, TypeDef,
   ParamDecl, VariantDef, FieldDecl, TypeExpr,
   AtomicFormula, Application, Unification,
-  Term, VarTerm, LitTerm, AppTerm, ArgBinding,
+  Term, VarTerm, LitTerm, StringLitTerm, AppTerm, ArgBinding,
 } from './ast';
 
 export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: CompileError[] } {
@@ -418,6 +418,12 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
     if (tok.type === CubeTokenType.INT_LIT) {
       advance();
       return { kind: 'literal', value: tok.numValue!, loc: { line: tok.line, col: tok.col } };
+    }
+
+    // String literal
+    if (tok.type === CubeTokenType.STRING_LIT) {
+      advance();
+      return { kind: 'string_literal', value: tok.strValue ?? '', loc: { line: tok.line, col: tok.col } } as StringLitTerm;
     }
 
     // Port renaming: {x1'<-x1, ...}

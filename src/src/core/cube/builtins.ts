@@ -15,6 +15,7 @@ import type { VarMapping } from './varmapper';
 export interface ArgInfo {
   mapping?: VarMapping;
   literal?: number;
+  stringValue?: string;
 }
 
 /** Whether an argument is "known" (has a literal or a RAM mapping) */
@@ -157,6 +158,17 @@ export function emitBuiltin(
       return emitPfRx(builder);
     case 'pf_tx':
       return emitPfTx(builder);
+    // Literal value builtins
+    case 'lit.hex18':
+      return emitLitHex(builder, argMappings, 0x3FFFF);
+    case 'lit.hex9':
+      return emitLitHex(builder, argMappings, 0x1FF);
+    case 'lit.hex8':
+      return emitLitHex(builder, argMappings, 0xFF);
+    case 'lit.ascii':
+      return emitLitAscii(builder, argMappings);
+    case 'lit.utf8':
+      return emitLitUtf8(builder, argMappings);
     default:
       return false;
   }
@@ -1885,5 +1897,63 @@ function emitPfTx(builder: CodeBuilder): boolean {
   // Advance LC past the data so the emitter's halt-loop doesn't overwrite it.
   builder.resolveForwardRefs([], 'pf_tx');
   builder.setLocationCounter(MSG_BASE + MSG.length + 1);  // past data
+  return true;
+}
+
+// ---- lit.hex18/hex9/hex8{value=N}: push masked literal onto T ----
+
+function emitLitHex(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+  mask: number,
+): boolean {
+  const value = args.get('value');
+  if (!value || value.literal === undefined) return false;
+  builder.emitLiteral(value.literal & mask);
+  return true;
+}
+
+// ---- lit.ascii{s="..."}: emit ASCII chars packed 2-per-word onto T ----
+// Packing: word = (char[i] << 9) | char[i+1], 9 bits each.
+
+function emitLitAscii(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const s = args.get('s');
+  if (!s || s.stringValue === undefined) return false;
+  const str = s.stringValue;
+  if (str.length === 0) {
+    builder.emitLiteral(0);
+    return true;
+  }
+  for (let i = 0; i < str.length; i += 2) {
+    const c0 = str.charCodeAt(i) & 0x1FF;
+    const c1 = i + 1 < str.length ? str.charCodeAt(i + 1) & 0x1FF : 0;
+    builder.emitLiteral((c0 << 9) | c1);
+  }
+  return true;
+}
+
+// ---- lit.utf8{s="..."}: emit UTF-8 bytes packed 2-per-word onto T ----
+// Encodes string as UTF-8, then packs 2 bytes per 18-bit word (9 bits each).
+
+function emitLitUtf8(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const s = args.get('s');
+  if (!s || s.stringValue === undefined) return false;
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(s.stringValue);
+  if (bytes.length === 0) {
+    builder.emitLiteral(0);
+    return true;
+  }
+  for (let i = 0; i < bytes.length; i += 2) {
+    const b0 = bytes[i] & 0x1FF;
+    const b1 = i + 1 < bytes.length ? bytes[i + 1] & 0x1FF : 0;
+    builder.emitLiteral((b0 << 9) | b1);
+  }
   return true;
 }

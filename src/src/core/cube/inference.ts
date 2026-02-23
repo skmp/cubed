@@ -159,6 +159,31 @@ function makeBuiltinSchemes(): Map<string, TypeScheme> {
     },
   });
 
+  // lit.hex18, lit.hex9, lit.hex8: {value:Int} -> o
+  for (const name of ['lit.hex18', 'lit.hex9', 'lit.hex8']) {
+    schemes.set(name, {
+      quantified: new Set(),
+      type: {
+        kind: 'tfunc',
+        params: new Map([['value', tInt]]),
+        returnType: tProp,
+      },
+    });
+  }
+
+  // lit.ascii, lit.utf8: {s:String} -> o
+  const tString = tCon('String');
+  for (const name of ['lit.ascii', 'lit.utf8']) {
+    schemes.set(name, {
+      quantified: new Set(),
+      type: {
+        kind: 'tfunc',
+        params: new Map([['s', tString]]),
+        returnType: tProp,
+      },
+    });
+  }
+
   return schemes;
 }
 
@@ -426,6 +451,8 @@ function inferTerm(
   switch (term.kind) {
     case 'literal':
       return tInt;
+    case 'string_literal':
+      return tCon('String');
     case 'var':
       return getOrCreateVarType(term.name, env);
     case 'app_term': {

@@ -182,7 +182,13 @@ function emitApplication(ctx: EmitContext, app: Application): void {
       emitBuiltinCall(ctx, app, sym);
       break;
     case SymbolKind.F18A_OP:
-      if (sym.opcode !== undefined) ctx.builder.emitOp(sym.opcode);
+      if (sym.opcode !== undefined) {
+        if (app.args.length > 0 && sym.params && sym.params.length > 0) {
+          emitF18aAddressOp(ctx, app, sym);
+        } else {
+          ctx.builder.emitOp(sym.opcode);
+        }
+      }
       break;
     case SymbolKind.ROM_FUNC:
       if (sym.romAddr !== undefined) {
@@ -197,6 +203,33 @@ function emitApplication(ctx: EmitContext, app: Application): void {
       break;
     default:
       break;
+  }
+}
+
+// ---- F18A address opcode (jump, call, next, if, -if with addr/rel argument) ----
+
+function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymbol): void {
+  const addrArg = app.args.find(a => a.name === 'addr');
+  const relArg = app.args.find(a => a.name === 'rel');
+
+  let targetAddr: number | undefined;
+
+  if (addrArg && addrArg.value.kind === 'literal') {
+    targetAddr = addrArg.value.value;
+  } else if (relArg && relArg.value.kind === 'literal') {
+    // Relative: flush to get accurate location counter, then add offset
+    ctx.builder.flushWithJump();
+    targetAddr = ctx.builder.getLocationCounter() + relArg.value.value;
+  }
+
+  if (targetAddr !== undefined) {
+    ctx.builder.emitJump(sym.opcode!, targetAddr);
+  } else {
+    ctx.errors.push({
+      line: app.loc.line,
+      col: app.loc.col,
+      message: `${app.functor} requires a literal 'addr' or 'rel' argument`,
+    });
   }
 }
 
@@ -593,10 +626,12 @@ function emitUnification(ctx: EmitContext, unif: Unification): void {
 function resolveTermValue(
   term: Term,
   varMap: VariableMap,
-): { mapping?: VarMapping; literal?: number } {
+): { mapping?: VarMapping; literal?: number; stringValue?: string } {
   switch (term.kind) {
     case 'literal':
       return { literal: term.value };
+    case 'string_literal':
+      return { stringValue: term.value };
     case 'var': {
       const mapping = varMap.vars.get(term.name);
       return mapping ? { mapping } : {};

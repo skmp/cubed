@@ -150,6 +150,8 @@ function serializeTerm(t: Term): string {
       const args = t.args.map(serializeArgBinding).join(', ');
       return `${t.functor}{${args}}`;
     }
+    case 'string_literal':
+      return `"${t.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')}"`;
     case 'rename': {
       const mappings = t.mappings.map(m => `${m.to}<-${m.from}`).join(', ');
       return `{${mappings}}`;

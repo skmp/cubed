@@ -24,7 +24,8 @@ export const CubeTokenType = {
   PLUS: 16,        // + (type sum)
   RENAME_ARROW: 17,// <-
   NODE: 18,        // node (directive)
-  EOF: 19,
+  STRING_LIT: 19,  // "string literal"
+  EOF: 20,
 } as const;
 export type CubeTokenType = typeof CubeTokenType[keyof typeof CubeTokenType];
 
@@ -32,6 +33,7 @@ export interface CubeToken {
   type: CubeTokenType;
   value: string;
   numValue?: number;
+  strValue?: string;
   line: number;
   col: number;
 }
@@ -142,6 +144,47 @@ export function tokenizeCube(source: string): { tokens: CubeToken[]; errors: Com
         } else {
           tokens.push({ type: CubeTokenType.IDENT, value: word, line: lineNum + 1, col: startCol + 1 });
         }
+        continue;
+      }
+
+      // String literal: "..." with backslash escapes
+      if (ch === '"') {
+        const startCol = col;
+        col++; // skip opening quote
+        let str = '';
+        let escaped = false;
+        while (col < line.length) {
+          const c = line[col];
+          if (escaped) {
+            switch (c) {
+              case 'n': str += '\n'; break;
+              case 'r': str += '\r'; break;
+              case 't': str += '\t'; break;
+              case '\\': str += '\\'; break;
+              case '"': str += '"'; break;
+              case '0': str += '\0'; break;
+              default: str += c;
+            }
+            escaped = false;
+            col++;
+          } else if (c === '\\') {
+            escaped = true;
+            col++;
+          } else if (c === '"') {
+            col++; // skip closing quote
+            break;
+          } else {
+            str += c;
+            col++;
+          }
+        }
+        tokens.push({
+          type: CubeTokenType.STRING_LIT,
+          value: `"${str}"`,
+          strValue: str,
+          line: lineNum + 1,
+          col: startCol + 1,
+        });
         continue;
       }
 
