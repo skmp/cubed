@@ -15,7 +15,7 @@ import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
 import { PORT, OPCODES } from './constants';
-import { XOR_ENCODING } from './types';
+import { disassembleRom, formatDisassembly } from './disassembler';
 
 // ============================================================
 // Constants
@@ -76,58 +76,35 @@ function allNodeSource(): string {
 
 describe('boot ROM serial simulation', () => {
 
-  it('diagnostic: trace node 708 boot ROM execution', () => {
-    // Disassemble the async boot ROM for node 708
-    const rom = ROM_DATA[708];
-    const lines: string[] = [];
-    for (let i = 0; i < rom.length; i++) {
-      const raw = rom[i];
-      const d = raw ^ XOR_ENCODING;
-      const s0 = (d >> 13) & 0x1F;
-      const s1 = (d >> 8) & 0x1F;
-      const s2 = (d >> 3) & 0x1F;
-      const s3 = (d & 0x7) << 1;
-      const BRANCH = new Set([2, 4, 5, 6, 7]);
-      const addr = 0x80 + i;
-      let line = `[0x${addr.toString(16)}]`;
-      if (BRANCH.has(s0)) {
-        line += ` ${OPCODES[s0]}(${d & 0x1FFF})`;
-      } else {
-        line += ` ${OPCODES[s0]}`;
-        if (BRANCH.has(s1)) {
-          line += ` ${OPCODES[s1]}(${d & 0xFF})`;
-        } else {
-          line += ` ${OPCODES[s1]}`;
-          if (BRANCH.has(s2)) {
-            line += ` ${OPCODES[s2]}(${d & 0x7})`;
-          } else {
-            line += ` ${OPCODES[s2]} ${OPCODES[s3]}`;
-          }
-        }
-      }
-      line += `  (raw=0x${raw.toString(16).padStart(5,'0')})`;
-      lines.push(line);
-    }
-    console.log('=== Node 708 ROM disassembly ===');
+  it('diagnostic: disassemble node 708 ROM', () => {
+    const lines = disassembleRom(708, ROM_DATA);
+    console.log('=== Node 708 ROM disassembly (proper) ===');
     for (const l of lines) console.log(l);
+  });
 
-    // Now trace execution for 50 steps
+  it('diagnostic: trace node 708 cold boot (first 200 steps)', () => {
     const source = `node 709\n/\\\nfill{value=0xAA, count=1}\n`;
     const compiled = compileCube(source);
     const boot = buildBootStream(compiled.nodes);
     const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
+
+    console.log(`Boot stream: ${boot.words.length} words, ${boot.bytes.length} bytes`);
+    console.log(`Serial bits segments: ${bits.length}`);
+    for (let i = 0; i < Math.min(bits.length, 20); i++) {
+      console.log(`  bit[${i}]: value=${bits[i].value} duration=${bits[i].duration}`);
+    }
 
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
 
     const node708 = ga.getNodeByCoord(708);
-    console.log('\n=== Node 708 execution trace (first 100 steps) ===');
-    console.log(`Initial: P=0x${ga.getSnapshot(708).selectedNode!.registers.P.toString(16)}`);
+    console.log(`\nInitial: P=0x${ga.getSnapshot(708).selectedNode!.registers.P.toString(16)}`);
 
     let bitIdx = 0;
     let remaining = bits.length > 0 ? bits[0].duration : 0;
-    for (let step = 0; step < 100; step++) {
+    let prevP = -1;
+    for (let step = 0; step < 200; step++) {
       // Drive pin17
       if (bitIdx < bits.length) {
         node708.setPin17(bits[bitIdx].value);
@@ -142,21 +119,92 @@ describe('boot ROM serial simulation', () => {
 
       const snap708 = ga.getSnapshot(708).selectedNode!;
       const pin = node708.getPin17();
+      const p = snap708.registers.P;
+      // Log every step, but annotate when P changes
+      const pChanged = p !== prevP;
+      const romWord = p >= 0x80 && p < 0xC0 ? ROM_DATA[708][p - 0x80] : null;
+      const disasm = romWord !== null ? ` [${formatDisassembly(romWord)}]` : '';
       console.log(
-        `step ${step}: P=0x${snap708.registers.P.toString(16).padStart(2,'0')} ` +
-        `iI=${snap708.slotIndex} T=0x${snap708.registers.T.toString(16)} ` +
-        `A=0x${snap708.registers.A.toString(16)} B=0x${snap708.registers.B.toString(16)} ` +
-        `R=0x${snap708.registers.R.toString(16)} IO=0x${snap708.registers.IO.toString(16)} ` +
-        `pin17=${pin} state=${snap708.state}`
+        `step ${step}: P=0x${p.toString(16).padStart(3,'0')} ` +
+        `iI=${snap708.slotIndex} T=0x${snap708.registers.T.toString(16).padStart(5,'0')} ` +
+        `S=0x${snap708.registers.S.toString(16).padStart(5,'0')} ` +
+        `A=0x${snap708.registers.A.toString(16).padStart(5,'0')} ` +
+        `B=0x${snap708.registers.B.toString(16).padStart(3,'0')} ` +
+        `R=0x${snap708.registers.R.toString(16).padStart(5,'0')} ` +
+        `IO=0x${snap708.registers.IO.toString(16).padStart(5,'0')} ` +
+        `pin17=${pin ? '1' : '0'} ${snap708.state}` +
+        (pChanged ? disasm : '')
       );
+      prevP = p;
 
       ga.stepProgram();
     }
   });
 
-  it.skip('single node (709): serial boot loads RAM and sets B=IO', () => {
+  it('single node (709): serial boot loads RAM and sets B=IO', () => {
     const source = `node 709\n/\\\nfill{value=0xAA, count=1}\n`;
-    const { ga, compiled } = bootViaSerial(source, 1_000_000);
+
+    const compiled = compileCube(source);
+    expect(compiled.errors).toHaveLength(0);
+
+    const boot = buildBootStream(compiled.nodes);
+    const bits = GA144.buildSerialBits(
+      Array.from(boot.bytes),
+      BOOT_BAUD_PERIOD,
+      IDLE_PERIOD,
+    );
+
+    console.log(`Boot stream: ${boot.words.length} words, ${boot.bytes.length} bytes`);
+    console.log(`Serial bits: ${bits.length} segments, total duration: ${bits.reduce((s,b) => s+b.duration, 0)} steps`);
+    for (let i = 0; i < Math.min(bits.length, 30); i++) {
+      console.log(`  bit[${i}]: value=${bits[i].value ? 1 : 0} duration=${bits[i].duration}`);
+    }
+
+    const ga = new GA144('test');
+    ga.setRomData(ROM_DATA);
+    ga.reset();
+
+    const node708 = ga.getNodeByCoord(708);
+
+    // Run with periodic snapshots
+    const maxSteps = 1_000_000;
+    let bitIdx = 0;
+    let remaining = bits.length > 0 ? bits[0].duration : 0;
+    const checkpoints = [100, 1000, 5000, 10000, 50000, 100000, 500000, 999999];
+
+    for (let step = 0; step < maxSteps; step++) {
+      // Drive pin17
+      if (bitIdx < bits.length) {
+        node708.setPin17(bits[bitIdx].value);
+        remaining--;
+        if (remaining <= 0) {
+          bitIdx++;
+          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
+        }
+      } else {
+        node708.setPin17(true);
+      }
+
+      if (checkpoints.includes(step)) {
+        const s708 = ga.getSnapshot(708).selectedNode!;
+        const s709 = ga.getSnapshot(709).selectedNode!;
+        console.log(
+          `[step ${step}] 708: P=0x${s708.registers.P.toString(16)} iI=${s708.slotIndex} ` +
+          `T=0x${s708.registers.T.toString(16)} state=${s708.state} ` +
+          `IO=0x${s708.registers.IO.toString(16)} pin17=${node708.getPin17() ? 1 : 0} ` +
+          `bitIdx=${bitIdx}/${bits.length}`
+        );
+        console.log(
+          `         709: P=0x${s709.registers.P.toString(16)} iI=${s709.slotIndex} ` +
+          `T=0x${s709.registers.T.toString(16)} state=${s709.state} ` +
+          `B=0x${s709.registers.B.toString(16)}`
+        );
+      }
+
+      ga.stepProgram();
+    }
+
+    console.log(`Total steps: ${ga.getTotalSteps()}`);
 
     const snap = ga.getSnapshot(709);
     expect(snap.selectedNode).toBeDefined();

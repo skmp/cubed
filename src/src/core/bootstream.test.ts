@@ -355,16 +355,16 @@ describe('buildBootStream', () => {
 describe('assembleWord + disassembler integration', () => {
   it('port-pump word 0 disassembles correctly', () => {
     // The existing disassembler uses whole-word XOR with 0x15555
-    // and << 1 for slot 3. The reference assembler uses per-slot XOR
-    // with /4 for slot 3. These should be equivalent for slots 0-2.
+    // and << 2 for slot 3. The reference assembler uses per-slot XOR
+    // with /4 for slot 3.
     const word = assembleWord('@p', 'dup', 'a!', '.');
     const dis = disassembleWord(word);
 
     expect(dis.slots[0]?.opcode).toBe('@p');
     expect(dis.slots[1]?.opcode).toBe('dup');
     expect(dis.slots[2]?.opcode).toBe('a!');
-    // Slot 3: may not round-trip perfectly due to /4 vs /2 difference
-    // but slots 0-2 should be correct
+    // Slot 3: only every-4th opcode (0,4,8,12,16,20,24,28) round-trips;
+    // '.' (nop=28) is valid in slot 3
   });
 
   it('call instruction disassembles correctly', () => {

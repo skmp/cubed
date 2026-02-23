@@ -55,44 +55,47 @@ const ASTORE = 31;   // a!
 // Test helpers
 // ============================================================================
 
+// Per-slot XOR bits for opcode encoding (matching reference xor-bits).
+// Only opcodes are XOR-encoded; addresses/data are stored raw.
+const XOR_BITS = [0b01010, 0b10101, 0b01010, 0b101];
+
 /**
- * Pack 4 opcodes into an 18-bit XOR-encoded instruction word.
- * s3 must be an even opcode 0-14 (3-bit slot: value = opcode >> 1, range 0-7).
+ * XOR-encode a single opcode in its slot position.
+ */
+function xorOp(opcode: number, slot: number, shift: number): number {
+  return ((opcode ^ XOR_BITS[slot]) << shift);
+}
+
+/**
+ * Pack 4 opcodes into an 18-bit instruction word.
+ * Opcodes are XOR-encoded per-slot; s3 must be a multiple-of-4 opcode {0,4,8,12,16,20,24,28}.
  */
 function packWord(s0: number, s1: number, s2: number, s3: number): number {
-  const raw = (s0 << 13) | (s1 << 8) | (s2 << 3) | ((s3 >> 1) & 0x7);
-  return raw ^ XOR_ENCODING;
+  return xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(s2, 2, 3) | (((s3 >> 2) ^ XOR_BITS[3]) & 0x7);
 }
 
 /**
  * Pack a jump/branch instruction word at a given slot.
- * The opcode goes in the given slot, and the address fills the remaining lower bits.
- * Unused higher slots are filled with NOP.
+ * Opcodes are XOR-encoded per-slot; address bits are stored raw (NOT XOR-encoded).
  */
 function packJump(opcode: number, addr: number, slot: number = 0): number {
-  let raw: number;
   switch (slot) {
     case 0:
-      raw = (opcode << 13) | (addr & 0x1FFF);
-      break;
+      return xorOp(opcode, 0, 13) | (addr & 0x1FFF);
     case 1:
-      raw = (NOP << 13) | (opcode << 8) | (addr & 0xFF);
-      break;
+      return xorOp(NOP, 0, 13) | xorOp(opcode, 1, 8) | (addr & 0xFF);
     case 2:
-      raw = (NOP << 13) | (NOP << 8) | (opcode << 3) | (addr & 0x7);
-      break;
+      return xorOp(NOP, 0, 13) | xorOp(NOP, 1, 8) | xorOp(opcode, 2, 3) | (addr & 0x7);
     default:
-      raw = 0;
+      return 0;
   }
-  return raw ^ XOR_ENCODING;
 }
 
 /**
  * Pack [opcode_slot0, jump_slot1 addr] — e.g. push then jump to skip slot 3.
  */
 function packOpJump(s0: number, jumpAddr: number): number {
-  const raw = (s0 << 13) | (JUMP << 8) | (jumpAddr & 0xFF);
-  return (raw ^ XOR_ENCODING) & WORD_MASK;
+  return (xorOp(s0, 0, 13) | xorOp(JUMP, 1, 8) | (jumpAddr & 0xFF)) & WORD_MASK;
 }
 
 /**
@@ -100,8 +103,7 @@ function packOpJump(s0: number, jumpAddr: number): number {
  * Returns the encoded instruction word. The literal data word follows at the next address.
  */
 function packAtpJump(jumpAddr: number): number {
-  const raw = (ATP << 13) | (JUMP << 8) | (jumpAddr & 0xFF);
-  return (raw ^ XOR_ENCODING) & WORD_MASK;
+  return (xorOp(ATP, 0, 13) | xorOp(JUMP, 1, 8) | (jumpAddr & 0xFF)) & WORD_MASK;
 }
 
 /**
@@ -168,23 +170,27 @@ function snap(ga: GA144, coord: number) {
 // ============================================================================
 
 describe('instruction word packing', () => {
-  it('packWord produces correct XOR-encoded words', () => {
-    const raw = (NOP << 13) | (NOP << 8) | (NOP << 3) | 0;
-    const expected = raw ^ XOR_ENCODING;
-    expect(packWord(NOP, NOP, NOP, RET)).toBe(expected);
+  it('packWord produces correct per-slot XOR-encoded words', () => {
+    // With per-slot XOR encoding, XOR-decoding the full word recovers opcodes
+    const word = packWord(NOP, NOP, NOP, RET);
+    const decoded = word ^ XOR_ENCODING;
+    expect((decoded >> 13) & 0x1F).toBe(NOP);
+    expect((decoded >> 8) & 0x1F).toBe(NOP);
+    expect((decoded >> 3) & 0x1F).toBe(NOP);
+    expect((decoded & 0x7) << 2).toBe(RET);
   });
 
-  it('slot 3 only accepts even opcodes 0-14', () => {
-    // Slot 3 has 3 bits → encodes value 0-7 → opcode = value << 1 → 0,2,4,6,8,10,12,14
-    // Valid: ;=0, jump=2, unext=4, if=6, @p=8, @b=10, !p=12, !b=14
-    const validSlot3 = [RET, JUMP, UNEXT, IF, ATP, ATB, STOREP, STOREB];
+  it('slot 3 only accepts multiples-of-4 opcodes 0-28', () => {
+    // Slot 3 has 3 bits → encodes value 0-7 → opcode = value << 2 → 0,4,8,12,16,20,24,28
+    // Valid: ;=0, unext=4, @p=8, !p=12, +*=16, +=20, dup=24, .=28
+    const validSlot3 = [RET, UNEXT, ATP, STOREP, MULSTEP, ADD, DUP, NOP];
     for (const op of validSlot3) {
-      expect(op % 2).toBe(0);
-      expect(op).toBeLessThanOrEqual(14);
+      expect(op % 4).toBe(0);
+      expect(op).toBeLessThanOrEqual(28);
       const word = packWord(NOP, NOP, NOP, op);
-      // Verify round-trip
+      // Verify round-trip: XOR-decode recovers opcode
       const decoded = word ^ XOR_ENCODING;
-      expect((decoded & 0x7) << 1).toBe(op);
+      expect((decoded & 0x7) << 2).toBe(op);
     }
   });
 
@@ -195,24 +201,28 @@ describe('instruction word packing', () => {
     expect((decoded >> 13) & 0x1F).toBe(s0);
     expect((decoded >> 8) & 0x1F).toBe(s1);
     expect((decoded >> 3) & 0x1F).toBe(s2);
-    expect((decoded & 0x7) << 1).toBe(s3);
+    expect((decoded & 0x7) << 2).toBe(s3);
   });
 
   it('packJump encodes address correctly for each slot', () => {
-    // Slot 0: 13-bit address in bits 12-0
-    const j0 = packJump(JUMP, 0x1234) ^ XOR_ENCODING;
-    expect((j0 >> 13) & 0x1F).toBe(JUMP);
-    expect(j0 & 0x1FFF).toBe(0x1234 & 0x1FFF);
+    // Addresses are stored raw (NOT XOR-encoded), opcodes are XOR-encoded per slot
+    // Slot 0: 10-bit address in bits 9-0 (13-bit field but only 10 used by slot 0 jumps)
+    const j0 = packJump(JUMP, 0x1234);
+    const j0dec = j0 ^ XOR_ENCODING;
+    expect((j0dec >> 13) & 0x1F).toBe(JUMP); // opcode recoverable via XOR
+    expect(j0 & 0x3FF).toBe(0x1234 & 0x3FF); // address raw in stored word
 
     // Slot 1: 8-bit address in bits 7-0
-    const j1 = packJump(CALL, 0xAB, 1) ^ XOR_ENCODING;
-    expect((j1 >> 8) & 0x1F).toBe(CALL);
-    expect(j1 & 0xFF).toBe(0xAB);
+    const j1 = packJump(CALL, 0xAB, 1);
+    const j1dec = j1 ^ XOR_ENCODING;
+    expect((j1dec >> 8) & 0x1F).toBe(CALL);
+    expect(j1 & 0xFF).toBe(0xAB); // address raw in stored word
 
     // Slot 2: 3-bit address in bits 2-0
-    const j2 = packJump(NEXT, 5, 2) ^ XOR_ENCODING;
-    expect((j2 >> 3) & 0x1F).toBe(NEXT);
-    expect(j2 & 0x7).toBe(5);
+    const j2 = packJump(NEXT, 5, 2);
+    const j2dec = j2 ^ XOR_ENCODING;
+    expect((j2dec >> 3) & 0x1F).toBe(NEXT);
+    expect(j2 & 0x7).toBe(5); // address raw in stored word
   });
 });
 

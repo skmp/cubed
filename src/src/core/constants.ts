@@ -19,7 +19,7 @@ export const OPCODE_MAP: Map<string, number> = new Map(
 // Instructions that require an address field
 export const ADDRESS_REQUIRED = new Set(['jump', 'call', 'next', 'if', '-if']);
 
-// Instructions valid in slot 3 (3-bit encoding, value << 1 gives 5-bit opcode)
+// Instructions valid in slot 3 (3-bit encoding, value << 2 gives 5-bit opcode: 0,4,8,12,16,20,24,28)
 export const LAST_SLOT_INSTRUCTIONS = new Set([';', 'unext', '@p', '!p', '+*', '+', 'dup', '.']);
 
 // Instructions that consume the rest of the word

@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
 import {
-  WORD_MASK, XOR_ENCODING, NodeState,
+  WORD_MASK, NodeState,
 } from './types';
 import {
   PORT, IO_BITS,
@@ -29,6 +29,7 @@ import {
 const RET   = 0;   // ;
 const JUMP  = 2;   // jump
 const NEXT  = 5;   // next
+const ATP   = 8;   // @p
 const ATB   = 10;  // @b
 const AT    = 11;  // @
 const STOREB = 14; // !b
@@ -42,32 +43,33 @@ const ASTORE = 31; // a!
 // Test helpers
 // ============================================================================
 
+// Per-slot XOR bits for opcode encoding (matching reference xor-bits).
+const XOR_BITS = [0b01010, 0b10101, 0b01010, 0b101];
+function xorOp(opcode: number, slot: number, shift: number): number {
+  return ((opcode ^ XOR_BITS[slot]) << shift);
+}
+
 /**
- * Pack 4 opcodes into an 18-bit XOR-encoded instruction word.
- * WARNING: Slot 3 can only encode even opcodes 0-14. NOP (28) in slot 3
- * silently becomes !p (12). Use packOpJump instead when possible.
+ * Pack 4 opcodes into an 18-bit instruction word.
+ * Slot 3 can encode opcodes that are multiples of 4: {0,4,8,12,16,20,24,28}.
  */
 function packWord(s0: number, s1: number, s2: number, s3: number): number {
-  const raw = (s0 << 13) | (s1 << 8) | (s2 << 3) | ((s3 >> 1) & 0x7);
-  return raw ^ XOR_ENCODING;
+  return xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(s2, 2, 3) | (((s3 >> 2) ^ XOR_BITS[3]) & 0x7);
 }
 
 /** Pack a jump/branch instruction at a given slot. */
 function packJump(opcode: number, addr: number, slot: number = 0): number {
-  let raw: number;
   switch (slot) {
-    case 0: raw = (opcode << 13) | (addr & 0x1FFF); break;
-    case 1: raw = (NOP << 13) | (opcode << 8) | (addr & 0xFF); break;
-    case 2: raw = (NOP << 13) | (NOP << 8) | (opcode << 3) | (addr & 0x7); break;
-    default: raw = 0;
+    case 0: return xorOp(opcode, 0, 13) | (addr & 0x1FFF);
+    case 1: return xorOp(NOP, 0, 13) | xorOp(opcode, 1, 8) | (addr & 0xFF);
+    case 2: return xorOp(NOP, 0, 13) | xorOp(NOP, 1, 8) | xorOp(opcode, 2, 3) | (addr & 0x7);
+    default: return 0;
   }
-  return raw ^ XOR_ENCODING;
 }
 
 /** Pack [opcode_slot0, jump_slot1 addr]. */
 function packOpJump(s0: number, jumpAddr: number): number {
-  const raw = (s0 << 13) | (JUMP << 8) | (jumpAddr & 0xFF);
-  return (raw ^ XOR_ENCODING) & WORD_MASK;
+  return (xorOp(s0, 0, 13) | xorOp(JUMP, 1, 8) | (jumpAddr & 0xFF)) & WORD_MASK;
 }
 
 /** Get snapshot of a specific node. */
@@ -527,8 +529,6 @@ describe('wake chain', () => {
     // word3: a!|jump(4)  — set A=westPort
     // word4: !|.|.|.     — write T to west, then NOPs (NO loop)
     // word5: .|jump(5)   — NOP loop (B stops writing)
-    const bWord1Raw = (8 << 13) | (JUMP << 8) | (3 & 0xFF); // @p|jump(3)
-
     ga.load({
       nodes: [
         {
@@ -542,7 +542,7 @@ describe('wake chain', () => {
           coord: 304,
           mem: buildMem([
             packOpJump(AT, 1),                        // word0: @|jump(1)
-            (bWord1Raw ^ XOR_ENCODING) & WORD_MASK,   // word1: @p|jump(3)
+            packOpJump(ATP, 3),                       // word1: @p|jump(3)
             bWest,                                     // word2: literal
             packOpJump(ASTORE, 4),                     // word3: a!|jump(4)
             packOpJump(STORE, 5),                      // word4: !|jump(5) single write

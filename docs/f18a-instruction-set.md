@@ -73,18 +73,18 @@ Only 8 opcodes can be placed in slot 3 (3-bit encoding, using bits 2–0):
 
 | Slot 3 Code | Full Opcode | Mnemonic | Description |
 |-------------|-------------|----------|-------------|
-| 0           | 0x00        | ret (`;`)  | Return |
-| 1           | 0x02        | jump     | (not used in slot 3 — no address bits remain) |
-| 2           | 0x04        | unext    | Micro-next loop |
-| 3           | 0x06        | if       | (not used in slot 3 — no address bits remain) |
-| 4           | 0x08        | @p       | Fetch literal |
-| 5           | 0x0A        | @b       | Fetch via B |
-| 6           | 0x0C        | !p       | Store via P |
-| 7           | 0x0E        | !b       | Store via B |
+| 0           | 0x00 (0)    | ret (`;`)  | Return |
+| 1           | 0x04 (4)    | unext    | Micro-next loop |
+| 2           | 0x08 (8)    | @p       | Fetch literal |
+| 3           | 0x0C (12)   | !p       | Store via P |
+| 4           | 0x10 (16)   | +*       | Multiply step |
+| 5           | 0x14 (20)   | +        | Add |
+| 6           | 0x18 (24)   | dup      | Duplicate T |
+| 7           | 0x1C (28)   | .        | Nop |
 
-The slot 3 encoding maps the 3-bit value to full opcode by: `opcode = slot3_value << 1`.
+The slot 3 encoding maps the 3-bit value to full opcode by: `opcode = slot3_value << 2` (i.e., every 4th opcode: 0, 4, 8, 12, 16, 20, 24, 28).
 
-In practice, only `;` (return/nop padding), `unext`, `@p`, `@b`, `!p`, and `!b` are commonly used in slot 3.
+In practice, only `;` (return/nop padding), `unext`, `@p`, `!p`, `+`, and `dup` are commonly used in slot 3.
 
 ## Jump/Call Address Fields
 

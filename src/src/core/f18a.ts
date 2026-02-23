@@ -428,7 +428,13 @@ export class F18ANode {
       if (handler && typeof handler === 'object' && 'read' in handler) {
         return (handler as PortHandler).read();
       }
-      return true; // invalid port, don't crash
+      // No port handler registered — return the default memory value.
+      // After reset, unregistered slots still hold 0x134A9 ("call warm").
+      // Real F18A hardware would read the default value from the address,
+      // causing the node to call warm and properly suspend.
+      const val = this.memory[addr];
+      this.fetchedData = typeof val === 'number' ? val : 0x134A9;
+      return true;
     }
     this.fetchedData = this.memory[regionIndex(addr)] as number;
     return true;
@@ -463,8 +469,9 @@ export class F18ANode {
     recordInstruction(this.thermal, opcode);
 
     if (opcode < 8) {
-      // Control flow instructions - need address from decoded word
-      const addr = this.IXor & ((1 << jumpAddrPos) - 1);
+      // Control flow instructions - address from RAW word (not XOR-decoded)
+      // Reference: (bitwise-bit-field I 0 jump-addr-pos) uses I, not I^
+      const addr = this.I & ((1 << jumpAddrPos) - 1);
       return this.executeWithAddr(opcode, addr, addrMask);
     }
     return this.executeNoAddr(opcode);
@@ -723,7 +730,7 @@ export class F18ANode {
         break;
       }
       case 3: {
-        const opcode = (this.IXor & 0x7) << 1;
+        const opcode = (this.IXor & 0x7) << 2;
         this.executeInstruction(opcode, 0, 0);
         this.iI = 0;
         break;

@@ -9,7 +9,7 @@ function disasmWord(raw: number, addr: number): string {
   const s0 = (raw >> 13) & 0x1F;
   const s1 = (raw >> 8)  & 0x1F;
   const s2 = (raw >> 3)  & 0x1F;
-  const s3 = (raw & 0x7) << 1;
+  const s3 = (raw & 0x7) << 2;
   const BRANCH = new Set([2, 4, 5, 6, 7]);
   const parts: string[] = [];
   if (BRANCH.has(s0)) {

@@ -6,16 +6,16 @@
  *   Slot 0: bits 17-13 (5 bits)
  *   Slot 1: bits 12-8  (5 bits)
  *   Slot 2: bits 7-3   (5 bits)
- *   Slot 3: bits 2-0   (3 bits, value << 1 = opcode)
+ *   Slot 3: bits 2-0   (3 bits, value << 2 = opcode)
  *
- * Slot 3 can only encode even opcodes 0-14. There is NO NOP for slot 3.
- * The default slot 3 value is 0 (';'/return). Use emitJump() to skip
- * slot 3 when its execution would be harmful.
+ * Slot 3 can only encode opcodes that are multiples of 4: {0,4,8,12,16,20,24,28}
+ * = {;, unext, @p, !p, +*, +, dup, .}. The default slot 3 value is 0
+ * (';'/return). Use emitJump() to skip slot 3 when its execution would be harmful.
  *
  * All instruction words are XOR-encoded with 0x15555 before storage.
  * Data words (literals) are stored raw (NOT XOR-encoded).
  */
-import { XOR_ENCODING, WORD_MASK } from '../types';
+import { WORD_MASK } from '../types';
 import { OPCODE_MAP } from '../constants';
 
 const NOP = 0x1C; // nop opcode (5-bit slots only, CANNOT fit in slot 3)
@@ -72,9 +72,20 @@ export class CodeBuilder {
     return this.extendedArith;
   }
 
+  /**
+   * Per-slot XOR bits for opcode encoding (matching reference xor-bits).
+   * Only opcodes are XOR-encoded; addresses/data are stored raw.
+   */
+  private static readonly XOR_BITS = [0b01010, 0b10101, 0b01010, 0b101];
+
   private assembleWord(slots: number[]): number {
-    const raw = (slots[0] << 13) | (slots[1] << 8) | (slots[2] << 3) | (slots[3] & 0x7);
-    return raw ^ XOR_ENCODING;
+    // XOR-encode each opcode slot individually (matching reference assemble-inst).
+    // Address bits are NOT XOR-encoded — they're added separately in emitJump.
+    const s0 = (slots[0] ^ CodeBuilder.XOR_BITS[0]) << 13;
+    const s1 = (slots[1] ^ CodeBuilder.XOR_BITS[1]) << 8;
+    const s2 = (slots[2] ^ CodeBuilder.XOR_BITS[2]) << 3;
+    const s3 = (slots[3] ^ CodeBuilder.XOR_BITS[3]) & 0x7;
+    return s0 | s1 | s2 | s3;
   }
 
   /**
@@ -124,11 +135,11 @@ export class CodeBuilder {
       this.flush();
     }
     if (this.slotPointer === 3) {
-      // Slot 3 only has 3 bits: only even opcodes 0-14 can fit
-      if (opcode % 2 !== 0 || opcode > 14) {
+      // Slot 3 only has 3 bits: only opcodes that are multiples of 4 can fit (0,4,8,...,28)
+      if (opcode % 4 !== 0 || opcode > 28) {
         this.flush();
       } else {
-        this.currentWord[3] = opcode >> 1;
+        this.currentWord[3] = opcode >> 2;
         this.flush();
         return;
       }
@@ -158,23 +169,34 @@ export class CodeBuilder {
     const slot = this.slotPointer;
     this.currentWord[slot] = opcode;
 
-    let raw: number;
+    // Assemble instruction word with XOR-encoded opcodes and raw address bits.
+    // Matches reference: opcodes get per-slot XOR, addresses do NOT.
+    let encoded: number;
     switch (slot) {
-      case 0:
-        raw = (opcode << 13) | ((addr | this.extendedArith) & 0x1FFF);
+      case 0: {
+        const s0 = (opcode ^ CodeBuilder.XOR_BITS[0]) << 13;
+        encoded = s0 | ((addr | this.extendedArith) & 0x1FFF);
         break;
-      case 1:
-        raw = (this.currentWord[0] << 13) | (opcode << 8) | (addr & 0xFF);
+      }
+      case 1: {
+        const s0 = (this.currentWord[0] ^ CodeBuilder.XOR_BITS[0]) << 13;
+        const s1 = (opcode ^ CodeBuilder.XOR_BITS[1]) << 8;
+        encoded = s0 | s1 | (addr & 0xFF);
         break;
-      case 2:
-        raw = (this.currentWord[0] << 13) | (this.currentWord[1] << 8) | (opcode << 3) | (addr & 0x7);
+      }
+      case 2: {
+        const s0 = (this.currentWord[0] ^ CodeBuilder.XOR_BITS[0]) << 13;
+        const s1 = (this.currentWord[1] ^ CodeBuilder.XOR_BITS[1]) << 8;
+        const s2 = (opcode ^ CodeBuilder.XOR_BITS[2]) << 3;
+        encoded = s0 | s1 | s2 | (addr & 0x7);
         break;
+      }
       default:
-        raw = 0;
+        encoded = 0;
     }
 
     if (this.locationCounter < this.mem.length) {
-      this.mem[this.locationCounter] = raw ^ XOR_ENCODING;
+      this.mem[this.locationCounter] = encoded;
     }
     this.locationCounter++;
     this.slotPointer = 0;
@@ -282,15 +304,16 @@ export class CodeBuilder {
         } else {
           const encoded = this.mem[ref.wordAddr];
           if (encoded !== null) {
-            const raw = encoded ^ XOR_ENCODING;
+            // Address bits are stored raw (not XOR-encoded), so we can
+            // patch them directly by clearing and OR'ing.
             let patched: number;
             switch (ref.slot) {
-              case 0: patched = (raw & 0x3E000) | (addr & 0x1FFF); break;
-              case 1: patched = (raw & 0x3FF00) | (addr & 0xFF); break;
-              case 2: patched = (raw & 0x3FFF8) | (addr & 0x7); break;
-              default: patched = raw;
+              case 0: patched = (encoded & ~0x1FFF) | (addr & 0x1FFF); break;
+              case 1: patched = (encoded & ~0xFF) | (addr & 0xFF); break;
+              case 2: patched = (encoded & ~0x7) | (addr & 0x7); break;
+              default: patched = encoded;
             }
-            this.mem[ref.wordAddr] = patched ^ XOR_ENCODING;
+            this.mem[ref.wordAddr] = patched;
           }
         }
       } else {

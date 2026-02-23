@@ -55,8 +55,8 @@ export function disassembleWord(word: number): DisassembledWord {
     return { slots, raw: word };
   }
 
-  // Slot 3: bits 2-0, shift left by 1 to get 5-bit opcode (only even opcodes)
-  const slot3opcode = (xored & 0x7) << 1;
+  // Slot 3: bits 2-0, shift left by 2 to get 5-bit opcode (opcodes 0,4,8,12,16,20,24,28)
+  const slot3opcode = (xored & 0x7) << 2;
   const slot3name = OPCODES[slot3opcode];
   slots[3] = { opcode: slot3name };
 

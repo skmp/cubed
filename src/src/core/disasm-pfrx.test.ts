@@ -9,7 +9,7 @@ for (const [n, v] of OPCODE_MAP.entries()) if (!REV.has(v)) REV.set(v, n);
 
 const BRANCH = new Set([2, 4, 5, 6, 7]);
 function disasm(raw: number, addr: number): string {
-  const s0 = (raw >> 13) & 31, s1 = (raw >> 8) & 31, s2 = (raw >> 3) & 31, s3 = (raw & 7) << 1;
+  const s0 = (raw >> 13) & 31, s1 = (raw >> 8) & 31, s2 = (raw >> 3) & 31, s3 = (raw & 7) << 2;
   const a13 = raw & 0x1FFF, a8 = raw & 0xFF, a3 = raw & 7;
   let p = '';
   if (BRANCH.has(s0)) return `[${String(addr).padStart(2)}] ${REV.get(s0)}(${a13})`;

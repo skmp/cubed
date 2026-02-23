@@ -14,7 +14,7 @@ function disassemble(raw: number): string {
   const s0 = (decoded >> 13) & 0x1F;
   const s1 = (decoded >> 8) & 0x1F;
   const s2 = (decoded >> 3) & 0x1F;
-  const s3 = (decoded & 0x07) << 1;
+  const s3 = (decoded & 0x07) << 2;
   return `${OPCODES[s0]} ${OPCODES[s1]} ${OPCODES[s2]} ${OPCODES[s3]}`;
 }
 

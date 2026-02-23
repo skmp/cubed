@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
 import {
-  WORD_MASK, XOR_ENCODING,
+  WORD_MASK,
 } from './types';
 import {
   PORT, IO_BITS, NODE_GPIO_PINS,
@@ -62,29 +62,31 @@ const ASTORE = 31;  // a!
 // Helpers
 // ============================================================================
 
+// Per-slot XOR bits for opcode encoding (matching reference xor-bits).
+const XOR_BITS = [0b01010, 0b10101, 0b01010, 0b101];
+function xorOp(opcode: number, slot: number, shift: number): number {
+  return ((opcode ^ XOR_BITS[slot]) << shift);
+}
+
 /** Pack a jump/branch at slot 0 with address. */
 function packJump(opcode: number, addr: number): number {
-  const raw = (opcode << 13) | (addr & 0x3FF);
-  return raw ^ XOR_ENCODING;
+  return xorOp(opcode, 0, 13) | (addr & 0x3FF);
 }
 
 /** Pack [opcode_slot0, jump_slot1 addr]. */
 function packOpJump(s0: number, jumpAddr: number): number {
-  const raw = (s0 << 13) | (JUMP << 8) | (jumpAddr & 0xFF);
-  return (raw ^ XOR_ENCODING) & WORD_MASK;
+  return (xorOp(s0, 0, 13) | xorOp(JUMP, 1, 8) | (jumpAddr & 0xFF)) & WORD_MASK;
 }
 
 /** Pack [opcode_slot0, opcode_slot1, jump_slot2 addr]. */
 function packOp2Jump(s0: number, s1: number, jumpAddr: number): number {
-  const raw = (s0 << 13) | (s1 << 8) | (JUMP << 3) | (jumpAddr & 0x7);
-  return (raw ^ XOR_ENCODING) & WORD_MASK;
+  return (xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(JUMP, 2, 3) | (jumpAddr & 0x7)) & WORD_MASK;
 }
 
 /** Pack 4 opcodes into an 18-bit XOR-encoded instruction word.
- *  WARNING: Slot 3 only encodes even opcodes 0-14. */
+ *  Slot 3 can encode opcodes that are multiples of 4: {0,4,8,12,16,20,24,28}. */
 function packWord(s0: number, s1: number, s2: number, s3: number): number {
-  const raw = (s0 << 13) | (s1 << 8) | (s2 << 3) | ((s3 >> 1) & 0x7);
-  return raw ^ XOR_ENCODING;
+  return xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(s2, 2, 3) | (((s3 >> 2) ^ XOR_BITS[3]) & 0x7);
 }
 
 /** Pack @p literal: word0 = @p|jump(addr), word1 = data */
