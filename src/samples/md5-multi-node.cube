@@ -9,6 +9,10 @@
 -- Uses: type definitions, multi-clause dispatch, bitwise builtins,
 --       port I/O for inter-node carry propagation.
 
+#include std
+
+/\
+
 node 205
 
 /\
@@ -21,37 +25,37 @@ RoundType = Lambda{}. fround + ground + hround + iround
 -- MD5 F(x,y,z) = (x AND y) OR (NOT x AND z)
 -- Used in rounds 0-15
 md5f = lambda{x:Int, y:Int, z:Int, r:Int}.
-  (band{a=x, b=y, c=xy} /\
-   bnot{a=x, b=nx} /\
-   band{a=nx, b=z, c=nxz} /\
-   bor{a=xy, b=nxz, c=r})
+  (std.band{a=x, b=y, c=xy} /\
+   std.bnot{a=x, b=nx} /\
+   std.band{a=nx, b=z, c=nxz} /\
+   std.bor{a=xy, b=nxz, c=r})
 
 /\
 
 -- MD5 G(x,y,z) = (x AND z) OR (y AND NOT z)
 -- Used in rounds 16-31
 md5g = lambda{x:Int, y:Int, z:Int, r:Int}.
-  (band{a=x, b=z, c=xz} /\
-   bnot{a=z, b=nz} /\
-   band{a=y, b=nz, c=ynz} /\
-   bor{a=xz, b=ynz, c=r})
+  (std.band{a=x, b=z, c=xz} /\
+   std.bnot{a=z, b=nz} /\
+   std.band{a=y, b=nz, c=ynz} /\
+   std.bor{a=xz, b=ynz, c=r})
 
 /\
 
 -- MD5 H(x,y,z) = x XOR y XOR z
 -- Used in rounds 32-47
 md5h = lambda{x:Int, y:Int, z:Int, r:Int}.
-  (bxor{a=x, b=y, c=xy} /\
-   bxor{a=xy, b=z, c=r})
+  (std.bxor{a=x, b=y, c=xy} /\
+   std.bxor{a=xy, b=z, c=r})
 
 /\
 
 -- MD5 I(x,y,z) = y XOR (x OR NOT z)
 -- Used in rounds 48-63
 md5i = lambda{x:Int, y:Int, z:Int, r:Int}.
-  (bnot{a=z, b=nz} /\
-   bor{a=x, b=nz, c=xnz} /\
-   bxor{a=y, b=xnz, c=r})
+  (std.bnot{a=z, b=nz} /\
+   std.bor{a=x, b=nz, c=xnz} /\
+   std.bxor{a=y, b=xnz, c=r})
 
 /\
 
@@ -70,18 +74,18 @@ roundfn = lambda{rtype:RoundType, x:Int, y:Int, z:Int, r:Int}.
 -- One MD5 step on the low-16 partner node:
 --   1. Compute round function f(b,c,d)
 --   2. Accumulate: temp = a + f + msg + constant
---   3. Extract carry (bits 16-17), send to high partner
+--   3. Extract carry (bits 16-17), std.send to high partner
 --   4. Mask to 16 bits, add b for final result
 md5step = lambda{a:Int, b:Int, c:Int, d:Int,
                   msg:Int, kon:Int, rtype:RoundType, out:Int}.
   (roundfn{rtype=rtype, x=b, y=c, z=d, r=fval} /\
-   plus{a=a, b=fval, c=s1} /\
-   plus{a=s1, b=msg, c=s2} /\
-   plus{a=s2, b=kon, c=s3} /\
-   shr{a=s3, n=16, c=carry} /\
-   send{port=0x145, value=carry} /\
-   band{a=s3, b=0xFFFF, c=masked} /\
-   plus{a=masked, b=b, c=out})
+   std.plus{a=a, b=fval, c=s1} /\
+   std.plus{a=s1, b=msg, c=s2} /\
+   std.plus{a=s2, b=kon, c=s3} /\
+   std.shr{a=s3, n=16, c=carry} /\
+   std.send{port=0x145, value=carry} /\
+   std.band{a=s3, b=0xFFFF, c=masked} /\
+   std.plus{a=masked, b=b, c=out})
 
 /\
 

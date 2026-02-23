@@ -35,30 +35,34 @@
 -- For blue rectangle:   R = 0 -> XOR -> 0x155
 -- (Red is zero everywhere in this demo)
 
+#include std
+
+/\
+
 node 117
 
 /\
 
 -- Top margin: 140 rows
-loop{n=140}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 /\
 
 -- Rectangle rows: 200 rows
-loop{n=200}
-/\ fill{value=0x155, count=220}
-/\ fill{value=0x155, count=200}
-/\ fill{value=0x155, count=220}
-/\ again{}
+std.loop{n=200}
+/\ std.fill{value=0x155, count=220}
+/\ std.fill{value=0x155, count=200}
+/\ std.fill{value=0x155, count=220}
+/\ std.again{}
 
 /\
 
 -- Bottom margin: 140 rows
-loop{n=140}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN CHANNEL (node 617 DAC)
@@ -71,25 +75,25 @@ node 617
 /\
 
 -- Top margin: 140 rows of green
-loop{n=140}
-/\ fill{value=0x0AA, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x0AA, count=640}
+/\ std.again{}
 
 /\
 
 -- Rectangle rows: 200 rows (220 green + 200 black + 220 green)
-loop{n=200}
-/\ fill{value=0x0AA, count=220}
-/\ fill{value=0x155, count=200}
-/\ fill{value=0x0AA, count=220}
-/\ again{}
+std.loop{n=200}
+/\ std.fill{value=0x0AA, count=220}
+/\ std.fill{value=0x155, count=200}
+/\ std.fill{value=0x0AA, count=220}
+/\ std.again{}
 
 /\
 
 -- Bottom margin: 140 rows of green
-loop{n=140}
-/\ fill{value=0x0AA, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x0AA, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE CHANNEL (node 717 DAC)
@@ -102,44 +106,44 @@ node 717
 /\
 
 -- Top margin: 140 rows of no blue
-loop{n=140}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 /\
 
 -- Rectangle rows: 200 rows (220 no-blue + 200 blue + 220 no-blue)
-loop{n=200}
-/\ fill{value=0x155, count=220}
-/\ fill{value=0x0AA, count=200}
-/\ fill{value=0x155, count=220}
-/\ again{}
+std.loop{n=200}
+/\ std.fill{value=0x155, count=220}
+/\ std.fill{value=0x0AA, count=200}
+/\ std.fill{value=0x155, count=220}
+/\ std.again{}
 
 /\
 
 -- Bottom margin: 140 rows of no blue
-loop{n=140}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=140}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
 -- Generates HSYNC after each row, VSYNC at end of frame.
--- The delay{} burns cycles to match DAC fill loop timing
+-- The std.delay{} burns cycles to match DAC std.fill std.loop timing
 -- so HSYNC signals interleave correctly with pixel writes.
 
 node 217
 
 /\
 
--- 480 rows: delay to match DAC timing, then send HSYNC
-loop{n=480}
-/\ delay{n=640}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+-- 480 rows: std.delay to match DAC timing, then std.send HSYNC
+std.loop{n=480}
+/\ std.delay{n=640}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}

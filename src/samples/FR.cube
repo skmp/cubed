@@ -2,11 +2,11 @@
 -- Renders the French tricolour on a 640x480 framebuffer.
 -- Three vertical stripes: blue (left), white (center), red (right).
 --
--- Architecture: feeder-relay pipeline (same as CH.cube / PS.cube).
---   Feeder nodes (116, 616, 716) generate pixel data via fill{}
+-- Architecture: feeder-std.relay pipeline (same as CH.cube / PS.cube).
+--   Feeder nodes (116, 616, 716) generate pixel data via std.fill{}
 --   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
---   DAC relay nodes (117, 617, 717) read from west and write to IO.
---   R relay (117) signals sync node (217) after each row for HSYNC.
+--   DAC std.relay nodes (117, 617, 717) read from west and write to IO.
+--   R std.relay (117) signals sync node (217) after each row for HSYNC.
 --
 -- Flag layout (640x480, full frame):
 --   Blue stripe:  columns 0-213   (214 px)
@@ -18,8 +18,8 @@
 --   G: blue=0, white=max, red=0    -> 214 zero + 213 max + 213 zero
 --   B: blue=max, white=max, red=0  -> 214 max  + 213 max + 213 zero
 --
--- IMPORTANT: All three feeders must have the same number of fill{}
--- calls per row so they stay in sync (each fill{} compiles to a loop
+-- IMPORTANT: All three feeders must have the same number of std.fill{}
+-- calls per row so they stay in sync (each std.fill{} compiles to a std.loop
 -- with overhead, so mismatched counts cause channel drift).
 --
 -- DAC XOR encoding:
@@ -29,14 +29,18 @@
 -- RED DAC RELAY (node 117)
 -- ============================================================
 
+#include std
+
+/\
+
 node 117
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ send{port=0x145, value=0}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.send{port=0x145, value=0}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617)
@@ -46,9 +50,9 @@ node 617
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE DAC RELAY (node 717)
@@ -58,9 +62,9 @@ node 717
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -72,15 +76,15 @@ node 116
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x155, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x0AA, count=213}
-/\ again{}
+std.loop{n=480}
+/\ std.fill{value=0x155, count=214}
+/\ std.fill{value=0x0AA, count=213}
+/\ std.fill{value=0x0AA, count=213}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN FEEDER (node 616)
@@ -91,15 +95,15 @@ node 616
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x155, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x155, count=213}
-/\ again{}
+std.loop{n=480}
+/\ std.fill{value=0x155, count=214}
+/\ std.fill{value=0x0AA, count=213}
+/\ std.fill{value=0x155, count=213}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE FEEDER (node 716)
@@ -111,15 +115,15 @@ node 716
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
-loop{n=480}
-/\ fill{value=0x0AA, count=214}
-/\ fill{value=0x0AA, count=213}
-/\ fill{value=0x155, count=213}
-/\ again{}
+std.loop{n=480}
+/\ std.fill{value=0x0AA, count=214}
+/\ std.fill{value=0x0AA, count=213}
+/\ std.fill{value=0x155, count=213}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
@@ -129,12 +133,12 @@ node 217
 
 /\
 
-loop{n=480}
-/\ recv{port=0x145}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+std.loop{n=480}
+/\ std.recv{port=0x145}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}

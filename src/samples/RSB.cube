@@ -3,10 +3,10 @@
 -- (0xcb) to receive 18-bit words from the async serial input pin,
 -- writing each to IO. This is the ROM-idiomatic path for node 708.
 --
--- Node 417 still sends Shor's results south to node 317 (relay chain
+-- Node 417 still sends Shor's results south to node 317 (std.relay chain
 -- to IO for emulator capture). Node 708 independently reads from the
 -- async serial pin using its ROM receive primitive — no hand-coded
--- @ loop needed.
+-- @ std.loop needed.
 --
 -- Architecture: 8 declared nodes
 --   VGA: 117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
@@ -17,14 +17,18 @@
 -- RED DAC — DELTA VCO (node 117, analog)
 -- ============================================================
 
+#include std
+
+/\
+
 node 117
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ send{port=0x145, value=0}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.send{port=0x145, value=0}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN DAC — DELTA VCO (node 617, analog)
@@ -34,9 +38,9 @@ node 617
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE DAC — DELTA VCO (node 717, analog)
@@ -46,9 +50,9 @@ node 717
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
@@ -58,21 +62,21 @@ node 217
 
 /\
 
-loop{n=480}
-/\ recv{port=0x145}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+std.loop{n=480}
+/\ std.recv{port=0x145}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}
 
 -- ============================================================
 -- NOISE COUNTER (node 416 — free-running)
 -- ============================================================
 -- Increments a counter and sends it east to node 417.
--- The send blocks until 417 reads; thermal timing jitter means
+-- The std.send blocks until 417 reads; thermal timing jitter means
 -- the counter value at each read is nondeterministic.
 
 node 416
@@ -83,10 +87,10 @@ x = 0
 
 /\
 
-loop{n=32767}
-/\ plus{a=x, b=1, c=x}
-/\ send{port=0x1D5, value=x}
-/\ again{}
+std.loop{n=32767}
+/\ std.plus{a=x, b=1, c=x}
+/\ std.send{port=0x1D5, value=x}
+/\ std.again{}
 
 -- ============================================================
 -- SHOR'S COMPUTE (node 417 — 1-pin GPIO)
@@ -99,7 +103,7 @@ node 417
 
 /\
 
-shor15{noise_port=0x1D5, out_port=0x145}
+std.shor15{noise_port=0x1D5, out_port=0x145}
 
 -- ============================================================
 -- SERIAL OUTPUT (node 317 — 1-pin GPIO)
@@ -111,9 +115,9 @@ node 317
 
 /\
 
-loop{n=32767}
-/\ relay{port=0x145, count=5}
-/\ again{}
+std.loop{n=32767}
+/\ std.relay{port=0x145, count=5}
+/\ std.again{}
 
 -- ============================================================
 -- ASYNC SERIAL RX (node 708 — boot node)
@@ -123,16 +127,16 @@ loop{n=32767}
 -- pin and write each to IO via f18a.storeb.
 -- On real hardware: receives values sent by the host over serial
 -- after boot and echoes them to IO.
--- 5 calls per loop matching the Shor's result frame format.
+-- 5 calls per std.loop matching the Shor's result frame format.
 
 node 708
 
 /\
 
-loop{n=32767}
+std.loop{n=32767}
 /\ rom.ibits18 /\ f18a.storeb
 /\ rom.ibits18 /\ f18a.storeb
 /\ rom.ibits18 /\ f18a.storeb
 /\ rom.ibits18 /\ f18a.storeb
 /\ rom.ibits18 /\ f18a.storeb
-/\ again{}
+/\ std.again{}

@@ -34,14 +34,18 @@
 -- RED DAC RELAY (node 117, analog — VCO noise XOR)
 -- ============================================================
 
+#include std
+
+/\
+
 node 117
 
 /\
 
-loop{n=480}
-/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
-/\ send{port=0x145, value=0}
-/\ again{}
+std.loop{n=480}
+/\ std.noiserelay{port=0x1D5, noiseport=0x141, count=640}
+/\ std.send{port=0x145, value=0}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617, analog — VCO noise XOR)
@@ -51,9 +55,9 @@ node 617
 
 /\
 
-loop{n=480}
-/\ noiserelay{port=0x1D5, noiseport=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.noiserelay{port=0x1D5, noiseport=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE DAC — VCO NOISE SOURCE (node 717, analog)
@@ -63,9 +67,9 @@ node 717
 
 /\
 
-loop{n=480}
-/\ relay{port=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -77,42 +81,42 @@ node 116
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
 -- Band 1: 7^1 mod 15 = 7 (yellow ~47%)
-loop{n=96}
-/\ fill{value=0x1BB, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x1BB, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 2: 7^2 mod 15 = 4 (yellow ~27%)
-loop{n=96}
-/\ fill{value=0x1DD, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x1DD, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 3: 7^3 mod 15 = 13 (yellow ~87%)
-loop{n=96}
-/\ fill{value=0x04E, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x04E, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 4: 7^4 mod 15 = 1 (yellow ~7%, period found!)
-loop{n=96}
-/\ fill{value=0x177, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x177, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 5: Factors 3×5 (green only, R=0)
-loop{n=96}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN FEEDER (node 616)
@@ -122,42 +126,42 @@ node 616
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
 -- Band 1: 7^1 mod 15 = 7
-loop{n=96}
-/\ fill{value=0x1BB, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x1BB, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 2: 7^2 mod 15 = 4
-loop{n=96}
-/\ fill{value=0x1DD, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x1DD, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 3: 7^3 mod 15 = 13
-loop{n=96}
-/\ fill{value=0x04E, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x04E, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 4: 7^4 mod 15 = 1
-loop{n=96}
-/\ fill{value=0x177, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x177, count=640}
+/\ std.again{}
 
 /\
 
 -- Band 5: Factors 3×5 (bright green)
-loop{n=96}
-/\ fill{value=0x0AA, count=640}
-/\ again{}
+std.loop{n=96}
+/\ std.fill{value=0x0AA, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
@@ -167,21 +171,21 @@ node 217
 
 /\
 
-loop{n=480}
-/\ recv{port=0x145}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+std.loop{n=480}
+/\ std.recv{port=0x145}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}
 
 -- ============================================================
 -- NOISE COUNTER (node 416 — free-running)
 -- ============================================================
 -- Increments a counter and sends it east to node 417.
--- The send blocks until 417 reads; thermal timing jitter means
+-- The std.send blocks until 417 reads; thermal timing jitter means
 -- the counter value at each read is nondeterministic.
 
 node 416
@@ -192,10 +196,10 @@ x = 0
 
 /\
 
-loop{n=32767}
-/\ plus{a=x, b=1, c=x}
-/\ send{port=0x1D5, value=x}
-/\ again{}
+std.loop{n=32767}
+/\ std.plus{a=x, b=1, c=x}
+/\ std.send{port=0x1D5, value=x}
+/\ std.again{}
 
 -- ============================================================
 -- SHOR'S COMPUTE (node 417 — 1-pin GPIO)
@@ -208,7 +212,7 @@ node 417
 
 /\
 
-shor15{noise_port=0x1D5, out_port=0x145}
+std.shor15{noise_port=0x1D5, out_port=0x145}
 
 -- ============================================================
 -- SERIAL OUTPUT (node 317 — 1-pin GPIO)
@@ -220,6 +224,6 @@ node 317
 
 /\
 
-loop{n=32767}
-/\ relay{port=0x145, count=5}
-/\ again{}
+std.loop{n=32767}
+/\ std.relay{port=0x145, count=5}
+/\ std.again{}

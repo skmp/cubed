@@ -8,6 +8,10 @@
 -- In the reference, node 608 computes and sends values
 -- north to node 708 which prints them over serial.
 
+#include std
+
+/\
+
 node 608
 
 /\
@@ -15,25 +19,25 @@ node 608
 -- Generate the next Lucas number from the previous two.
 -- L(n) = L(n-1) + L(n-2)
 lucas_next = lambda{prev2:Int, prev1:Int, result:Int}.
-  plus{a=prev2, b=prev1, c=result}
+  std.plus{a=prev2, b=prev1, c=result}
 
 /\
 
 -- Send value to the serial output node above
 lucas_send = lambda{val:Int}.
-  send{port=0x145, value=val}
+  std.send{port=0x145, value=val}
 
 /\
 
 -- Compute 6 steps of the Lucas sequence
 -- Starting: L(0)=2, L(1)=1
 
--- Step 0: send L(0)
+-- Step 0: std.send L(0)
 lucas_send{val=2}
 
 /\
 
--- Step 1: send L(1)
+-- Step 1: std.send L(1)
 lucas_send{val=1}
 
 /\

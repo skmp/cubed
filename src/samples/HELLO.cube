@@ -7,8 +7,12 @@
 -- String bytes stored as data words at RAM 0x30–0x3C.
 -- Node 708 (odd-y=7): async boot ROM, pin 17 via IO (0x15D).
 
+#include std
+
+/\
+
 node 708
 
 /\
 
-hellotx{}
+std.hellotx{}

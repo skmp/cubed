@@ -3,15 +3,15 @@
 -- async boot node) so its results can be transmitted directly over the
 -- async serial pin using the standard boot-wire protocol.
 --
--- Node 708 uses asynctx{} — a bit-bang async serial TX builtin that
+-- Node 708 uses std.asynctx{} — a bit-bang async serial TX builtin that
 -- implements the emit1/emit8 protocol from rom-dump-bootstream.rkt:
---   emit1(bit): (bit & 1) XOR 3 → !b  (no baud delay in emulator)
+--   emit1(bit): (bit & 1) XOR 3 → !b  (no baud std.delay in emulator)
 --   emit8(n):   start-bit(0), 8 data bits LSB-first, stop-bit(1)
 --   emit18(n):  three emit8 calls for the full 18-bit word
 -- (F18A 'or' opcode = XOR; drive-high = 0b11, drive-low = 0b10)
 --
 -- Note: ROM ibits18 (0xcb) is RX-only; there is no TX ROM function
--- on node 708. asynctx{} provides the equivalent TX path in RAM.
+-- on node 708. std.asynctx{} provides the equivalent TX path in RAM.
 --
 -- Port directions (LUDR):
 --   508 (odd-y=5):  north→UP=0x145 → 608
@@ -22,20 +22,24 @@
 --   VGA:     117 (R delta), 617 (G delta), 717 (B delta), 217 (sync)
 --   Noise:   508 (free-running counter) →[UP/0x145]→ 608
 --   Compute: 608 (Shor's N=15) →[DOWN/0x115]→ 708
---   Serial:  708 (asynctx via DOWN/0x115)
+--   Serial:  708 (std.asynctx via DOWN/0x115)
 
 -- ============================================================
 -- RED DAC — DELTA VCO (node 117, analog)
 -- ============================================================
 
+#include std
+
+/\
+
 node 117
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ send{port=0x145, value=0}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.send{port=0x145, value=0}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN DAC — DELTA VCO (node 617, analog)
@@ -45,9 +49,9 @@ node 617
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE DAC — DELTA VCO (node 717, analog)
@@ -57,9 +61,9 @@ node 717
 
 /\
 
-loop{n=480}
-/\ deltarelay{port=0x141, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.deltarelay{port=0x141, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
@@ -69,21 +73,21 @@ node 217
 
 /\
 
-loop{n=480}
-/\ recv{port=0x145}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+std.loop{n=480}
+/\ std.recv{port=0x145}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}
 
 -- ============================================================
 -- NOISE COUNTER (node 508 — free-running)
 -- ============================================================
 -- Increments a counter and sends it north to node 608.
--- The send blocks until 608 reads; thermal timing jitter means
+-- The std.send blocks until 608 reads; thermal timing jitter means
 -- the counter value at each read is nondeterministic.
 -- 508 is odd-y (y=5): north→UP=0x145.
 
@@ -95,10 +99,10 @@ x = 0
 
 /\
 
-loop{n=32767}
-/\ plus{a=x, b=1, c=x}
-/\ send{port=0x145, value=x}
-/\ again{}
+std.loop{n=32767}
+/\ std.plus{a=x, b=1, c=x}
+/\ std.send{port=0x145, value=x}
+/\ std.again{}
 
 -- ============================================================
 -- SHOR'S COMPUTE (node 608 — basic node)
@@ -111,7 +115,7 @@ node 608
 
 /\
 
-shor15{noise_port=0x145, out_port=0x115}
+std.shor15{noise_port=0x145, out_port=0x115}
 
 -- ============================================================
 -- ASYNC SERIAL TX (node 708 — async boot node)
@@ -127,4 +131,4 @@ node 708
 
 /\
 
-asynctx{port=0x115, count=5}
+std.asynctx{port=0x115, count=5}

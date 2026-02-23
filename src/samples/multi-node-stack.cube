@@ -9,6 +9,10 @@
 -- This models the logical data flow of push and pop
 -- operations between client and storage nodes.
 
+#include std
+
+/\
+
 node 0
 
 /\
@@ -18,15 +22,15 @@ StackOp = Lambda{}. push_op + pop_op
 
 /\
 
--- Push: send value to storage node via east port (0x1D5)
+-- Push: std.send value to storage node via east port (0x1D5)
 stack_push = lambda{val:Int}.
-  send{port=0x1D5, value=val}
+  std.send{port=0x1D5, value=val}
 
 /\
 
 -- Pop: receive value from storage node via east port
 stack_pop = lambda{val:Int}.
-  recv{port=0x1D5, value=val}
+  std.recv{port=0x1D5, value=val}
 
 /\
 

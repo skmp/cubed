@@ -8,14 +8,18 @@
 --
 -- Node 708 (odd-y=7): uses async boot ROM (rom.byte at 0xd0).
 -- B is set to IO (0x15D) for pin drive via !b.
--- The asyncecho8{} builtin loops forever: recv byte → emit8 byte.
+-- The std.asyncecho8{} builtin loops forever: std.recv byte → emit8 byte.
 
 -- ============================================================
 -- ASYNC SERIAL ECHO (node 708 — async boot node)
 -- ============================================================
 
+#include std
+
+/\
+
 node 708
 
 /\
 
-asyncecho8{}
+std.asyncecho8{}

@@ -5,13 +5,17 @@
 -- the over-over-add pattern on the F18A stack.
 -- Here we model each step as explicit dataflow.
 
+#include std
+
+/\
+
 node 0
 
 /\
 
 -- One Fibonacci step: given F(n-1) and F(n-2), produce F(n)
 fib_step = lambda{a:Int, b:Int, next:Int}.
-  plus{a=a, b=b, c=next}
+  std.plus{a=a, b=b, c=next}
 
 /\
 

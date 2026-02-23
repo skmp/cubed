@@ -1,10 +1,10 @@
 -- Wire Routing Chain (from counter.aforth)
 -- Models the GA144 "wire node" pattern where intermediate
--- nodes relay data between distant nodes on the chip.
+-- nodes std.relay data between distant nodes on the chip.
 --
 -- In the reference, nodes 714-710 each run a simple
 -- wire loop: read from east, write to west.
--- This creates a 5-hop data relay from node 715 (crystal)
+-- This creates a 5-hop data std.relay from node 715 (crystal)
 -- to node 709 (counter/serial output).
 --
 -- Pattern: each wire node does @ !b wire (read, write, repeat)
@@ -12,15 +12,19 @@
 -- can only talk to direct neighbors.
 
 -- Source node: generates values
+#include std
+
+/\
+
 node 715
 
 /\
 
--- Wire relay function: read from one port, write to another.
+-- Wire std.relay function: read from one port, write to another.
 -- Models the F18A pattern: east a! west b! @ !b (loop)
 wire_relay = lambda{inp:Int, out:Int}.
-  (recv{port=0x1D5, value=inp} /\
-   send{port=0x175, value=inp} /\
+  (std.recv{port=0x1D5, value=inp} /\
+   std.send{port=0x175, value=inp} /\
    out = inp)
 
 /\
@@ -31,31 +35,31 @@ wire_pass = lambda{val:Int, out:Int}.
 
 /\
 
--- 5 chained wire nodes relay a value from east to west
--- Node 714: relay east->west
+-- 5 chained wire nodes std.relay a value from east to west
+-- Node 714: std.relay east->west
 wire_relay{inp=hop1, out=r1}
 
 /\
 
--- Node 713: relay
+-- Node 713: std.relay
 wire_relay{inp=hop2, out=r2}
 
 /\
 
--- Node 712: relay
+-- Node 712: std.relay
 wire_relay{inp=hop3, out=r3}
 
 /\
 
--- Node 711: relay
+-- Node 711: std.relay
 wire_relay{inp=hop4, out=r4}
 
 /\
 
--- Node 710: relay
+-- Node 710: std.relay
 wire_relay{inp=hop5, out=r5}
 
 /\
 
--- Source: send initial value (crystal counter tick)
-send{port=0x175, value=42}
+-- Source: std.send initial value (crystal counter tick)
+std.send{port=0x175, value=42}

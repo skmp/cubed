@@ -21,11 +21,15 @@
 -- RX NODE (node 200 — one-wire boot node, pin17 ← Port B RX)
 -- ============================================================
 
+#include std
+
+/\
+
 node 200
 
 /\
 
-pf_rx{}
+std.pf_rx{}
 
 -- ============================================================
 -- TX NODE (node 100 — basic node, pin17 → Port B TX)
@@ -35,4 +39,4 @@ node 100
 
 /\
 
-pf_tx{}
+std.pf_tx{}

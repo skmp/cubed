@@ -7,6 +7,10 @@
 -- Nodes 204/104: message buffer with index computation
 
 -- f'(x,y,z) = (x AND y) OR (NOT(x) AND z)
+#include std
+
+/\
+
 md5f = lambda{x:Int, y:Int, z:Int, r:Int}.
   (f18a.and{} /\ f18a.xor{})
 
@@ -35,10 +39,10 @@ md5i = lambda{x:Int, y:Int, z:Int, r:Int}.
 md5step = lambda{a:Int, b:Int, c:Int, d:Int,
                   msg:Int, kon:Int, out:Int}.
   (md5f{x=b, y=c, z=d, r=fval} /\
-   plus{a=a, b=fval, c=s1} /\
-   plus{a=s1, b=msg, c=s2} /\
-   plus{a=s2, b=kon, c=s3} /\
-   plus{a=s3, b=b, c=out})
+   std.plus{a=a, b=fval, c=s1} /\
+   std.plus{a=s1, b=msg, c=s2} /\
+   std.plus{a=s2, b=kon, c=s3} /\
+   std.plus{a=s3, b=b, c=out})
 
 /\
 

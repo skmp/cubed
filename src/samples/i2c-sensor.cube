@@ -10,6 +10,10 @@
 --   STOP:  SDA low->high while SCL high
 --   BIT:   Set SDA, pulse SCL, read ACK
 
+#include std
+
+/\
+
 node 708
 
 /\
@@ -22,49 +26,49 @@ I2CState = Lambda{}. idle + start + data + stop
 -- Send a single bit: set data line, pulse clock
 -- The clock node (709) handles SCL timing via DAC
 i2c_send_bit = lambda{bit:Int, state:I2CState}.
-  (shl{a=bit, n=1, c=data_pin} /\
-   bor{a=data_pin, b=0x20000, c=io_val} /\
-   send{port=0x1D5, value=io_val})
+  (std.shl{a=bit, n=1, c=data_pin} /\
+   std.bor{a=data_pin, b=0x20000, c=io_val} /\
+   std.send{port=0x1D5, value=io_val})
 
 /\
 
 -- Send START condition: SDA goes low while SCL is high
 -- In F18A: set SDA=1, SCL=1, then SDA=0 while SCL stays high
 i2c_start = lambda{}.
-  (send{port=0x1D5, value=0x30000} /\
-   send{port=0x1D5, value=0x20000})
+  (std.send{port=0x1D5, value=0x30000} /\
+   std.send{port=0x1D5, value=0x20000})
 
 /\
 
 -- Send STOP condition: SDA goes high while SCL is high
 i2c_stop = lambda{}.
-  (send{port=0x1D5, value=0x20000} /\
-   send{port=0x1D5, value=0x30000})
+  (std.send{port=0x1D5, value=0x20000} /\
+   std.send{port=0x1D5, value=0x30000})
 
 /\
 
 -- Send one byte (8 bits) MSB first, receive ACK
 -- Shift out each bit, then read ACK from slave
 i2c_send_byte = lambda{byte:Int, ack:Int}.
-  (shr{a=byte, n=7, c=b7} /\
+  (std.shr{a=byte, n=7, c=b7} /\
    i2c_send_bit{bit=b7, state=data} /\
-   shr{a=byte, n=6, c=b6t} /\
-   band{a=b6t, b=1, c=b6} /\
+   std.shr{a=byte, n=6, c=b6t} /\
+   std.band{a=b6t, b=1, c=b6} /\
    i2c_send_bit{bit=b6, state=data} /\
-   shr{a=byte, n=5, c=b5t} /\
-   band{a=b5t, b=1, c=b5} /\
+   std.shr{a=byte, n=5, c=b5t} /\
+   std.band{a=b5t, b=1, c=b5} /\
    i2c_send_bit{bit=b5, state=data} /\
-   shr{a=byte, n=4, c=b4t} /\
-   band{a=b4t, b=1, c=b4} /\
+   std.shr{a=byte, n=4, c=b4t} /\
+   std.band{a=b4t, b=1, c=b4} /\
    i2c_send_bit{bit=b4, state=data} /\
-   recv{port=0x1D5, value=ack})
+   std.recv{port=0x1D5, value=ack})
 
 /\
 
 -- Write to an I2C sensor register:
 -- START, send device address + W, send register, send value, STOP
 i2c_write_reg = lambda{dev:Int, reg:Int, val:Int}.
-  (shl{a=dev, n=1, c=addr_w} /\
+  (std.shl{a=dev, n=1, c=addr_w} /\
    i2c_start{} /\
    i2c_send_byte{byte=addr_w, ack=ack1} /\
    i2c_send_byte{byte=reg, ack=ack2} /\

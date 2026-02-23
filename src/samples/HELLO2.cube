@@ -16,11 +16,15 @@
 -- RX NODE (node 200 — one-wire boot node, pin17 ← Port B RX)
 -- ============================================================
 
+#include std
+
+/\
+
 node 200
 
 /\
 
-hellotx_rx{}
+std.hellotx_rx{}
 
 -- ============================================================
 -- TX NODE (node 100 — basic node, pin17 → Port B TX)
@@ -30,4 +34,4 @@ node 100
 
 /\
 
-hellotx_tx{}
+std.hellotx_tx{}

@@ -7,7 +7,7 @@
 --   Node 609: Perspective projection — 3D to 2D transform
 --   Node 610: VGA pixel output — receives screen coordinates
 --
--- In a full implementation, node 610 would relay screen coords
+-- In a full implementation, node 610 would std.relay screen coords
 -- through wire nodes to node 117 (9-bit DAC) for analog VGA
 -- signal generation. Hsync/Vsync timing nodes and line-drawing
 -- nodes would complete the pipeline. Here we demonstrate the
@@ -22,6 +22,10 @@
 -- GEOMETRY NODE: pre-computed sphere vertices
 -- ============================================================
 
+#include std
+
+/\
+
 node 608
 
 /\
@@ -30,8 +34,8 @@ node 608
 -- Scales the raw product back to Q8.8 representation.
 -- E.g., fpmul{a=181, b=181, c=r} gives r ≈ 128 (0.5)
 fpmul = lambda{a:Int, b:Int, c:Int}.
-  (times{a=a, b=b, c=raw} /\
-   shr{a=raw, n=8, c=c})
+  (std.times{a=a, b=b, c=raw} /\
+   std.shr{a=raw, n=8, c=c})
 
 /\
 
@@ -60,9 +64,9 @@ sphere_vtx = lambda{idx:Int, x:Int, y:Int, z:Int}.
 -- Three blocking sends — projection node must read all three.
 -- Models the F18A pattern: right a! T ! T ! T !
 vtx_send = lambda{x:Int, y:Int, z:Int}.
-  (send{port=0x1D5, value=x} /\
-   send{port=0x1D5, value=y} /\
-   send{port=0x1D5, value=z})
+  (std.send{port=0x1D5, value=x} /\
+   std.send{port=0x1D5, value=y} /\
+   std.send{port=0x1D5, value=z})
 
 /\
 
@@ -101,9 +105,9 @@ node 609
 -- Receive one 3D vertex from geometry node via LEFT port.
 -- Blocks until all three coordinates arrive.
 vtx_recv = lambda{x:Int, y:Int, z:Int}.
-  (recv{port=0x175, value=x} /\
-   recv{port=0x175, value=y} /\
-   recv{port=0x175, value=z})
+  (std.recv{port=0x175, value=x} /\
+   std.recv{port=0x175, value=y} /\
+   std.recv{port=0x175, value=z})
 
 /\
 
@@ -114,15 +118,15 @@ vtx_recv = lambda{x:Int, y:Int, z:Int}.
 --   sx = (y * d) / (x + d)
 --   sy = (z * d) / (x + d)
 --
--- Uses reverse-mode times for division:
---   times{a=sx, b=xd, c=yd} solves sx = yd / xd
+-- Uses reverse-mode std.times for division:
+--   std.times{a=sx, b=xd, c=yd} solves sx = yd / xd
 -- This calls ROM divmod (available at 0x2D6 on basic nodes).
 project = lambda{x:Int, y:Int, z:Int, sx:Int, sy:Int}.
-  (plus{a=x, b=512, c=xd} /\
-   times{a=y, b=512, c=yd} /\
-   times{a=sx, b=xd, c=yd} /\
-   times{a=z, b=512, c=zd} /\
-   times{a=sy, b=xd, c=zd})
+  (std.plus{a=x, b=512, c=xd} /\
+   std.times{a=y, b=512, c=yd} /\
+   std.times{a=sx, b=xd, c=yd} /\
+   std.times{a=z, b=512, c=zd} /\
+   std.times{a=sy, b=xd, c=zd})
 
 /\
 
@@ -130,8 +134,8 @@ project = lambda{x:Int, y:Int, z:Int, sx:Int, sy:Int}.
 -- In a full system these feed a Bresenham line-drawing node
 -- that rasterizes wireframe edges between adjacent vertices.
 coord_send = lambda{sx:Int, sy:Int}.
-  (send{port=0x1D5, value=sx} /\
-   send{port=0x1D5, value=sy})
+  (std.send{port=0x1D5, value=sx} /\
+   std.send{port=0x1D5, value=sy})
 
 /\
 
@@ -184,8 +188,8 @@ node 610
 -- projection and output stages. Each edge connects adjacent
 -- vertices on the sphere's latitude/longitude grid.
 pixel_recv = lambda{sx:Int, sy:Int}.
-  (recv{port=0x175, value=sx} /\
-   recv{port=0x175, value=sy})
+  (std.recv{port=0x175, value=sx} /\
+   std.recv{port=0x175, value=sy})
 
 /\
 

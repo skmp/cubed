@@ -3,12 +3,12 @@
 -- Red square with white cross bar (simplified: horizontal bar only).
 -- Full cross requires more code than 64-word RAM allows per node.
 --
--- Architecture: feeder-relay pipeline for synchronized RGB output.
---   Feeder nodes (116, 616, 716) generate pixel data using fill{}
+-- Architecture: feeder-std.relay pipeline for synchronized RGB output.
+--   Feeder nodes (116, 616, 716) generate pixel data using std.fill{}
 --   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
---   DAC relay nodes (117, 617, 717) read from west (RIGHT=0x1D5 for
+--   DAC std.relay nodes (117, 617, 717) read from west (RIGHT=0x1D5 for
 --   odd-x nodes) and write to IO.
---   R relay (117) signals sync node (217) after each row for HSYNC.
+--   R std.relay (117) signals sync node (217) after each row for HSYNC.
 --
 -- EVB002 VGA wiring:
 --   Node 117 DAC (117.ao) -> R channel
@@ -43,14 +43,18 @@
 -- Reads pixel data from west (RIGHT=0x1D5) and writes to DAC.
 -- After each row, signals sync node (217) via north (UP=0x145).
 
+#include std
+
+/\
+
 node 117
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ send{port=0x145, value=0}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.send{port=0x145, value=0}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617)
@@ -60,9 +64,9 @@ node 617
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE DAC RELAY (node 717)
@@ -72,9 +76,9 @@ node 717
 
 /\
 
-loop{n=480}
-/\ relay{port=0x1D5, count=640}
-/\ again{}
+std.loop{n=480}
+/\ std.relay{port=0x1D5, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -85,30 +89,30 @@ node 116
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
 -- Black above flag: 112 rows
-loop{n=112}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=112}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 /\
 
 -- Flag area: 256 rows (R is max across entire flag width)
-loop{n=256}
-/\ fill{value=0x155, count=192}
-/\ fill{value=0x0AA, count=256}
-/\ fill{value=0x155, count=192}
-/\ again{}
+std.loop{n=256}
+/\ std.fill{value=0x155, count=192}
+/\ std.fill{value=0x0AA, count=256}
+/\ std.fill{value=0x155, count=192}
+/\ std.again{}
 
 /\
 
 -- Black below flag: 112 rows
-loop{n=112}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=112}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- GREEN FEEDER (node 616)
@@ -119,30 +123,30 @@ node 616
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
 -- Black + red top: 208 rows (112 black + 96 red, both G=0)
-loop{n=208}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=208}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 /\
 
 -- White bar rows: 64 rows
-loop{n=64}
-/\ fill{value=0x155, count=240}
-/\ fill{value=0x0AA, count=160}
-/\ fill{value=0x155, count=240}
-/\ again{}
+std.loop{n=64}
+/\ std.fill{value=0x155, count=240}
+/\ std.fill{value=0x0AA, count=160}
+/\ std.fill{value=0x155, count=240}
+/\ std.again{}
 
 /\
 
 -- Red bottom + black: 208 rows (96 red + 112 black, both G=0)
-loop{n=208}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=208}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- BLUE FEEDER (node 716)
@@ -153,47 +157,47 @@ node 716
 
 /\
 
-setb{addr=0x1D5}
+std.setb{addr=0x1D5}
 
 /\
 
 -- Black + red top: 208 rows
-loop{n=208}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=208}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 /\
 
 -- White bar rows: 64 rows
-loop{n=64}
-/\ fill{value=0x155, count=240}
-/\ fill{value=0x0AA, count=160}
-/\ fill{value=0x155, count=240}
-/\ again{}
+std.loop{n=64}
+/\ std.fill{value=0x155, count=240}
+/\ std.fill{value=0x0AA, count=160}
+/\ std.fill{value=0x155, count=240}
+/\ std.again{}
 
 /\
 
 -- Red bottom + black: 208 rows
-loop{n=208}
-/\ fill{value=0x155, count=640}
-/\ again{}
+std.loop{n=208}
+/\ std.fill{value=0x155, count=640}
+/\ std.again{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
--- Waits for signal from R relay (117) after each row,
+-- Waits for signal from R std.relay (117) after each row,
 -- then emits HSYNC. VSYNC at end of frame.
 
 node 217
 
 /\
 
-loop{n=480}
-/\ recv{port=0x145}
-/\ send{port=0x15D, value=0x20000}
-/\ again{}
+std.loop{n=480}
+/\ std.recv{port=0x145}
+/\ std.send{port=0x15D, value=0x20000}
+/\ std.again{}
 
 /\
 
 -- End of frame: VSYNC
-send{port=0x15D, value=0x30000}
+std.send{port=0x15D, value=0x30000}
