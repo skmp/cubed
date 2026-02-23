@@ -117,12 +117,12 @@ export class GA144 {
 
   /**
    * Step the simulation while driving pin17 of a given node according to
-   * a UART serial stream.
+   * a serial bit stream with RS232 polarity (idle = LOW, start = HIGH).
    *
    * `bits` is an array of {value: boolean, duration: number} pairs where
    * duration is measured in GA144 step ticks.  Pin17 is set to each value for
    * `duration` ticks, then the next entry is used.  After all bits are sent
-   * pin17 is left at idle (true = mark).
+   * pin17 is left at idle (false = RS232 idle / mark).
    *
    * Returns true if a breakpoint was hit.
    */
@@ -145,7 +145,7 @@ export class GA144 {
           remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
         }
       } else {
-        node.setPin17(true); // idle = mark
+        node.setPin17(false); // idle = RS232 mark (LOW on pin17)
       }
 
       if (this.stepProgram()) return true;
@@ -155,12 +155,22 @@ export class GA144 {
   }
 
   /**
-   * Build a UART 8N1 bit sequence for the given bytes and baud period (in
-   * GA144 steps per bit).  Idle is high (mark), start bit is low, stop is
-   * high.  Returns array suitable for stepWithSerialBits().
+   * Build a serial bit sequence with RS232 polarity for GA144 async boot.
    *
-   * The sequence starts with a configurable idle prefix so the RX node can
-   * see the line idle before the start bit arrives.
+   * On real hardware, the RS232 level converter inverts all levels:
+   *   UART idle (mark/HIGH) → RS232 -12V → pin17 LOW
+   *   UART start (space/LOW) → RS232 +12V → pin17 HIGH
+   *   UART data 0 (space) → pin17 HIGH
+   *   UART data 1 (mark) → pin17 LOW
+   *   UART stop (mark/HIGH) → pin17 LOW
+   *
+   * The bytes are already XOR'd with 0xFF by encodeAsyncBytes (host-side
+   * inversion per BOOT-02 spec).  The RS232 inversion here cancels with
+   * the host XOR, so the F18A reads data bits "high true."
+   *
+   * The first byte of each word has a calibration pattern (0x2D in the low
+   * 6 bits) that produces the sequence 1101101 on pin17 (start + 6 bits),
+   * enabling auto-baud detection via a double-wide HIGH pulse.
    */
   static buildSerialBits(
     bytes: number[],
@@ -177,19 +187,21 @@ export class GA144 {
       }
     };
 
-    // Lead-in idle
-    if (idlePeriod > 0) push(true, idlePeriod);
+    // Lead-in idle (RS232 idle = LOW on pin17)
+    if (idlePeriod > 0) push(false, idlePeriod);
 
     for (const byte of bytes) {
-      push(false, baudPeriod); // start bit (low)
+      // RS232 inverts all levels compared to standard UART
+      push(true, baudPeriod); // start bit: HIGH on pin17
       for (let bit = 0; bit < 8; bit++) {
-        push(((byte >> bit) & 1) === 1, baudPeriod); // LSB first
+        // Invert each data bit (RS232 inversion)
+        push(((byte >> bit) & 1) === 0, baudPeriod); // LSB first, inverted
       }
-      push(true, baudPeriod); // stop bit (high)
+      push(false, baudPeriod); // stop bit: LOW on pin17
     }
 
-    // Trailing idle
-    push(true, baudPeriod * 2);
+    // Trailing idle (RS232 idle = LOW)
+    push(false, baudPeriod * 2);
     return bits;
   }
 

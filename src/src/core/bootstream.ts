@@ -300,11 +300,12 @@ function makeAsyncFrame1(
     const nodeCoord = rcoords[i];
     const node = nodeMap.get(nodeCoord);
 
-    // Current direction (forward): rpath[i] is the direction this node
-    // is reached FROM. But we need the direction TO the next node.
-    // In the reference: dir = rpath[i], prev = rpath[i+1] (or firstDir for last)
-    const dir = rpath[i];    // direction forward (may be false for last)
-    const prev = i < rcoords.length - 1 ? rpath[i + 1] : firstDir;
+    // In the forward path, rpath[i] = the direction from the previous node
+    // TO this node.  rpath[i-1] = the direction from this node TO the next.
+    //   prev: direction used to reach this node (for focusing call)
+    //   dir:  direction from this node to the next (for port pump relay)
+    const prev = rpath[i];
+    const dir = i > 0 ? rpath[i - 1] : rpath[i];
 
     // Get node code
     const nodeCode = node ? getUsedPortion(node) : null;

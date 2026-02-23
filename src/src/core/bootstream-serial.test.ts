@@ -67,8 +67,8 @@ describe('boot stream serial encoding at 921600 baud', () => {
     );
     const bits = GA144.buildSerialBits(Array.from(boot.bytes), BAUD_PERIOD, BAUD_PERIOD * 5);
     expect(bits.length).toBeGreaterThanOrEqual(2);
-    expect(bits[0].value).toBe(true);   // idle = mark = high
-    expect(bits[1].value).toBe(false);  // start bit = low
+    expect(bits[0].value).toBe(false);  // RS232 idle = LOW on pin17
+    expect(bits[1].value).toBe(true);   // RS232 start bit = HIGH on pin17
   });
 
   it('bit timing is uniform across all bytes', () => {

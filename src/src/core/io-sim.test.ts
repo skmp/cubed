@@ -9,8 +9,8 @@
  *   - Node 200 (one-wire node, 1 GPIO pin, wake pin = LEFT)
  *   - Node 300 (sync boot node, 2 GPIO pins, wake pin = LEFT)
  *
- * Protocol: UART 8N1
- *   idle = HIGH (mark), start bit = LOW, 8 data bits LSB first, stop bit = HIGH
+ * Protocol: RS232 8N1 (after level conversion)
+ *   idle = LOW, start bit = HIGH, 8 data bits LSB first (inverted), stop bit = LOW
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
@@ -108,9 +108,9 @@ function snap(ga: GA144, coord: number) {
 }
 
 /**
- * Build UART 8N1 bit sequence for given bytes at a given baud period.
+ * Build RS232 8N1 bit sequence for given bytes at a given baud period.
  * Each element: {value: boolean, duration: number}
- * idle = true (mark), start bit = false (space)
+ * RS232: idle = false (LOW), start bit = true (HIGH), data inverted
  */
 function buildSerialBits(
   bytes: number[],
@@ -179,36 +179,36 @@ describe('IO simulation: serial input at 921600 baud', () => {
       expect(totalDuration).toBe(BAUD_PERIOD * 12); // 10 data + 2 trailing
     });
 
-    it('0x00 byte merges start bit with all-zero data', () => {
+    it('0x00 byte: RS232 start(H) + inverted-zero data(H) merge', () => {
       const bits = buildSerialBits([0x00], BAUD_PERIOD);
-      // 0x00: start(0), 8x data(0), stop(1) + trailing(1)
-      // start + 8 zeros merge into one low span of 9*BAUD
-      // stop + trailing merge into high span of 3*BAUD
+      // RS232: start(H), 8× data 0→inverted→H, stop(L) + trailing(L)
+      // start + 8 inverted zeros merge into HIGH span of 9*BAUD
+      // stop + trailing merge into LOW span of 3*BAUD
       expect(bits).toHaveLength(2);
-      expect(bits[0].value).toBe(false);
+      expect(bits[0].value).toBe(true);
       expect(bits[0].duration).toBe(BAUD_PERIOD * 9); // start + 8 data bits
-      expect(bits[1].value).toBe(true);
+      expect(bits[1].value).toBe(false);
       expect(bits[1].duration).toBe(BAUD_PERIOD * 3); // stop + 2 trailing
     });
 
-    it('0xFF byte merges data with stop bit', () => {
+    it('0xFF byte: RS232 inverted-one data(L) merges with stop(L)', () => {
       const bits = buildSerialBits([0xFF], BAUD_PERIOD);
-      // 0xFF: start(0), 8x data(1), stop(1) + trailing(1)
-      // start = low BAUD, data+stop+trailing = high 11*BAUD
+      // RS232: start(H), 8× data 1→inverted→L, stop(L) + trailing(L)
+      // start = HIGH BAUD, data+stop+trailing = LOW 11*BAUD
       expect(bits).toHaveLength(2);
-      expect(bits[0].value).toBe(false);
+      expect(bits[0].value).toBe(true);
       expect(bits[0].duration).toBe(BAUD_PERIOD * 1); // just start bit
-      expect(bits[1].value).toBe(true);
+      expect(bits[1].value).toBe(false);
       expect(bits[1].duration).toBe(BAUD_PERIOD * 11); // 8 data + stop + 2 trailing
     });
 
-    it('idle prefix is prepended', () => {
+    it('idle prefix is prepended (RS232 idle = LOW)', () => {
       const idlePeriod = BAUD_PERIOD * 10;
       const bits = buildSerialBits([0xFF], BAUD_PERIOD, idlePeriod);
-      // idle(high) merges with nothing before it
-      expect(bits[0].value).toBe(true);
-      expect(bits[0].duration).toBe(idlePeriod); // idle stands alone
-      expect(bits[1].value).toBe(false); // start bit
+      // RS232 idle = LOW, start = HIGH
+      expect(bits[0].value).toBe(false);
+      expect(bits[0].duration).toBe(idlePeriod); // idle stands alone (LOW)
+      expect(bits[1].value).toBe(true); // start bit (HIGH)
     });
 
     it('two bytes produce correct total duration', () => {
@@ -692,8 +692,8 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // Use stepWithSerialBits to drive the full frame
       ga.stepWithSerialBits(708, bits, bits.reduce((s, b) => s + b.duration, 0));
 
-      // After all bits sent, pin17 should be idle (HIGH)
-      expect(node.getPin17()).toBe(true);
+      // After all bits sent, pin17 should be idle (RS232 idle = LOW)
+      expect(node.getPin17()).toBe(false);
 
       // Verify by manually driving and checking at specific points:
       // Start fresh for detailed check
@@ -732,7 +732,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
       expect(snap(ga2, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
     });
 
-    it('pin17 returns to idle (HIGH) after all bits are sent', () => {
+    it('pin17 returns to idle (LOW) after all bits are sent', () => {
       const ga = new GA144('test');
       ga.reset();
       isolateNodes(ga, [708]);
@@ -754,13 +754,13 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // Step past all bits
       ga.stepWithSerialBits(708, bits, 2000);
 
-      // After stepWithSerialBits, pin17 should be idle (true)
-      expect(ga.getNodeByCoord(708).getPin17()).toBe(true);
+      // After stepWithSerialBits, pin17 should be idle (RS232 idle = LOW)
+      expect(ga.getNodeByCoord(708).getPin17()).toBe(false);
 
       // Read IO one more time
       ga.stepProgramN(5);
       const s = snap(ga, 708);
-      expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
+      expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(0);
     });
   });
 
@@ -789,8 +789,9 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
     it('bit transitions happen at exact baud boundaries', () => {
       // For byte 0xAA (10101010), LSB first: 0,1,0,1,0,1,0,1
-      // Frame: start(0), d0(0), d1(1), d2(0), d3(1), d4(0), d5(1), d6(0), d7(1), stop(1)
-      // Merged: 0(2*BAUD), 1(BAUD), 0(BAUD), 1(BAUD), 0(BAUD), 1(BAUD), 0(BAUD), 1(3*BAUD+trailing)
+      // RS232: start(H), d0(0→inv→H), d1(1→inv→L), d2(0→inv→H), d3(1→inv→L),
+      //        d4(0→inv→H), d5(1→inv→L), d6(0→inv→H), d7(1→inv→L), stop(L)
+      // Merged: H(2*BAUD), L(BAUD), H(BAUD), L(BAUD), H(BAUD), L(BAUD), H(BAUD), L(4*BAUD)
       const bits = buildSerialBits([0xAA], BAUD_PERIOD);
 
       // Reconstruct the full bit-by-bit timeline
@@ -801,8 +802,8 @@ describe('IO simulation: serial input at 921600 baud', () => {
         currentStep += b.duration;
       }
 
-      // First segment should be LOW (start + d0=0)
-      expect(transitions[0].value).toBe(false);
+      // First segment should be HIGH (RS232 start + d0=0 inverted)
+      expect(transitions[0].value).toBe(true);
       expect(transitions[0].step).toBe(0);
 
       // Verify all transitions happen at multiples of BAUD_PERIOD
@@ -819,18 +820,17 @@ describe('IO simulation: serial input at 921600 baud', () => {
   describe('multi-byte serial', () => {
 
     it('two consecutive bytes have inter-byte gap', () => {
-      // Between two bytes, there's at least 1 stop bit HIGH before next start LOW.
+      // Between two bytes, there's at least 1 stop bit LOW before next start HIGH.
       const bits = buildSerialBits([0x00, 0x00], BAUD_PERIOD);
 
-      // Byte 0x00 frame: start(0)+8*data(0) = 9*BAUD LOW, then stop(1) = 1*BAUD HIGH
-      // Byte 0x00 frame: start(0)+8*data(0) = 9*BAUD LOW, then stop(1) = 1*BAUD HIGH
-      // + trailing 2*BAUD HIGH
-      // Merged: LOW(9*BAUD), HIGH(1*BAUD), LOW(9*BAUD), HIGH(3*BAUD)
+      // RS232 byte 0x00: start(H) + 8×data(0→inv→H) = 9*BAUD HIGH, stop(L) = 1*BAUD LOW
+      // Two bytes + trailing:
+      // Merged: HIGH(9*BAUD), LOW(1*BAUD), HIGH(9*BAUD), LOW(3*BAUD)
       expect(bits).toHaveLength(4);
-      expect(bits[0]).toEqual({ value: false, duration: 9 * BAUD_PERIOD });
-      expect(bits[1]).toEqual({ value: true,  duration: 1 * BAUD_PERIOD });
-      expect(bits[2]).toEqual({ value: false, duration: 9 * BAUD_PERIOD });
-      expect(bits[3]).toEqual({ value: true,  duration: 3 * BAUD_PERIOD });
+      expect(bits[0]).toEqual({ value: true,  duration: 9 * BAUD_PERIOD });
+      expect(bits[1]).toEqual({ value: false, duration: 1 * BAUD_PERIOD });
+      expect(bits[2]).toEqual({ value: true,  duration: 9 * BAUD_PERIOD });
+      expect(bits[3]).toEqual({ value: false, duration: 3 * BAUD_PERIOD });
     });
 
     it('total frame timing is correct for N bytes', () => {
@@ -1172,9 +1172,9 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
     it('empty byte array produces only trailing idle', () => {
       const bits = buildSerialBits([], BAUD_PERIOD);
-      // No bytes → just trailing idle (2 * BAUD)
+      // No bytes → just trailing idle (RS232 idle = LOW, 2 * BAUD)
       expect(bits).toHaveLength(1);
-      expect(bits[0].value).toBe(true);
+      expect(bits[0].value).toBe(false);
       expect(bits[0].duration).toBe(BAUD_PERIOD * 2);
     });
 
