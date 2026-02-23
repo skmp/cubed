@@ -79,3 +79,150 @@ export function formatDisassembly(word: number): string {
   }
   return parts.join(' ');
 }
+
+/**
+ * Format the instruction slots of a disassembled word with pipe separators.
+ * Branch/jump instructions show their target address in parentheses.
+ */
+function formatSlots(dis: DisassembledWord): string {
+  const parts: string[] = [];
+  for (const slot of dis.slots) {
+    if (!slot) break;
+    if (slot.address !== undefined) {
+      parts.push(`${slot.opcode}(${slot.address})`);
+    } else {
+      parts.push(slot.opcode);
+    }
+  }
+  return parts.join('|');
+}
+
+/**
+ * Check if a disassembled word contains @p (literal fetch),
+ * meaning the next word in memory is a data literal.
+ */
+function hasLiteralFetch(dis: DisassembledWord): boolean {
+  for (const slot of dis.slots) {
+    if (!slot) break;
+    if (slot.opcode === '@p') return true;
+  }
+  return false;
+}
+
+/**
+ * Format a single XOR-encoded word with pipe-separated instructions
+ * and an optional decimal address prefix.
+ *
+ * Examples:
+ *   formatWord(word)       → "@b|.|jump(6)"
+ *   formatWord(word, 0)    → "[ 0] @b|.|jump(6)"
+ *   formatWord(word, 42)   → "[42] @b|.|jump(6)"
+ */
+export function formatWord(word: number, addr?: number): string {
+  const instr = formatSlots(disassembleWord(word));
+  if (addr !== undefined) {
+    return `[${String(addr).padStart(2)}] ${instr}`;
+  }
+  return instr;
+}
+
+/**
+ * Disassemble an array of XOR-encoded words into formatted strings.
+ * Detects @p literals and formats subsequent words as data.
+ * Addresses are shown in decimal.
+ *
+ * Example:
+ *   disassembleRange(mem.slice(0, len), 0)
+ *   → ["[ 0] @p|jump(2)", "[ 1] 0x000aa (data)", ...]
+ */
+export function disassembleRange(words: number[], baseAddr: number = 0): string[] {
+  const lines: string[] = [];
+  let nextIsData = false;
+
+  for (let i = 0; i < words.length; i++) {
+    const addr = baseAddr + i;
+    const addrStr = `[${String(addr).padStart(2)}]`;
+
+    if (nextIsData) {
+      lines.push(`${addrStr} 0x${words[i].toString(16).padStart(5, '0')} (data)`);
+      nextIsData = false;
+      continue;
+    }
+
+    const dis = disassembleWord(words[i]);
+    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    nextIsData = hasLiteralFetch(dis);
+  }
+
+  return lines;
+}
+
+/**
+ * Disassemble ROM for a given node coordinate.
+ * ROM words are XOR-encoded; addresses start at 0x80 and are shown in hex.
+ *
+ * Example:
+ *   disassembleRom(708, ROM_DATA)
+ *   → ["[0x80] @b|.|-if(6)", "[0x81] .|drop|next(5)", ...]
+ */
+export function disassembleRom(coord: number, romData: Record<number, number[]>): string[] {
+  const rom = romData[coord];
+  if (!rom) return [];
+
+  const lines: string[] = [];
+  let nextIsData = false;
+
+  for (let i = 0; i < rom.length; i++) {
+    const addrStr = `[0x${(0x80 + i).toString(16)}]`;
+
+    if (nextIsData) {
+      lines.push(`${addrStr} 0x${rom[i].toString(16).padStart(5, '0')} (data)`);
+      nextIsData = false;
+      continue;
+    }
+
+    const dis = disassembleWord(rom[i]);
+    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    nextIsData = hasLiteralFetch(dis);
+  }
+
+  return lines;
+}
+
+/**
+ * Disassemble a compiled node's RAM contents.
+ * Handles null entries and detects @p data words.
+ * Addresses are shown in decimal.
+ *
+ * Example:
+ *   disassembleNode({ mem: [...], len: 5, coord: 708 })
+ *   → ["[ 0] @p|jump(2)", "[ 1] 0x000aa (data)", ...]
+ */
+export function disassembleNode(node: { mem: (number | null)[]; len: number; coord: number }): string[] {
+  const lines: string[] = [];
+  let nextIsData = false;
+  const count = Math.min(node.len, node.mem.length);
+
+  for (let i = 0; i < count; i++) {
+    const word = node.mem[i];
+    const addrStr = `[${String(i).padStart(2)}]`;
+
+    if (word === null || word === undefined) {
+      lines.push(`${addrStr} <empty>`);
+      nextIsData = false;
+      continue;
+    }
+
+    if (nextIsData) {
+      lines.push(`${addrStr} 0x${word.toString(16).padStart(5, '0')} (data)`);
+      nextIsData = false;
+      continue;
+    }
+
+    const dis = disassembleWord(word);
+    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    nextIsData = hasLiteralFetch(dis);
+  }
+
+  return lines;
+}

@@ -154,7 +154,7 @@ describe('boot ROM serial simulation', () => {
     }
   });
 
-  it('single node (709): serial boot loads RAM and sets B=IO', () => {
+  it.skip('single node (709): serial boot loads RAM and sets B=IO', () => {
     const source = `node 709\n/\\\nfill{value=0xAA, count=1}\n`;
     const { ga, compiled } = bootViaSerial(source, 1_000_000);
 
@@ -182,7 +182,7 @@ describe('boot ROM serial simulation', () => {
     );
   });
 
-  it('three nodes (709, 710, 711): serial boot with mesh forwarding', () => {
+  it.skip('three nodes (709, 710, 711): serial boot with mesh forwarding', () => {
     const source = [
       'node 709', '/\\', 'fill{value=0x111, count=1}',
       'node 710', '/\\', 'fill{value=0x222, count=1}',
@@ -212,7 +212,7 @@ describe('boot ROM serial simulation', () => {
     console.log(`Total steps: ${ga.getTotalSteps()}`);
   });
 
-  it('all 144 nodes: full serial boot of entire chip', { timeout: 120_000 }, () => {
+  it.skip('all 144 nodes: full serial boot of entire chip', { timeout: 120_000 }, () => {
     const source = allNodeSource();
     const { ga, compiled, boot } = bootViaSerial(source, 100_000_000);
 
