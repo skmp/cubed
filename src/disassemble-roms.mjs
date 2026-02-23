@@ -91,7 +91,7 @@ function disassembleWord(word) {
     return { slots, raw: word };
   }
 
-  const slot3opcode = (xored & 0x7) << 1;
+  const slot3opcode = (xored & 0x7) << 2;
   const slot3name = OPCODES[slot3opcode];
   slots[3] = { opcode: slot3name };
 
