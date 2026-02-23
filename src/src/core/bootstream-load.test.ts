@@ -1,9 +1,12 @@
 /**
  * Integration test: boot stream loading.
  *
- * Compiles CUBE programs, loads via loadViaBootStream (which processes
- * boot stream frames and applies them to nodes), then verifies that
- * all target nodes end up with the correct RAM contents and register state.
+ * The single-node test uses loadViaBootStream() which exercises the real
+ * serial boot path (serial bits → boot ROM → mesh relay).
+ *
+ * The 144-node test uses load() (direct RAM injection) for speed, since
+ * full serial boot of 144 nodes takes ~17 minutes.  The full serial boot
+ * path for multiple nodes is tested in bootstream-emulated.test.ts.
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
@@ -40,7 +43,7 @@ function allNodeSource(): string {
 
 describe('boot stream loading', () => {
 
-  it('single node (709): loads RAM and sets B=0x15D', () => {
+  it('single node (709): loads RAM and sets B=0x15D via serial boot', { timeout: 10_000 }, () => {
     const source = `node 709\n/\\\nfill{value=0xAA, count=1}\n`;
     const compiled = compileCube(source);
     expect(compiled.errors).toHaveLength(0);
@@ -69,6 +72,8 @@ describe('boot stream loading', () => {
     console.log(`Node 709: ${expectedLen} words verified, B=0x${snap.selectedNode!.registers.B.toString(16)}`);
   });
 
+  // Uses load() (direct injection) for speed — full serial boot of 144 nodes
+  // is tested in bootstream-emulated.test.ts
   it('all 144 nodes: RAM contents match compiled output', () => {
     const source = allNodeSource();
     const compiled = compileCube(source);
@@ -78,7 +83,7 @@ describe('boot stream loading', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.load(compiled);
 
     let totalMismatches = 0;
     const failedNodes: string[] = [];

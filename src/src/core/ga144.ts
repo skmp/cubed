@@ -7,6 +7,7 @@ import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 import type { ThermalState } from './thermal';
+import { buildBootStream } from './bootstream';
 
 export class GA144 {
   readonly name: string;
@@ -263,17 +264,15 @@ export class GA144 {
   }
 
   /**
-   * Load compiled nodes via boot stream processing.
+   * Load compiled nodes via the real serial boot path.
    *
-   * Processes the boot stream frames directly (matching the reference
-   * simulator's approach), bypassing the serial protocol layer.  The boot
-   * ROM's serial auto-baud and bit-banging protocol is not simulated;
-   * instead, boot frame words are injected into nodes via the existing
-   * load() method.
+   * Builds a boot stream from compiled nodes, converts it to serial bits,
+   * and drives them into node 708's pin17.  The boot ROM receives the
+   * serial data, decodes it, and relays code across the mesh to all
+   * target nodes — exactly as real GA144 hardware boots.
    *
-   * This is equivalent to what real hardware does after the serial layer
-   * decodes the boot stream: each node receives its code, register init
-   * values (A, B, IO, stack), and starting P address.
+   * After boot completes, totalSteps is reset to 0 and the IO write
+   * buffer is cleared so the user sees a clean starting state.
    */
   static readonly BOOT_BAUD = 921_600;
   static readonly GA144_MOPS = 666_000_000;
@@ -282,7 +281,38 @@ export class GA144 {
   loadViaBootStream(
     compiled: CompiledProgram,
   ): void {
-    this.load(compiled);
+    if (compiled.nodes.length === 0) return;
+
+    // Track loaded nodes for IO write filtering
+    this.loadedNodes.clear();
+    for (const nodeData of compiled.nodes) {
+      const index = coordToIndex(nodeData.coord);
+      if (index >= 0 && index < NUM_NODES) {
+        this.loadedNodes.add(index);
+      }
+    }
+
+    // Build boot stream and serial bits
+    const boot = buildBootStream(compiled.nodes);
+    const bits = GA144.buildSerialBits(
+      Array.from(boot.bytes),
+      GA144.BOOT_BAUD_PERIOD,
+      GA144.BOOT_BAUD_PERIOD * 10, // idle lead-in for auto-baud detection
+    );
+
+    // Compute max steps: total bit duration + generous padding for mesh forwarding
+    const totalBitDuration = bits.reduce((sum, b) => sum + b.duration, 0);
+    const maxSteps = totalBitDuration + compiled.nodes.length * 5000;
+
+    // Drive serial bits into node 708
+    this.stepWithSerialBits(708, bits, maxSteps);
+
+    // Post-boot cleanup: reset step counter and IO buffer so user sees clean state
+    this.totalSteps = 0;
+    this.ioWriteStart = 0;
+    this.ioWriteStartSeq = 0;
+    this.ioWriteSeq = 0;
+    this.lastVsyncSeq = null;
   }
 
   // ========================================================================

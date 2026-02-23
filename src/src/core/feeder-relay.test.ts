@@ -14,7 +14,7 @@ function runCube(source: string, maxSteps = 10_000) {
   const ga = new GA144('test');
   ga.setRomData(ROM_DATA);
   ga.reset();
-  ga.loadViaBootStream(compiled);
+  ga.load(compiled);
   ga.stepUntilDone(maxSteps);
   return { ga, snap: ga.getSnapshot() };
 }
