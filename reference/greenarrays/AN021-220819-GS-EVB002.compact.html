@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+			<div>
+				<div>
+					<div><sub>AN021 G</sub>G<sub>ettin</sub>r<sub>g </sub>e<sub>Star</sub>e<sub>ted </sub>n<sub>with</sub>A<sub>Eval</sub>r<sub>Bo</sub>r<sub>ard</sub>a<sub>EV</sub>y<sub>B00</sub>s<sub>2 </sub>® </div>
+					Application Note AN021 Revised 8/19/22
+					Getting Started with
+					Evaluation Board EVB002
+					The GreenArrays EVB002 Evaluation Board is a versatile and powerful application development
+					platform for the GA144-1.20 chips. As such it has many configuration options. The current Printed
+					Circuit Board (PCB) revision shown on the silkscreen is 0h. It is currently shipped with configuration
+					settings as shown herein, and with polyFORTH® that may be booted from flash.
+					Please familiarize yourself with this information before connecting anything to your new board. It will
+					walk you through initial connection, check-out and use of the board.
+					In addition, please download and read the other relevant documentation such as the Programmers'
+					Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), the Evaluation
+					Board Data Book (DB014), and the Programmers' References for arrayForth® version 3, polyFORTH,
+					and other software as appropriate. The current editions of all GreenArrays documents, including this
+					<div>one, may be found on our website a<a href="http://www.greenarraychips.com/" target="_blank">t </a><a href="http://www.greenarraychips.com/" target="_blank">http://www.greenarraychips.com </a>. It is always advisable to </div>
+					ensure that you are using the latest documents before starting work.
+					<div>Your satisfaction is very important to us! Please conta<a href="mailto:hotline@greenarraychips.com" target="_blank">ct </a><a href="mailto:hotline@greenarraychips.com" target="_blank">Hotline@greenarraychips.com </a>if you have </div>
+					questions or need help with using your board.
+					Please see DB014 for a description of the differences between EVB001 and EVB002 kits.
+					Contents
+					<div><a href="#2_0">1. </a></div>
+					<div><a href="#2_0">Initial Check-Out.................................................................................... 2 </a></div>
+					<div><a href="#2_1">1.1 </a></div>
+					<div><a href="#2_2">1.2 </a></div>
+					<div><a href="#3_0">1.3 </a></div>
+					<div><a href="#4_0">1.4 </a></div>
+					<div><a href="#4_1">1.5 </a></div>
+					<div><a href="#4_2">1.6 </a></div>
+					<div><a href="#2_1">Recommended Working Area ........................................................................................</a><a href="#2_1">.</a><a href="#2_1">2 </a></div>
+					<div><a href="#2_2">Factory Default Jumper Settings ....................................................................................</a><a href="#2_2">.</a><a href="#2_2">2 </a></div>
+					<div><a href="#3_0">Check the Power Suppl</a><a href="#3_0">y</a><a href="#3_0">.</a><a href="#3_0">................................................................................................</a><a href="#3_0">.</a><a href="#3_0">3 </a></div>
+					<div><a href="#4_0">Prepare your Win32 Host and Set-up COM ports A, B, C. ...............................................</a><a href="#4_0">.</a><a href="#4_0">4 </a></div>
+					<div><a href="#4_1">Simple Confidence Test using polyForth .........................................................................</a><a href="#4_1">.</a><a href="#4_1">4 </a></div>
+					<div><a href="#4_2">Test GA144 Chips using arrayForth 3..............................................................................</a><a href="#4_2">.</a><a href="#4_2">4 </a></div>
+					<div><a href="#5_0">2. </a></div>
+					<div><a href="#5_1">3. </a></div>
+					<div><a href="#5_0">Move On to Programming ..................................................................... 5 </a></div>
+					<div><a href="#5_1">Resources and Details............................................................................ 5 </a></div>
+					<div><a href="#5_2">3.1 </a></div>
+					<div><a href="#5_3">3.2 </a></div>
+					<div><a href="#5_4">3.3 </a></div>
+					<div><a href="#5_2">What's in the Box...........................................................................................................</a><a href="#5_2">.</a><a href="#5_2">5 </a></div>
+					<div><a href="#5_3">Getting Help ..................................................................................................................</a><a href="#5_3">.</a><a href="#5_3">5 </a></div>
+					<div><a href="#5_4">Errata in Current PCB Revision .......................................................................................</a><a href="#5_4">.</a><a href="#5_4">5 </a></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_1">
+			<div>
+				<div>
+					AN0214 Getting Started with Eval Board EVB002
+					1. Initial Check-Out
+					This section outlines procedures for inspecting a board and verifying its configuration and function. These procedures
+					are very similar to those we follow in the factory before shipping boards to you.
+					1.1 Recommended Working Area
+					Since the purpose of this board is to provide you with
+					direct access to the very sensitive pins of your chips, you
+					should set up a working area to protect the chips against
+					Electrostatic Discharge (ESD) from your body. We
+					recommend, as a basic precaution, that you use an anti-
+					static mat connected to a single-point earth ground in
+					common with any other equipment in use, and that you
+					wear a wrist strap, as shown in the adjacent photo, while
+					handling or probing the board. It is always a good idea to
+					avoid wearing clothing that tends to accumulate static
+					charges, and to touch the mat or a grounded part of the
+					board when approaching the work area and before
+					touching other parts of the board. Note that the metal
+					shield of the SD card slot is a good ground for this purpose;
+					the shields of the USB connectors are not grounded.
+					If you have any questions about correct procedures, please check our website or contact the hotline for more
+					information
+					1.2 Factory Default Jumper Settings
+					Begin by setting all jumpers to the default settings as we shipped the board to you. Please refer to this illustration and
+					to the detailed information that follows:
+					`
+					Copyright© 2010-2019 GreenArrays, Inc. 8/19/22
+					2
+					<a name="2_0"> </a>
+					<a name="2_1"> </a>
+					<a name="2_2"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_2">
+			<div>
+				<div>
+					AN021 Getting Started with Eval Board EVB002
+					1.2.1 Table of Jumpers
+					USB Port Data Connections to
+					Chips
+					SD/MMC Socket Signals
+					Host and Target Power Select
+					Socket pins J38 J40 SPI bus signals
+					J10
+					J23
+					CLK/SCLK
+					1
+					1
+					SPI CLK MMC
+					1
+					External Host Pwr
+					<div>V<sub>DD</sub>C to Host </div>
+					DAT3/CS-
+					CMD/SI
+					DAT0/SO
+					<div>V<sub>DD </sub></div>
+					2
+					3
+					4
+					5
+					2
+					3
+					4
+					5
+					SPI CS- MMC
+					SPI DO
+					SPI DI
+					From Port A
+					1
+					2
+					Host 708.17
+					2
+					3
+					To Port A
+					From Port B
+					To Port B
+					From Port C
+					To Port C
+					3
+					5
+					7
+					9
+					11
+					4
+					6
+					8
+					10
+					12
+					Host 708.1
+					Host 200.17
+					Host 100.17
+					Target 708.17
+					Target 708.1
+					1.8v
+					J11
+					1
+					External Host Pwr
+					SPI Bus Expansion
+					2
+					3
+					<div>V<sub>DD</sub>I and A to Host </div>
+					Main 1.8v Bus
+					J39
+					Target Chip Reset
+					1
+					2
+					3
+					Host 600. 17
+					FLASHENABLE-
+					Ground
+					J14
+					1
+					J22
+					External Target Pwr
+					<div>V<sub>DD</sub>C to Target </div>
+					Host 500.17
+					USB C RTS signal
+					Target reset circuit
+					1
+					2
+					4
+					6
+					Target
+					RESET-
+					pin
+					2
+					3
+					5
+					J37
+					3
+					Main 1.8v Bus
+					FLASH
+					ENABLE- on
+					SPI bus.
+					1
+					2
+					4
+					Inputs to NAND.
+					Output low enables
+					MMC on SPI bus.
+					J15
+					1
+					Host Chip Reset and Boot
+					3
+					External Target Pwr
+					J20
+					2
+					3
+					<div>V<sub>DD</sub>I to Target </div>
+					Main 1.8v Bus
+					Ethernet NIC Signals
+					RESET pin
+					USB A RTS
+					1
+					3
+					2
+					4
+					RESET pin
+					J25.2
+					Host pins J21
+					NIC Signals
+					J16
+					1
+					617.ao
+					1
+					J25
+					External Target Pwr
+					617.ai
+					517.17
+					417.17
+					317.17
+					217.17
+					117.ao
+					117.ai
+					2
+					3
+					4
+					5
+					6
+					7
+					8
+					J48
+					1
+					RST- from reset/dog chip
+					2
+					3
+					<div>V<sub>DD</sub>A to Target </div>
+					Main 1.8v Bus
+					1
+					2
+					3
+					4
+					Y2 xtal hi
+					Y2 xtal hi
+					Tx (to opamp)
+					Rx (raw)
+					2
+					3
+					Signal to J20.4
+					Reset Button &amp; RC Circuit
+					J26
+					1
+					Host-Target Communication
+					Host 705.17
+					2
+					NO BOOT when IN
+					J34
+					1
+					J35
+					1
+					Host 300.1
+					Host 300.17
+					2
+					Target 300.1
+					2
+					Target 300.17
+					1.3 Check the Power Supply
+					In the factory, we check the power supply before applying DC
+					power to most of the board. Begin by removing all of the
+					power select jumpers J10, J11, J14, J15 and J16 as shown here.
+					Connect a voltmeter as shown; all four pins of header J29, near
+					the Target chip, are ground and pin 3 (right side) of any of the
+					power select headers is connected to the output of the on-
+					board switching regulator.
+					After setting the board up in this way, provide input power to the regulator, using any of the three USB connections J3,
+					J9 or J18 (don't worry about other power options at this time). Your voltmeter should indicate very nearly 1.8 volts.
+					<div>We do not recommend checking resistance between V<sub>DD </sub>and ground on this board, because many meters apply high </div>
+					voltages exceeding some chips' limits. When the checks are complete, re-insert the power select jumpers.
+					Copyright© 2010-2019 GreenArrays, Inc. 8/19/22
+					3
+					<a name="3_0"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_3">
+			<div>
+				<div>
+					AN0214 Getting Started with Eval Board EVB002
+					1.4 Prepare your Win32 Host and Set-up COM ports A, B, C.
+					Although any terminal emulator may communicate with the serial interfaces on the EVB002, it is important to be
+					certain about system configuration and functionality at the outset. Accordingly, if you have not done so already, this is
+					the time to install arrayForth-3 as prescribed in the Appendices to DB013 arrayForth 3 User's Manual. We run on
+					Windows platforms routinely at GreenArrays, but we don't have or use working copies of the Mac or Unix/WINE
+					systems so those are not maintained. If using one of these other platforms, read the entire Windows appendix as well.
+					You must keep track of which COM port numbers now connect to which of the board's USB ports.
+					1.5 Simple Confidence Test using polyForth
+					Connect any serial terminal emulator program such as PuTTY (or the aF-3 terminal emulator if you are already familiar
+					with its use) to USB port B, 8 data bits, no parity, one stop bit and no flow control. Remove NO-BOOT jumper J26 and
+					press the host chip reset button (C0-RST) on the lower left corner of the board, then hit the space bar on the terminal
+					to auto-baud polyForth. You should see:
+					pF/G144.03b1 12/21/18 (or whichever version is in flash)
+					hi _
+					Hit the enter key. You should see another ok which indicates that a great deal of the board is working. Please contact
+					us right away if you do not see these things!
+					1.6 Test GA144 Chips using arrayForth 3
+					Assuming you have installed arrayForth-3 as above, have verified factory default jumper settings as above, and are
+					armed with the COM port numbers for USB ports A, B, and C:
+					With USB ports A and C connected to the EVB002, and with NO-BOOT jumper J26 installed, run saneFORTH on your PC
+					or other platform as per instructions in DB013 for your platform, and establish the AFORTH environment (some of the
+					shortcuts we provide automate the initial steps. If you see only sF386/NT... ID line, you will need to say HI . If you
+					see the SYSTEM HELP screen, you will need to say AFORTH . If you see the arrayForth-3 HELP screen you are already
+					there.
+					Type the following phrases in the order shown to run self-tests, substituting the actual COM port for USB A (host IDE)
+					for 10 and the port for USB C (target IDE) for 12, moving the USB cable between ports as necessary if you only have the
+					one we provide:
+					10 SELFTEST (runs factory tests on host chip via port A)
+					12 SELFTEST (runs factory tests on target chip via port C)
+					10 AUTOTEST (tests target chip under host chip control using synchronous boot,
+					and tests SERDES between the chips, all via port A)
+					Hit ENTER at the end of each of the above
+					phrases. While a test is running you will see a
+					screen like the one shown here. The "Test
+					Progress" is initially busy in white on blue, and
+					while the test is running the numbers on the
+					third line are updated as the testing progresses.
+					When the testing is completed successfully, you
+					will see the "Ok! " advisory in black on green. If
+					there is a failure, it will instead display "FAIL!"
+					in black on magenta.
+					Please contact us right away if you do not see the expected results or if you have any difficulty in running these tests!
+					Copyright© 2010-2019 GreenArrays, Inc. 8/19/22
+					4
+					<a name="4_0"> </a>
+					<a name="4_1"> </a>
+					<a name="4_2"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_4">
+			<div>
+				<div>
+					AN021 Getting Started with Eval Board EVB002
+					2. Move On to Programming
+					Now that you've verified the integrity of your board and its connections with a host machine, it's time to take a closer
+					look at the two main development tools used in programming our chips.
+					•
+					arrayForth-3 (aF-3) is a full blown, self -reproducing professional operating system suite for IA32 PC
+					platforms (saneFORTH) and for the GA144 running in a Virtual Machine of several nodes with external
+					SRAM (polyFORTH). Many of our software development tools run in both environments, although some
+					(like Softsim) are only practical on the PC while others (like the internal IDE) are only feasible running
+					inside the chip itself. Mass storage is provided by the PC (serial disk) and by the EVB002 (16 MB SPI
+					Flash). All software supported by Greenarrays has been developed and is maintained using aF-3.
+					See DB013 arrayForth 3 User's Manual for details of using this system on each platform and for
+					clarification of the relationships between these separately named systems. See especially the Getting
+					Started part of the Introduction to that manual if you are not experienced in using systems like
+					polyFORTH; they are simple but by definition that means they aren't what you may be accustomed to.
+					•
+					•
+					eForth is a very simple and portable implementation of ANS Forth. This particular implementation runs
+					on a 16-bit Virtual Machine that runs on our chips. eForth requires only a terminal emulator on USB port
+					B, although the supplied emulator provides additional useful capabilities. It's not supported by
+					GreenArrays but source code is available and it may be supported by individuals.
+					Third Party Tools have been developed by at least two users of our chips. See our website,
+					Documentation &amp; Software, for more information about these tools.
+					Please see our website for to download these tools, their documentation, and other relevant code, documentation and
+					application notes as well as errata.
+					3. Resources and Details
+					3.1 What's in the Box
+					In addition to the Eval Board itself, there is an antistatic bag containing parts you may find useful. The exact
+					composition of this bag is subject to change, but as of the time of this writing it contains the following items: One Dual
+					voltage, 1 or 2 GB MMC card intended for use as primary mass storage by polyFORTH when MMC is supported. One
+					USB cable. Two Clip-leads. One long jumper wire for Ethernet transmitter power. One each DB9, VGA, and USB-B
+					sockets. Three TRS audio jacks. Long single and double row male headers that may be cut up and soldered where
+					needed. Five LEDs and five 47Ω resistors for diagnostic and general use.
+					3.2 Getting Help
+					There is a special webpage for customers who have bought our evaluation boards; please visit it now at this URL:
+					<div><a href="http://www.greenarraychips.com/home/support" target="_blank">http://www.greenarraychips.com/home/support </a>This page is updated frequently and will always have the latest </div>
+					<div>information for you. Em<a href="mailto:hotline@greenarraychips.com" target="_blank">ail </a><a href="mailto:hotline@greenarraychips.com" target="_blank">hotline@greenarraychips.com </a>for prompt replies to your questions. The hotline team will </div>
+					provide you with additional contact information for direct, personal support such as Skype ID and phone numbers upon
+					request.
+					<div>General documentation and downloads are posted in <a href="http://www.greenarraychips.com/home/documents" target="_blank">http://www.greenarraychips.com/home/documents </a></div>
+					3.3 Errata in Current PCB Revision
+					PCB REV
+					DESCRIPTION
+					FIX OR WORK-AROUND
+					0h
+					None
+					N/A
+					Copyright© 2010-2019 GreenArrays, Inc. 8/19/22
+					5
+					<a name="5_0"> </a>
+					<a name="5_1"> </a>
+					<a name="5_2"> </a>
+					<a name="5_3"> </a>
+					<a name="5_4"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_5">
+			<div>
+				<div>
+					GreenArrays®
+					Application Note AN021 Revised 8/19/22
+					IMPORTANT NOTICE
+					GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other
+					changes to its products and services at any time and to discontinue any product or service without notice. Customers should
+					obtain the latest relevant information before placing orders and should verify that such information is current and complete. All
+					products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
+					GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties
+					relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual
+					property right.
+					GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and
+					applications using GAI components. To minimize the risks associated with customer products and applications, customers should
+					provide adequate design and operating safeguards.
+					GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright,
+					mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products
+					or services are used. Information published by GAI regarding third-party products or services does not constitute a license from
+					GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a
+					third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other
+					intellectual property of GAI.
+					Reproduction of GAI information in GAI data books or data sheets is permissible only if reproduction is without alteration and is
+					accompanied by all associated warranties, conditions, limitations, and notices. Reproduction of this information with alteration is
+					an unfair and deceptive business practice. GAI is not responsible or liable for such altered documentation. Information of third
+					parties may be subject to additional restrictions.
+					Resale of GAI products or services with statements different from or beyond the parameters stated by GAI for that product or
+					service voids all express and any implied warranties for the associated GAI product or service and is an unfair and deceptive
+					business practice. GAI is not responsible or liable for any such statements.
+					GAI products are not authorized for use in safety-critical applications (such as life support) where a failure of the GAI product
+					would reasonably be expected to cause severe personal injury or death, unless officers of the parties have executed an
+					agreement specifically governing such use. Buyers represent that they have all necessary expertise in the safety and regulatory
+					ramifications of their applications, and acknowledge and agree that they are solely responsible for all legal, regulatory and safety-
+					related requirements concerning their products and any use of GAI products in such safety-critical applications, notwithstanding
+					any applications-related information or support that may be provided by GAI. Further, Buyers must fully indemnify GAI and its
+					representatives against any damages arising out of the use of GAI products in such safety-critical applications.
+					GAI products are neither designed nor intended for use in military/aerospace applications or environments unless the GAI
+					products are specifically designated by GAI as military-grade or "enhanced plastic." Only products designated by GAI as military-
+					grade meet military specifications. Buyers acknowledge and agree that any such use of GAI products which GAI has not
+					designated as military-grade is solely at the Buyer's risk, and that they are solely responsible for compliance with all legal and
+					regulatory requirements in connection with such use.
+					GAI products are neither designed nor intended for use in automotive applications or environments unless the specific GAI
+					products are designated by GAI as compliant with ISO/TS 16949 requirements. Buyers acknowledge and agree that, if they use
+					any non-designated products in automotive applications, GAI will not be responsible for any failure to meet such requirements.
+					The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray
+					<div>Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc<a href="http://www.forth.com/" target="_blank">. (</a><a href="http://www.forth.com/" target="_blank">www.forth.com</a><a href="http://www.forth.com/" target="_blank">) </a>and is used </div>
+					by permission. All other trademarks or registered trademarks are the property of their respective owners.
+					<div>For current information on GreenArrays products and application solutions, see <a href="http://www.greenarraychips.com/" target="_blank">www.GreenArrayChips.com </a></div>
+					Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001
+					Printed in the United States of America
+					Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com
+					Copyright © 2010-2020, GreenArrays, Incorporated
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

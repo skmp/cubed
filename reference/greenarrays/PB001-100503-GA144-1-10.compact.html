@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+					Actual size
+					1cm x 1cm
+					OVERVIEW
+					FEATURES
+					This very powerful and versatile chip consists of an 18x8 array of architecturally
+					identical, independent, complete F18A computers, or nodes, each of which operates
+					asynchronously. Each computer is capable of performing a basic ALU instruction in 1.5
+					nanoseconds for an energy cost on the order of 7 picojoules. Nothing else available
+					today comes close to that winning combination. Twenty-two of the computers on the
+					edges of the array have one or more I/O pins and one of several classes of circuitry
+					associated with them, as illustrated below.
+					 144 independent F18A computers
+					 Suitable for inexpensive, 4-layer PCBs
+					 Up to 96 billion operations per second
+					 Instantaneous power ranges from 14
+					microwatts to 650 milliwatts.
+					 Energy consumed depends on each
+					computer’s duty cycle, controlled by
+					software and events, with granularity in
+					picoseconds
+					 Negligible time and energy expended
+					starting and stopping each node
+					 Suspended nodes respond to internal
+					events in picoseconds and external
+					events in nanoseconds
+					 High impedance (&lt;3pF, &gt;200MΩ) inputs
+					 Five analog inputs and five outputs
+					 Two 18-bit parallel interfaces
+					 25 programmable digital I/O pins
+					 Overall digital I/O bandwidth can
+					exceed 3 gigabits per second with
+					software “bit banging”, plus an
+					additional 800 megabits per second
+					when both SERDES are operating
+					 Bootable via SPI or any of four serial
+					protocols; custom ROM available
+					 9216 words RAM and same of ROM
+					distributed among all nodes (equivalent
+					of 41472 total bytes)
+					 Minimal external components needed
+					to build a working system
+					Nodes numbered in green have one or two GPIO pins. Those in blue have analog I/O.
+					Those in orange have digital I/O with specialized purposes: 001 and 701 have high
+					speed SERDES; 705 has four pins which may be used for an SPI bus; 217, 517 and 715
+					have a GPIO pin whose read line is connected to one or more analog nodes for sample
+					synchronization; and nodes 007, 8, and 9 together control two 18-bit parallel buses and
+					four GPIO pins that may be used to control external memory chips. These and the SPI
+					bus are of course available for other uses if desired.
+					APPLICATIONS
+					 Energy harvesting applications
+					 Portable devices
+					 Remote sensing and data reduction
+					 Ideal for parallel and/or pipelined work
+					 Image processing
+					 Complex control systems
+					 Cryptography
+					 High speed signal processing
+					 Simulation and synthesis
+					 Inexpensive, massively parallel systems
+					for research and education
+					All nodes are suspended after reset, prepared to execute instructions coming from any
+					neighbor node via a comm port. Six of these are also waiting for incoming signals on
+					their pin(s) which will be interpreted as boot frames. 001 and 701 SERDES will execute
+					instructions received; 200 listens for high speed 1-wire protocol, 300 for 2-wire synch,
+					708 for RS232 framed async, and 705 can boot from an SPI flash memory device.
+					When product requirements for responsiveness, computing power and energy
+					limitations collide, this superb chip is the ideal prototyping and initial product platform.
+					As a product matures, GreenArrays can and will configure custom chips to further
+					minimize cost and energy consumption for its customers.
+					 Artificial intelligence, neural nets
+		</div>
+		<div id="page_1">
+			<div>
+				<div>
+					Actual size
+					1cm x 1cm
+					SUITABILITY: The GA144 is designed to support the largest and most demanding
+					computing challenges that can be addressed with a modest sized die in a relatively
+					inexpensive and easy to use package while still using well less than 650 mW in most
+					practical applications. The geometry allows for generous numbers of parallel paths
+					and/or pipeline stages, or for complex flowgraphs in control, simulation, or DSP
+					applications. Clusters of nodes devoted to functions such as cryptographic
+					algorithms are easily placed in the large array, and the cluster needed to control
+					external memory and run a high level language from it is well out of the way but has
+					good surface area for interaction with other functions. Use it also as a universal
+					protoytping platform for applications destined to run on our smaller chips.
+					spi
+					boot
+					4
+					Digital video
+					(for example)
+					in
+					Spatially
+					filtered digital
+					video out
+					18
+					18
+					GA144
+					Two-chip high-order filter
+					adr 18
+					SOFTWARE SUPPORT: A complete arrayForth™ software development platform is
+					available free of charge on our website. Included are a compiler for machine code,
+					an interactive simulator and an interactive development and debugging
+					environment. Complete source language is provided so that all components of this
+					platform are extensible by the user.
+					ctrl 4
+					SDRAM
+					GA144
+					data 18
+					Direct control of SDRAM or
+					SRAM without “glue” parts
+					When large, high-level programs are required, the GA144 supports eForth running
+					from external SRAM or SDRAM. Typically, three to five nodes control the external
+					memory and two nodes interpret the higher-level language.
+					PACKAGE: The GA144 is available in a 10x10mm, 88-pin QFN with 0.4mm pin pitch.
+					All ground connections are made to the central Die Attach Paddle.
+					Sym
+					Description
+					Min
+					Typ
+					2.8
+					7
+					Max Units Test Condition
+					Cpin I/O pin capacitance with Vdd = 0V
+					pF I/O to Vss
+					ILI
+					IR
+					Input leakage current (tristate)
+					nA
+					Vin to Vdd or Vss
+					Effective input resistance (tristate)
+					250
+					38
+					MΩ
+					ILpd Weak pulldown current (in saturation)
+					μA Vin to Vdd
+					VIH
+					VIL
+					ISH
+					ISL
+					Input high level
+					1.1
+					0.7
+					41
+					V
+					V
+					Note:
+					No hysteresis
+					Input low level
+					Max current sourced (in saturation)
+					Max current sunk (in saturation)
+					mA Vout to Vss
+					mA Vout to Vdd
+					41
+					ROH Output source res. for 0.5 Vdd @ Vout
+					23
+					Ω
+					Ω
+					Vout to Vss
+					Vout to Vdd
+					ROL
+					ICC
+					Output sink res. for 0.5 Vdd @ Vout
+					Core current, all nodes running
+					Core current, all nodes suspended
+					21
+					360
+					8
+					mA
+					μA
+					mA
+					nA
+					V
+					ICCs
+					6
+					12
+					Vdd to VddC
+					ICCg Core current per running F18
+					2.5
+					55
+					ICCgs Core current per suspended F18
+					41
+					83
+					Vdd
+					Voh
+					Vol
+					Supply voltage
+					1.6
+					1.8
+					2.0
+					Below @ these Vdd
+					Vout to Vss
+					Output high sourcing 10 mA
+					Output low sinking 10 mA
+					1.44 1.66 1.86
+					0.130 0.122 0.110
+					V
+					V
+					Vout to Vdd
+					GreenArrays, Inc.
+					774 Mays Blvd #10 PMB 320
+					Incline Village, NV 89451
+					<div>For more information, visit <a href="http://www.greenarraychips.com/" target="_blank">www.GreenArrayChips.com </a></div>
+					© 2010 GreenArrays, Incorporated. Doc PB001-100503. Applies to P/N G144-1.10
+					Specifications are subject to change without notice.
+					GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are
+					trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are
+					the property of their respective owners.
+					(775) 298-4748 voice
+					(775) 548-8547 fax
+					<div><a href="mailto:sales@GreenArrayChips.com" target="_blank">sales@GreenArrayChips.com </a></div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

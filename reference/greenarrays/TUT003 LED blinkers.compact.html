@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!-- saved from url=(0071)https://www.greenarraychips.com/home/documents/pub/TUT003-blinkers.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+ <title>TUT003 LED blinkers</title>
+<link rel="stylesheet" type="text/css" href="./TUT003 LED blinkers_files/gadoc.css">
+</head>
+<body>
+<h1>Tutorial 003: LED Blinkers</h1>
+<p>It's about time we used the IDE to test our code. In the last two tutorials we learned to blink an LED in node 500 and how to blink an LED in neighbor node 600 from 500 using softsim. In this one we'll expand just a little on the code written so far to blink real LEDs in both nodes using the IDE. In fact, we'll cut to the chase so to speak and show all the code right now.
+</p><table border="4" frame="border" rules="none">
+<tbody><tr>
+<td><br><code>toggle 600.17 from</code><code> 500</code><code> cr<br></code><code>600</code><code> is my</code><code> up</code><code> neighbor</code><code><br>pin!</code><code> write to the io register</code><code><br>hi</code><code> set pin</code><code> -cr</code><code> rhi</code><code> remote set pin</code><code><br>lo</code><code> clear pin</code><code> -cr</code><code> rlo</code><code> remote clear pin</code><code><br>1ms</code><code> wait about one millisecond</code><code><br>ms</code><code> wait about n-1 milliseconds</code><code><br>wait</code><code> wait long enough to see the blinks</code><code><br>start</code><code> initialize registers and go</code><code><br>blinks</code><code> repeatedly toggle pin 600.17 <br></code><br></td>
+<td> </td>
+<td>1124 list
+<br><code>toggle 600.17 from</code><code> 500</code><code> 500</code><code> node</code><code> 0</code><code> org</code><code><br>pin!</code><code> n</code><code> @p ! ! ;</code><code> /</code><code> @p !b ..</code><code> /</code><code><br>hi</code><code> 002</code><code> 30000</code><code> !b ;</code><code><br>rhi</code><code> 004</code><code> 30000</code><code> pin! ;</code><code><br>lo</code><code> 006</code><code> 20000</code><code> !b ;</code><code><br>rlo</code><code> 008</code><code> 20000</code><code> pin! ;</code><code><br>1ms</code><code> 00A</code><code> 200000</code><code> for . . unext ;</code><code><br>ms</code><code> n</code><code> 00D</code><code> for 1ms next ;</code><code><br>wait</code><code> 011</code><code> 200</code><code> ms ;</code><code><br>start</code><code> 013</code><code> up a! @p ..</code><code> /</code><code> @p b! ..</code><code> /</code><code> cr<br></code><code>! io dup ! b! ;</code><code><br>blinks</code><code> 019</code><code> start begin rhi hi wait lo wait</code><code> cr<br></code><code>rlo hi wait lo wait end <br></code><br></td>
+</tr>
+</tbody></table>
+<p>Go ahead and enter this code into block 1124, or whatever block you prefer, and add <code>1124 load</code> to block 1302. Also, you might as well save yourself some time and effort and type this code into block 210, or whichever block you prefer. This is a script that will load our code into node 500 ready for testing.
+</p><table border="4" frame="border" rules="none">
+<tbody><tr>
+<td><br><code> <br></code><br></td>
+<td> </td>
+<td>210 list
+<br><code>test</code><code> cr<br></code><code>compile serial load talk panel</code><code> cr<br></code><code>2 708</code><code> hook</code><code> 2</code><code> -hook</code><code> cr<br></code><code>2 500</code><code> hook</code><code> 0 64 500</code><code> boot upd ?ram <br></code><br></td>
+</tr>
+</tbody></table>
+<p>The first line, <code>compile serial load talk panel</code>, is what you will be saying everytime you want to run the IDE. <code>compile</code>, as you may remember, compiles the target application as set up in blocks 1300 and 1302. <code>serial load</code> loads the IDE that runs in the async serial boot node. <code>talk</code> resets the target machine (assuming it is properly connected to a serial port) and loads the IDE code into the boot node. Finally <code>panel</code> lists block 134 which is used to view the memory and stack of the active node in the IDE.
+</p><p>The second line touches each node of the chip, leaving it in a known state ready to be used by the IDE, also something you may as well do everytime you start up the IDE.
+</p><p>The third line is specific to this application. You make node 500 become the acitive node by saying <code>2 500 hook</code>. <code>0 64 500 boot</code> loads 64 words of object code starting at address 0 compiled for node 500 into the active node, which in this case is node 500. <code>upd</code> is short for update, and fetches the data stack for the active node into the panel. Finally <code>?ram</code> shows a dump of RAM in the active node at the bottom half of the panel.
+</p><p><code>210 load</code> thus starts up the IDE and loads your code into node 500 ready for you to exercise. Type <code>1 lit</code> just to see if things are working. You should see that a 1 has appeared on the stack display for node 500 at the top of the panel. At this point it makes sense to say <code>1124 list</code> in order to look at the your source code. You're going to want to know the addresses of the subroutines so that you can call them. The panel should look something like this now:
+</p><blockquote><table>
+<tbody><tr>
+ <td valign="top">
+ </td>
+</tr>
+</tbody></table></blockquote>
+<p>Run <code>start</code> to initialize registers by saying <code>13 call</code>. Be sure to press the F1 key to get into hex mode, because the gray address words display addresses in hex. Once this is done you might say <code>2 call</code> to run <code>hi</code> and light the LED connected to node 500.17.
+</p><p>Wait, maybe you haven't connected LEDs yet? After some calculating and experimenting I used 39 Ohm current limiting resistors and found that the LEDS lit up enough to be seen easily. Larger resistors lower the current so much at 1.8v that the LED doesn't light up at all.
+</p><p>Now that you've hooked up LEDs to pins 500.17 and 600.17 let's look at the code. <code>hi</code> and <code>lo</code> are exactly as in tutorial number 1. <code>rhi</code> and <code>rlo</code> are just like the words in tutorial number 2 except renamed so as not to conflict with hi and lo from tutorial 1. Add <code>start</code> and you have a merging of the code for the first two tutorials and should be able to interactively turn each LED on and off by calling the address of the appropriate word in the IDE.
+</p><p>There are some new words though, and they are all about timing. We want the LEDs to blink at a slow enough rate for our human eyes to notice. That means we need to tell the GA144 to wait a very long time before toggling a pin. In order to accomplish this we introduce the <code>for unext</code> loop.
+</p><p>What <code>for</code> does is to push a number from the data stack onto the return stack. This will be the loop counter. Then the current instruction word is padded with nops so that the loop will start in slot 0 of the next word. <code>unext</code> is pronounced "micronext", and sets the slot back to 0 in order to reexecute the current instruction word without reading again from memory. A very fast loop results that can execute up to three opcodes in its body. For our delaying purposes, we use <code>. . unext ;</code> so that each loop executes two nops and when the loop counter counts down to zero we execute a <code>;</code> to return to caller. By the way, <code>unext</code> pops the return stack after counting down to zero.
+</p><p>So <code>1ms</code> executes 200000 unexts and 400000 nops. We can estimate about 1.5 ns for each nop and unext for about 4.5 ns per loop. Round up to 5 to make things easier. 2 loops are about 10 nanoseconds. 200 loops about a microsecond. 200000 loops roughly one millisecond. We just want to be in the ballpark for this application. <code>ms</code> delays for roughly n-1 milliseconds and <code>wait</code> delays about a fifth of a second, long enough for us to notice.
+</p><p>The main program is <code>blinks</code>. Note that the first thing it does is call <code>start</code>. <code>start</code> could have fallen through into <code>blinks</code> instead of being called, but we wanted to be able to use <code>start</code> interactively from the IDE in order to test the other words.
+</p><p>Next comes something new, the <code>begin end</code> loop. <code>begin</code> marks the beginning of a loop by padding the current instruction word with nops and leaving the current dictionary address on the stack to be used later by the compiler. <code>end</code> compiles an unconditional jump back to the address left on the stack by <code>begin</code>. There is no need to end the word with <code>;</code> since this is an endless loop. The words inside the loop arrange to have the LED connected to 500.17 blink twice per loop and the LED connected to 600.17 blink once per loop.
+</p><p>Saying <code>19</code> <code>call</code> will run <code>blinks</code> from the IDE and you should be able to see the two LEDS blinking, 500.17 at twice the rate of 600.17.
+</p></body></html>

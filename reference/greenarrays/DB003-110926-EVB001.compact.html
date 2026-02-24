@@ -1,0 +1,2760 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+			<div>
+				<div>
+					<div>GreenArrays<sup>™ </sup></div>
+					Product Data Book DB003 Revised 9/26/11
+					Evaluation Board
+					Reference Manual
+					for EVB001 rev 0.1.1
+					with G144A12 chips
+					The GreenArrays EVB001 Evaluation Board is a versatile and powerful application development
+					platform for the GA144-1.20 chips. As such it has many configuration options. The current Printed
+					Circuit Board (PCB) revision shown on the silkscreen is 0.1.1, and it is currently shipped with a starter
+					eForth that may be booted from flash.
+					Please familiarize yourself with this information before using the Eval Board so that you will be aware
+					of the many configuration options available to you.
+					In addition, please download and read the other relevant documentation such as the Programmers'
+					Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), and the User's
+					Manuals for arrayForth™, eForth, polyFORTH®, and other Application Notes as appropriate. The
+					current editions of all GreenArrays documents, including this one, may be found on our website at
+					<div><a href="http://www.greenarraychips.com/" target="_blank">http://www.greenarraychips.com </a>. </div>
+					It is always advisable to ensure that you are using the latest documents before starting work.
+					<div>
+						<a href="http://www.greenarraychips.com/" target="_blank">
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="page_1">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					Contents
+					<div><a href="#4_0">1. </a></div>
+					<div><a href="#4_0">Introduction ..............................................................................4 </a></div>
+					<div><a href="#4_1">1.1 </a></div>
+					<div><a href="#4_2">1.2 </a></div>
+					<div><a href="#4_3">1.3 </a></div>
+					<div><a href="#4_4">1.3.1 </a></div>
+					<div><a href="#4_5">1.3.2 </a></div>
+					<div><a href="#4_6">1.3.3 </a></div>
+					<div><a href="#4_7">1.3.4 </a></div>
+					<div><a href="#4_1">Related Documents..........................................................................................4 </a></div>
+					<div><a href="#4_2">Status of Data Give</a><a href="#4_2">n</a><a href="#4_2">.</a><a href="#4_2">.......................................................................................4 </a></div>
+					<div><a href="#4_3">Documentation Conventions............................................................................4 </a></div>
+					<div><a href="#4_4">Numbers .............................................................................................................. 4 </a></div>
+					<div><a href="#4_5">Node coordinates................................................................................................. 4 </a></div>
+					<div><a href="#4_6">Register names..................................................................................................... 4 </a></div>
+					<div><a href="#4_7">Bit Numbering...................................................................................................... 4 </a></div>
+					<div><a href="#5_0">2. </a></div>
+					<div><a href="#5_0">Basic Architecture......................................................................5 </a></div>
+					<div><a href="#5_1">2.1 </a></div>
+					<div><a href="#6_0">2.2 </a></div>
+					<div><a href="#6_1">2.3 </a></div>
+					<div><a href="#7_0">2.4 </a></div>
+					<div><a href="#7_1">2.5 </a></div>
+					<div><a href="#5_1">Highlights ........................................................................................................5 </a></div>
+					<div><a href="#6_0">Simplified Block Diagram.................................................................................6 </a></div>
+					<div><a href="#6_1">Header Orientation..........................................................................................6 </a></div>
+					<div><a href="#7_0">Board Floorpla</a><a href="#7_0">n</a><a href="#7_0">.</a><a href="#7_0">..............................................................................................7 </a></div>
+					<div><a href="#7_1">Software Support.............................................................................................7 </a></div>
+					<div><a href="#8_0">3. </a></div>
+					<div><a href="#8_0">Power Configuration..................................................................8 </a></div>
+					<div><a href="#8_1">3.1 </a></div>
+					<div><a href="#8_2">3.2 </a></div>
+					<div><a href="#8_3">3.3 </a></div>
+					<div><a href="#8_4">3.4 </a></div>
+					<div><a href="#8_1">Main 1.8v Bu</a><a href="#8_1">s</a><a href="#8_1">.</a><a href="#8_1">.................................................................................................8 </a></div>
+					<div><a href="#8_2">External DC Supplies ........................................................................................8 </a></div>
+					<div><a href="#8_3">Power Selection and Measurement .................................................................8 </a></div>
+					<div><a href="#8_4">Other Available Voltage</a><a href="#8_4">s</a><a href="#8_4">.</a><a href="#8_4">................................................................................8 </a></div>
+					<div><a href="#9_0">4. </a></div>
+					<div><a href="#9_0">USB Interfaces ...........................................................................9 </a></div>
+					<div><a href="#9_1">4.1 </a></div>
+					<div><a href="#9_2">4.2 </a></div>
+					<div><a href="#9_3">4.3 </a></div>
+					<div><a href="#9_1">Interface Devices .............................................................................................9 </a></div>
+					<div><a href="#9_2">Jumpers and Connections ................................................................................9 </a></div>
+					<div><a href="#9_3">Flash Configuration .........................................................................................9 </a></div>
+					<div><a href="#10_0">5. </a></div>
+					<div><a href="#10_0">Host Chip.................................................................................10 </a></div>
+					<div><a href="#10_1">5.1 </a></div>
+					<div><a href="#10_2">5.2 </a></div>
+					<div><a href="#11_0">5.3 </a></div>
+					<div><a href="#11_1">5.3.1 </a></div>
+					<div><a href="#11_2">5.3.2 </a></div>
+					<div><a href="#11_3">5.3.3 </a></div>
+					<div><a href="#12_0">5.3.4 </a></div>
+					<div><a href="#12_1">5.4 </a></div>
+					<div><a href="#12_2">5.5 </a></div>
+					<div><a href="#12_3">5.6 </a></div>
+					<div><a href="#12_4">5.6.1 </a></div>
+					<div><a href="#12_5">5.6.2 </a></div>
+					<div><a href="#12_6">5.6.3 </a></div>
+					<div><a href="#10_1">Reset Control .................................................................................................10 </a></div>
+					<div><a href="#10_2">Serial Interface</a><a href="#10_2">s</a><a href="#10_2">.</a><a href="#10_2">............................................................................................10 </a></div>
+					<div><a href="#11_0">SPI Bus and Devices .......................................................................................11 </a></div>
+					<div><a href="#11_1">SPI Flash and Booting......................................................................................... 11 </a></div>
+					<div><a href="#11_2">MMC Card Mass Storage ................................................................................... 11 </a></div>
+					<div><a href="#11_3">Enabling MMC Card Selection............................................................................ 11 </a></div>
+					<div><a href="#12_0">Connecting MMC Power and Signals to SD Socket ............................................ 12 </a></div>
+					<div><a href="#12_1">SRAM.............................................................................................................12 </a></div>
+					<div><a href="#12_2">Connections to Target....................................................................................12 </a></div>
+					<div><a href="#12_3">Summary of Host Pin Usage...........................................................................12 </a></div>
+					<div><a href="#12_4">Committed by Layout......................................................................................... 12 </a></div>
+					<div><a href="#12_5">Uncommitte</a><a href="#12_5">d</a><a href="#12_5">.</a><a href="#12_5">.................................................................................................... 12 </a></div>
+					<div><a href="#12_6">Conditionally Available ...................................................................................... 12 </a></div>
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					2
+				</div>
+			</div>
+		</div>
+		<div id="page_2">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					<div><a href="#13_0">6. </a></div>
+					<div><a href="#13_0">Target Chip ............................................................................. 13 </a></div>
+					<div><a href="#13_1">6.1 </a></div>
+					<div><a href="#13_2">6.2 </a></div>
+					<div><a href="#13_3">6.3 </a></div>
+					<div><a href="#13_1">Reset Control .................................................................................................13 </a></div>
+					<div><a href="#13_2">Serial Interface...............................................................................................13 </a></div>
+					<div><a href="#13_3">Host Chip Communications ............................................................................13 </a></div>
+					<div><a href="#14_0">7. </a></div>
+					<div><a href="#14_0">Prototyping Area..................................................................... 14 </a></div>
+					<div><a href="#14_1">7.1 </a></div>
+					<div><a href="#14_2">7.2 </a></div>
+					<div><a href="#14_3">7.3 </a></div>
+					<div><a href="#15_0">7.4 </a></div>
+					<div><a href="#15_1">7.4.1 </a></div>
+					<div><a href="#15_2">7.4.2 </a></div>
+					<div><a href="#15_3">7.4.3 </a></div>
+					<div><a href="#15_4">7.4.4 </a></div>
+					<div><a href="#15_5">7.4.5 </a></div>
+					<div><a href="#15_6">7.4.6 </a></div>
+					<div><a href="#15_7">7.4.7 </a></div>
+					<div><a href="#16_0">7.5 </a></div>
+					<div><a href="#14_1">Plated-through Hole Gri</a><a href="#14_1">d</a><a href="#14_1">.</a><a href="#14_1">..............................................................................14 </a></div>
+					<div><a href="#14_2">Power, Ground and Signal</a><a href="#14_2">s</a><a href="#14_2">.</a><a href="#14_2">...........................................................................14 </a></div>
+					<div><a href="#14_3">Convenience Circuits ......................................................................................14 </a></div>
+					<div><a href="#15_0">Optional Connector Hole Patterns..................................................................15 </a></div>
+					<div><a href="#15_1">DB9 Connectors ..................................................................................................15 </a></div>
+					<div><a href="#15_2">General-Purpose LEDs ........................................................................................15 </a></div>
+					<div><a href="#15_3">VGA Connector ...................................................................................................15 </a></div>
+					<div><a href="#15_4">USB Connecto</a><a href="#15_4">r</a><a href="#15_4">.</a><a href="#15_4">...................................................................................................15 </a></div>
+					<div><a href="#15_5">RJ48 Connecto</a><a href="#15_5">r</a><a href="#15_5">.</a><a href="#15_5">..................................................................................................15 </a></div>
+					<div><a href="#15_6">Audio Connectors ...............................................................................................15 </a></div>
+					<div><a href="#15_7">SMA RF Connectors ............................................................................................15 </a></div>
+					<div><a href="#16_0">Optional use of SD socket ..............................................................................16 </a></div>
+					<div><a href="#16_1">Expanding the Prototyping Are</a><a href="#16_1">a</a><a href="#16_1">.</a><a href="#16_1">...................................................................16 </a></div>
+					<div><a href="#16_1">7.6 </a></div>
+					<div><a href="#17_0">8. </a></div>
+					<div><a href="#17_0">Physical Documentation.......................................................... 17 </a></div>
+					<div><a href="#17_1">8.1 </a></div>
+					<div><a href="#18_0">8.2 </a></div>
+					<div><a href="#17_1">Bill of Materials .............................................................................................17 </a></div>
+					<div><a href="#18_0">GA144 Signal map .........................................................................................18 </a></div>
+					<div><a href="#18_1">Host Chip.............................................................................................................18 </a></div>
+					<div><a href="#20_0">Target Chip..........................................................................................................20 </a></div>
+					<div><a href="#22_0">Connector Pinouts..........................................................................................22 </a></div>
+					<div><a href="#22_1">Power Control Section ........................................................................................22 </a></div>
+					<div><a href="#22_2">USB Serial Interfaces...........................................................................................22 </a></div>
+					<div><a href="#23_0">Host Chip.............................................................................................................23 </a></div>
+					<div><a href="#23_1">Target Chip..........................................................................................................23 </a></div>
+					<div><a href="#24_0">Prototyping Area.................................................................................................24 </a></div>
+					<div><a href="#26_0">Errata.............................................................................................................26 </a></div>
+					<div><a href="#26_1">Schematics and Layout ..................................................................................26 </a></div>
+					<div><a href="#18_1">8.2.1 </a></div>
+					<div><a href="#20_0">8.2.2 </a></div>
+					<div><a href="#22_0">8.3 </a></div>
+					<div><a href="#22_1">8.3.1 </a></div>
+					<div><a href="#22_2">8.3.2 </a></div>
+					<div><a href="#23_0">8.3.3 </a></div>
+					<div><a href="#23_1">8.3.4 </a></div>
+					<div><a href="#24_0">8.3.5 </a></div>
+					<div><a href="#26_0">8.4 </a></div>
+					<div><a href="#26_1">8.5 </a></div>
+					<div><a href="#35_0">9. </a></div>
+					<div><a href="#35_0">Data Book Revision History ..................................................... 35 </a></div>
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					3
+				</div>
+			</div>
+		</div>
+		<div id="page_3">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					1. Introduction
+					This is the primary reference manual for the EVB001 Evaluation Board. With two GreenArrays G144A12 chips,
+					peripherals sufficient for a complete software and hardware development environment, and a large prototyping area,
+					this highly configurable board is intended to serve both engineers and programmers well in evaluating our chips in all
+					stages of application development.
+					Initially shipped with eForth in flash, this board is field upgradable with additional system software, such as
+					polyFORTH®. In addition, our Application Notes will use this board as their default platform so that our customers may
+					make immediate use of the hardware and software solutions published in those exercises.
+					1.1 Related Documents
+					This book describes an application of GreenArray chips, in particular the GA144. In the interest of avoiding needless
+					and often confusing redundancy, it is designed to be used in combination with other documents.
+					The general characteristics and programming details for the F18A computers and I/O used in the GA144 are described
+					in a separate document; please refer to F18A Technology Reference. The boot protocols supported by the chip are
+					detailed in Boot Protocols for GreenArrays Chips. The configuration and electrical characteristics of the chip are
+					documented in G144A12 Chip Reference. The current editions of these, along with many other relevant documents
+					and application notes as well as the current edition of this document, may be found on our website at
+					<div><a href="http://www.greenarraychips.com/" target="_blank">http://www.greenarraychips.com </a>. It is always advisable to ensure that you are using the latest documents before </div>
+					starting work.
+					1.2 Status of Data Given
+					The data given herein are Production, reflecting board revision 0.1.1.
+					1.3 Documentation Conventions
+					1.3.1 Numbers
+					Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing
+					“hex” or by preceding the number with the lowercase letter “x”. In colorForth coding examples, hexadecimal values
+					are italicized and darkened.
+					1.3.2 Node coordinates
+					Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays
+					are represented as seen from the top of the silicon die, which is normally the top of the chip package, oriented such
+					that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting
+					its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as
+					node 000. Thus, for a GA144 chip whose computers are configured in an array of 18 columns and 8 rows, the numbers
+					of the nodes in the lower right, upper left, and upper right corners are 017, 700, and 717 respectively.
+					1.3.3 Register names
+					Register names in prose may be used with or without the word "register" and are usually shown in a bold font and
+					capitalized where necessary to avoid ambiguity, such as for example the registers T S R I A B and IO or io .
+					1.3.4 Bit Numbering
+					Binary numbers are represented as a horizontal row of bits, numbered consecutively right to left in ascending
+					<div>significance with the least significant bit numbered zero. Thus bit n has the binary value 2<sup>n</sup>. The notation P9 means bit </div>
+					9 of register P, whose binary value is x200, and T17 means the sign (high order) bit of 18-bit register T.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					4
+					<a name="4_0"> </a>
+					<a name="4_1"> </a>
+					<a name="4_2"> </a>
+					<a name="4_3"> </a>
+					<a name="4_4"> </a>
+					<a name="4_5"> </a>
+					<a name="4_6"> </a>
+					<a name="4_7"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_4">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					2. Basic Architecture
+					The purpose of this board is to facilitate evaluation and application prototyping using GreenArrays chips. Because no
+					single I/O complement would be suitable for all likely uses, this board has two GA144 chips: One (called "Host")
+					configured with sufficient I/O for intensive software development, and the other (called "Target") with as little I/O
+					committed as possible so that pure, dedicated applications may be prototyped.
+					2.1 Highlights
+					Three FTDI USB to serial chips provide high speed (960 kBaud) communications for interactive software development
+					and general-purpose host communications.
+					An onboard switching regulator takes power from the USB connectors and/or a conventional "wall wart" power supply.
+					Whichever of these is offering the highest voltage is used by the regulator.
+					A barrier strip provides for connection of bench power supplies. Each of the power buses of the two GA144 chips may
+					selectively be run from external power in lieu of the onboard regulator, allowing you to run either chip from any
+					<div>desired V<sub>DD </sub>voltage and also facilitating current measurements. </div>
+					The Host chip is supplied with an SPI boot flash holding 1 MByte of nonvolatile data, an external SRAM with 1 MWord
+					(2 MBytes) of memory; and may optionally use a dual voltage MMC card such as the 2 Gigabyte unit we have selected
+					for in-house use. These memory resources may be used in conjunction with Virtual Machines such as eForth and
+					polyFORTH, or for direct use by your own F18 code.
+					The Target chip is committed to as few I/O connections as possible. The sources for its reset signal are fully
+					configurable, and with the exception of a SERDES line connecting it with the Host chip, all other communications (two
+					2-wire serial interfaces) may be disconnected so that the chip is fully isolated and thus all practical I/O is available for
+					any desired use.
+					Roughly half the board is prototyping area, mainly populated with a grid of plated through holes on 0.1 inch centers.
+					By soldering suitable headers to this grid, you can provide for expansion using various prototyping fixtures such as
+					those made by SchmartBoard. The grid is intentionally large enough to support an 8- or 16-bit PC-104 socket.
+					The periphery of the prototyping area is provided with hole patterns for many popular connectors, and there are six 8-
+					bit bidirectional level shifters for interfacing with external circuits that may not run on 1.8v. In addition, one 1.8v 2-
+					input OR and three NANDs are available for use in external circuitry.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					5
+					<a name="5_0"> </a>
+					<a name="5_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_5">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					2.2 Simplified Block Diagram
+					WALL
+					WART
+					SWITCHING
+					REGULATOR
+					708.1/17
+					PORT C
+					FTDI CHIP
+					USB
+					PORT C
+					USB
+					TARGET
+					GA144
+					USB
+					RTS
+					300.1/17
+					1.8V BUS
+					2A MAX
+					USB
+					CHIP 1
+					001.
+					RESET 1
+					RESET 0
+					1/17
+					RESET
+					10KΩ
+					.01 UF
+					OPTIONAL
+					1.8V
+					MMC
+					2GB
+					10KΩ
+					.01 UF
+					500.17
+					RTS
+					RESET
+					701.
+					1/17
+					1 MBYTE
+					SPI FLASH
+					(VM)
+					4
+					PORT A
+					FTDI CHIP
+					USB
+					HOST
+					GA144
+					300.1/17
+					708.1/17
+					PORT A
+					2 MBYTE
+					SRAM
+					(VM)
+					USB
+					PORT B
+					200.17
+					100.17
+					40
+					CHIP 0
+					PORT B
+					FTDI CHIP
+					As delivered, Host chip boots a Virtual Machine such as eForth or polyFORTH from
+					flash and talks to terminal on RS232 port B. Ports A and C are available for IDE
+					operations on Host and Target chips. Target may be fully isolated from Host with the
+					exception of the SERDES connection. Other software options including other Virtual
+					Machines besides eForth will be available for field upgrade.
+					2.3 Header Orientation
+					For all single-row headers or hole patterns, pin 1 is at the left as viewed from the top side of the board with USB
+					connectors in the upper left corner; for single column patterns, pin 1 is at the top. For headers with 2 pin short
+					dimensions, pin 1 will be in the lower left corner for horizontally oriented patterns and in the upper left corner for
+					vertical patterns. In the special case of 2x2 patterns, pin 1 is always in the upper left corner. The following diagrams
+					illustrate these orientation conventions and pin numbering:
+					1
+					2
+					3
+					1
+					2
+					3
+					2
+					1
+					4
+					3
+					6
+					5
+					1
+					3
+					5
+					2
+					4
+					6
+					1
+					3
+					2
+					4
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					6
+					<a name="6_0"> </a>
+					<a name="6_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_6">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					2.4 Board Floorplan
+					This overhead image of the evaluation board shows the spatial relationships among the subdivisions that are discussed
+					in the following sections.
+					2.5 Software Support
+					This board is supported by four major classes of software:
+					1. arrayForth is presently the principal tool for creation of native code, or microcode, to run directly on the F18
+					computers in our chips. Included are compilers, simulators, an Interactive Development Environment (IDE),
+					and boot stream generator. arrayForth maintains F18 source code in colorForth notation. The arrayForth
+					system itself is written in and runs on colorForth, which may be run on a wide variety of platforms.
+					2. Virtual Machines running in clusters of F18 nodes support high level programming environments whose
+					natures imply external memory resources. Examples are eForth and polyFORTH. These environments may
+					interact with microcode running in the rest of the chip, supervising their high performance activities. Some
+					environments may also support development of native F18 code as a supplement or complement to
+					arrayForth.
+					3. Host platform applications, such as enhanced terminal emulators, may be supplied with the virtual machines
+					or other applications that use them.
+					4. Applications provided for this board will include source code for arrayForth and/or for specific Virtual
+					Machines, and often hardware configuration or modification instructions, as appropriate.
+					Software options for GreenArrays chips and boards are continually being developed, and may be obtained from our
+					website.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					7
+					<a name="7_0"> </a>
+					<a name="7_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_7">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					3. Power Configuration
+					You must ensure there is enough power for the intended use of the
+					board. Minimal USB (80% of 440 mW) is sufficient for eForth or
+					polyFORTH and many typical projects, but power requirements can
+					<div>exceed 400 mW for V<sub>DD</sub>C (core power) if enough F18A computers are </div>
+					<div>busy simultaneously, and likewise V<sub>DD</sub>I (I/O power) can be greater than this depending on what you connect to the </div>
+					chips. Several power sources are available in the upper left corner of the board.
+					3.1 Main 1.8v Bus
+					Primary 1.8v power is supplied by an onboard fixed voltage regulator fed by an optional “wall wart” (type N plug,
+					positive center conductor, voltage at the J2 connector 3.6 to 19.5VDC with recommended minimum of 4.0V) and up to
+					three USB connectors. Each source is diode protected from the others so whichever one is supplying the highest
+					voltage will be the one that is used at any given time; these diodes have an internal drop of 200 to 300 mV. Each USB
+					connector communicates with a USB host using an FTDI chip. The power available from each USB connection varies
+					from a minimum of 100 mA at 4.4V to the maximum of 500 mA at 5V; the FTDI chips are configured to request
+					permission to use the maximum to improve flexibility. An efficient (≈78%) switching regulator produces a maximum of
+					2A at 1.8V for the logic circuitry on the board. If this full rated power is needed, a "wall wart" capable of delivering 4.5
+					to 5 watts will be required (efficiency varies with voltage.)
+					The main 1.8v bus is used to power our side of the FTDI chips, the SPI flash, the Host chip's external SRAM, and the two
+					<div>logic chips used in SPI bus multiplexing. This bus is also the default source of V<sub>DD</sub>C, V<sub>DD</sub>I and V<sub>DD</sub>A for the Host and </div>
+					Target chips. Finally it is available to power the SD/MMC socket, the level shifter chips, and is routed for easy
+					availability in the prototyping area.
+					3.2 External DC Supplies
+					Barrier strip J1 provides for connecting up to five independent external power sources to this board, three of
+					which are free for your use and wiring at J4, J5 and J6, while two have defined uses. Pin 1 may be used as an
+					<div>alternate source for any of the Target chip's V<sub>DD </sub>buses. Pin 3 may be used as an alternate source for the </div>
+					<div>Host chip's V<sub>DD</sub>C and/or its V<sub>DD</sub>I and V<sub>DD</sub>A. This facilitates operating either or both of the chips at any desired </div>
+					supply voltage. It also provides for applications that require more than 2A of 1.8v.
+					3.3 Power Selection and Measurement
+					Five 3-pin headers allow selection of either the main 1.8v bus or an external supply as shown in this table:
+					Header
+					J10
+					J11
+					Chip
+					Host
+					Bus
+					Pins 1-2 connected
+					J1 pin 3
+					Pins 2-3 connected
+					<div>V<sub>DD </sub></div>
+					C
+					<div>V<sub>DD</sub>I/A </div>
+					J14
+					J15
+					J16
+					<div>V<sub>DD </sub></div>
+					<div>V<sub>DD </sub></div>
+					<div>V<sub>DD </sub></div>
+					C
+					I
+					A
+					Main 1.8v Bus
+					Target
+					J1 pin 1
+					Current may be measured by inserting a shunt or other type ammeter across the desired pair of pins. Some
+					combinations of current and shunt resistance will require use of an adjustable external power supply to give the
+					desired voltage on the chip side of the shunt. The jumpers provided are rated at 3A with max resistance of 20 mΩ.
+					3.4 Other Available Voltages
+					<div>An unregulated V<sub>CC </sub>is input to the onboard switching regulator. No contact is provided because the voltage is not </div>
+					controlled. Each FTDI chip that is connected to a USB host can provide up to 50 mA of 3.3v, made available on J7, J12
+					and J19 for ports A, B and C respectively.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					8
+					<a name="8_0"> </a>
+					<a name="8_1"> </a>
+					<a name="8_2"> </a>
+					<a name="8_3"> </a>
+					<a name="8_4"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_8">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					4. USB Interfaces
+					Three USB device interfaces provide for high speed communications with the GA144 chips. To a host computer each of
+					these normally appears as an asynchronous serial (COM) port. Although each has a specific planned use on this board,
+					their configuration is highly flexible.
+					4.1 Interface Devices
+					The devices provided are FT232R chips made by Future Technology Devices International, Ltd. (FTDI). As USB to serial
+					<div>UART devices, their USB side is powered by V<sub>CC </sub>from the USB host while the side which talks to our chips is powered by </div>
+					the main 1.8v bus regulated on the board. Because the FTDI chips communicate with the GA144s directly using 1.8v
+					CMOS, signals are crisp enough that each interface can run at an effective speed of 921,600 baud.
+					4.2 Jumpers and Connections
+					Transmit and receive lines are routed to the Host and Target GA144 chips as
+					described in later sections. Request to Send (RTS) signals from ports A and C
+					are available for chip reset purposes. RTS from port B is available at plated
+					through hole J24.
+					Each FTDI chip is configured to drive transmit and receive activity LEDs D2,
+					D4, D7, D9, D10 and D11 respectively. The remaining three configurable
+					outputs, and the DTR signal, are available at hole patterns J8, J13 and J17 for
+					ports A, B and C respectively. By default two of these outputs are
+					configured with clock signals that may be used for time base purposes.
+					Each FTDI chip develops 3.3v for internal use. Plated through holes J7, J12 and J19 provide access to this supply from
+					ports A, B and C respectively; up to 50 mA may be drawn from each of these for your circuitry if needed.
+					4.3 Flash Configuration
+					We configure the FTDI FT232RQ chips before shipping the boards by setting the polarities of TXD, RXD and RTS- lines
+					correctly and by selecting our default outputs for the five CBUS lines as follows: CBUS0 and 1 are incoming and
+					outgoing activity LED drivers respectively. CBUS2 and 3 are driven with clock frequencies generated by the FTDI chips.
+					CBUS4 is also driven with the incoming activity signal as a work-around for one of the rev 0.1.1 board errata.
+					Signal Location
+					FTDI
+					Signal
+					Definition
+					Driven low to indicate inbound ("TX") line activity.
+					Port A
+					Port B
+					(LED)
+					(LED)
+					J13.1
+					J13.2
+					J13.3
+					Port C
+					CBUS0-
+					CBUS1-
+					CBUS2-
+					CBUS3-
+					CBUS4-
+					(LED)
+					(LED)
+					J8.1
+					(LED)
+					(LED)
+					J17.1
+					J17.2
+					J17.3
+					Driven low to indicate outbound ("RX") line activity.
+					Clock output, 6 MHz.
+					J8.2
+					J8.3
+					Clock output, 48 MHz.
+					Driven low to indicate inbound ("TX") line activity.
+					Data terminal ready. Default state and polarity depend on
+					driver software and configuration.
+					DTR-
+					J8.4
+					J13.4
+					J17.4
+					The FTDI chips are specially configured for their use on this board. Excellent documentation as well as configuration
+					<div>utilities and drivers are available from the manufacturer at <a href="http://www.ftdichip.com/" target="_blank">http://www.ftdichip.com/</a><a href="http://www.ftdichip.com/" target="_blank">. </a>Template files are included in </div>
+					the software distribution. Please contact us before changing the configuration of your FTDI chips.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					9
+					<a name="9_0"> </a>
+					<a name="9_1"> </a>
+					<a name="9_2"> </a>
+					<a name="9_3"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_9">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					5. Host Chip
+					The Host chip, designated chip 0 on some of the design
+					documentation, is by default configured as a development system
+					including hardware and software support for a high level language
+					such as eForth or polyFORTH. The photo to the right shows the
+					section of the board housing this powerful system including 144 F18
+					computers, two USB serial ports, 1 Megaword (2 MBytes) of
+					external SRAM, 8 megabits (1 Mbyte) of bootable SPI flash, and
+					optional provision for using a dual voltage MMC card as onboard
+					mass storage. All connections make use of software defined I/O
+					with minimal or no external circuitry. For example, U9 and U10 are
+					included only to facilitate selection of multiple SPI devices.
+					Most host pins, other than those used to control SRAM, are
+					available at jumper stakes or hole patterns such as J21 and J27.
+					Several probe points are provided: WE-, CE-, A00 and D00 show
+					SRAM timing; SS, SCK, DO and DI show signals at the SPI flash chip.
+					S1 and S17 may be used, with great care, to probe the SERDES connection between Host and Target chips.
+					5.1 Reset Control
+					The board has two circuits to generate power-on and pushbutton reset signals,
+					one each for the Host and Target chips. For the Host, this signal terminates at
+					jumper block J20 along with the RTS signal from USB port A (normally used for
+					IDE operations on the Host.) By setting jumpers appropriately, the Host chip may
+					be reset by either, both, or neither of these signals according to the following
+					table:
+					J20 Pins
+					1
+					3
+					2
+					4
+					J20 pins
+					None
+					1-3
+					Reset Source
+					User provided inputs on pins 1 or 2
+					USB port A RTS signal
+					2-4
+					1-3 &amp; 2-4
+					Host chip reset circuit / button
+					Reset circuit / button or USB port A RTS
+					5.2 Serial Interfaces
+					USB port A is intended, by default, to be used for programming of the Host chip using the
+					arrayForth Interactive Development Environment (IDE). Transmit and receive lines may
+					be connected to async boot node 708 by insertion of jumpers in J23. Reset from port A
+					may be connected as shown above. Port B is primarily intended to be used for a serial
+					interface to the eForth or polyFORTH system; it too may be connected to nodes 100 and
+					200 by insertion of jumpers in J23. The mapping in J23 is as follows:
+					USB
+					port
+					J23
+					pins
+					Host
+					pins
+					USB
+					port
+					J23
+					pins
+					Host
+					pins
+					USB
+					port
+					J23
+					pins
+					Target
+					pins
+					Signal
+					Rx to
+					chip
+					Tx
+					1
+					2
+					708.17
+					5
+					6
+					200.17
+					9
+					10
+					708.17
+					A
+					B
+					C
+					from
+					chip
+					3
+					4
+					708.1
+					7
+					8
+					100.17
+					11 12
+					708.1
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					10
+					<a name="10_0"> </a>
+					<a name="10_1"> </a>
+					<a name="10_2"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_10">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					5.3 SPI Bus and Devices
+					Node 705 of the host chip is equipped with ROM capable of booting from an external flash memory using the 4-wire
+					SPI interface. Using jumper options, node 705 may be configured to boot from the onboard flash chip. It may also be
+					configured to selectively use other SPI devices under control of node 600 and/or external logic you provide. One
+					option that is explicitly supported is selection of either the SPI flash or a 1.8v MMC card in the SD card socket provided
+					with the board, under program control. Jumpers may also be used to completely disconnect node 705 from any of
+					these things so its four pins are free for other application use.
+					5.3.1 SPI Flash and Booting
+					Jumper block J25 controls SPI flash chip reset and booting options according to the
+					following table:
+					J25 pins
+					Don't
+					Care
+					J26 pins
+					IN
+					Configuration
+					Pulls Node 705 pin high. Node 705 does not
+					attempt boot nor does it drive any of its pins.
+					Node 705 attempts reading flash and if validity
+					checks pass it processes boot frame(s) from that
+					device.
+					Don't
+					Care
+					OUT
+					J25
+					1
+					2
+					J26
+					Flash chip is held in reset; all its pins are at high
+					impedance so that node 705's pins are available
+					for other use.
+					1
+					2
+					Don't
+					Care
+					1-2
+					2-3
+					3
+					Flash chip is reset by the Host chip's reset
+					circuit/button and, if both J20 jumpers are
+					inserted, by USB port A RTS.
+					Don't
+					Care
+					Evaluation boards are shipped with a high-level virtual machine set to boot from flash. New software is initially loaded
+					into flash using the arrayForth IDE; the procedure for doing this requires use of J26.
+					For other uses of the flash by software packages such as eForth and polyFORTH, and for software installation
+					procedures, see the documentation for each software package..
+					For low-level application use, see arrayForth source code and application notes.
+					5.3.2 MMC Card Mass Storage
+					The SD card socket also accepts MMC cards, and because dual voltage MMC cards support 1.8v VDD and signaling logic
+					levels, such cards may be directly controlled by the GA144. polyFORTH is configured by default to make use of such an
+					MMC card as mass storage, and the board's jumpers are set by default to enable this. The MMC card may be used for
+					backup, data logging, and transport of code or data between evaluation boards or other computers.
+					5.3.3 Enabling MMC Card Selection
+					J39
+					1
+					2
+					J37
+					Two jumper blocks configure simple external circuitry for selecting
+					between multiple SPI devices on the 4-wire bus controlled by node
+					705. The standard configurations are as follow:
+					1
+					3
+					2
+					4
+					3
+					J39 pins
+					2-3
+					J37 pins
+					1-2, 3-4
+					Configuration
+					SPI Flash is always selected. Node 600 unused.
+					Node 600 selects SPI flash when its pin is low (reset
+					condition), or MMC card when the pin is high.
+					1-2
+					1-2, 3-4
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					11
+					<a name="11_0"> </a>
+					<a name="11_1"> </a>
+					<a name="11_2"> </a>
+					<a name="11_3"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_11">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					5.3.4 Connecting MMC Power and Signals to SD Socket
+					<div>The selection logic described in section <a href="#11_3">5.3.3 </a>drives signals that terminate in J40 </div>
+					<div>near the SD card socket, along with 1.8v for V<sub>DD </sub>on MMC cards. To configure the </div>
+					SD socket to use these signals and power a dual voltage MMC card, install five
+					jumpers between each pin of J40 and the corresponding pin of J38.
+					5.4 SRAM
+					The external SRAM may be used with the virtual machines supporting high level
+					languages, in which SRAM control software is inherently present, or it may be
+					used directly by F18 applications. In the latter case, one option is to employ the SRAM control cluster (four nodes)
+					supplied with arrayForth. Alternatively you may write your own. No optioning nor interface circuitry is needed; probe
+					points are provided to facilitate I/O software development.
+					5.5 Connections to Target
+					Host SERDES node 701 is hardwired to Target node 001 with probe points. This connection may be used for
+					programming or otherwise communicating with the Target, to evaluate the SERDES, and to explore and develop
+					protocols.
+					Host node 500 drives a signal that connects to the jumper block as one source of reset signal for the Target chip.
+					Host node 300 may be connected to Target node 300; this allows the Host to boot the Target using 2-wire synchronous
+					protocol.
+					5.6 Summary of Host Pin Usage
+					Although many Host pins are committed to SRAM control, a good number remain available for application use.
+					5.6.1 Committed by Layout
+					All 40 pins of nodes 7, 8 and 9 are committed to SRAM control. Only four of these lines are available for probing.
+					SERDES lines from node 701 are committed to Target communication.
+					5.6.2 Uncommitted
+					All ten Analog I/O pins are uncommitted, as are the GPIO pins of nodes 217, 317, 417,
+					517 and 715. These 15 pins are available on hole patterns J21 and J27.
+					Node 001.1 and .17 (SERDES data and clock) are available at SMA patterns J74 and J75 respectively.
+					5.6.3 Conditionally Available
+					Nodes 100 and 200 are committed only if eForth or polyFORTH is used; otherwise their GPIO pins are available. All of
+					the pins in this section are accessible at plated through holes or at jumper blocks.
+					Node 300 has two GPIO pins which are available unless you require them for Target communication.
+					Node 500 has one GPIO pin that's available unless you need to use it for Target reset.
+					Node 600 has one GPIO pin that's available if you are not using the MMC card option.
+					Node 705 has four GPIO pins that are committed for SPI bus control, but if that is not needed the SPI chips can be
+					disabled and all four pins are available. (Pin 17 must still be pulled high if you wish to prevent boot validity check when
+					the chip is reset.)
+					Node 708 is normally used for arrayForth IDE but if not required these are available for asynchronous boot or any other
+					desired use.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					12
+					<a name="12_0"> </a>
+					<a name="12_1"> </a>
+					<a name="12_2"> </a>
+					<a name="12_3"> </a>
+					<a name="12_4"> </a>
+					<a name="12_5"> </a>
+					<a name="12_6"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_12">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					6. Target Chip
+					The Target chip, designated chip 1 on some of the design
+					documentation, is configured in such a way that it may be
+					booted and debugged, but otherwise all of its pins are
+					available for your application. One possible use is as an I/O or
+					computational expander for the Host chip. However the key
+					reason for providing the Target chip on this evaluation board is
+					to address your need to prototype a full application for a
+					dedicated GreenArrays chip without having to lay out a board
+					or disconnect a great deal of evaluation circuitry.
+					All but seven of the Target I/O pins are completely
+					uncommitted, and are available in hole patterns J30, J31, J32
+					and J36 as shown in the picture at right. Of those seven, all
+					but two may be disconnected with jumpers to isolate the
+					Target chip for use in a dedicated application prototype.
+					6.1 Reset Control
+					Target reset is configured using J22 to the left of the chip. The
+					three pins on the top edge of the header (2, 4 and 6) are
+					connected in parallel to the RESET- pin of the Target chip. The
+					other three pins are connected with reset sources that may be
+					J22
+					4
+					3
+					2
+					1
+					6
+					5
+					combined as a summing point. Pin 1 is connected to Host chip node 500; pin 3 is connected to
+					USB port C RTS- line (low when RS232 signal would be low); and pin5 is connected to the power-
+					on and pushbutton reset circuit for the Target chip.
+					6.2 Serial Interface
+					USB port C is available to be used for programming the Target chip using the arrayForth IDE. Transmit and receive lines
+					may be connected to async boot node 708 by insertion of jumpers 9-10 and 11-12 of J23 located above the J22 reset
+					<div>control jumper, as shown earlier in section <a href="#10_2">5.2. </a></div>
+					6.3 Host Chip Communications
+					As noted earlier, Host SERDES node 701 is hardwired to target node 001
+					with probe points as shown to the right.
+					Host node 300 may be connected with Target node 300 for booting or
+					other communications. This is enabled by inserting jumpers J34 and J35 to the right of the SERDES probe points.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					13
+					<a name="13_0"> </a>
+					<a name="13_1"> </a>
+					<a name="13_2"> </a>
+					<a name="13_3"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_13">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					7. Prototyping Area
+					Half of the evaluation board's area is available for
+					your use in building any desired circuitry. We have
+					made this as flexible as feasible for a broad range of
+					projects. The area is covered with patterns of plated
+					through holes to which you may solder components,
+					connectors, headers and so on as necessary. On the
+					grounds that it is simpler and easier to solder multi-
+					pin devices onto a board than it is to remove such
+					devices when they are in the way, we supply an
+					assortment of connectors and headers in a separate
+					bag for your use.
+					GreenArrays expects to use this evaluation board as
+					the primary platform for design exercises that will be
+					published on our website as Application Notes
+					suggesting ways to make good use of this area.
+					7.1 Plated-through Hole Grid
+					The large grid of plated through holes, on 0.1"
+					centers, gives almost unlimited flexibility in
+					breadboarding your circuits. The area is compatible
+					with many common technologies that may be used to attach components, interfaces, or expand the area further by
+					soldering 0.1" headers to the board in suitable patterns. These options will be expanded upon later.
+					7.2 Power, Ground and Signals
+					Hole patterns carrying the main 1.8v bus and common ground are
+					available surrounding the prototyping area. Other supply voltages
+					such as 3.3v from the FTDI chips or user supplied voltages from the J1
+					barrier strip must be hand wired, as must any other signals such as those from GA144 pins.
+					7.3 Convenience Circuits
+					For interfacing to devices with signal voltages other than the 1.8v native to the GA144,
+					there are six 8-bit bidirectional level shifter chips in the prototyping area. These are
+					<div>Texas Instruments <a href="http://focus.ti.com/lit/ds/symlink/txb0108.pdf" target="_blank">TXB0108 devices in RGY packages </a>and for maximum flexibility none </div>
+					of their pins are connected except ground (pin 11 and die attach paddle.) You may use
+					each of these chips to interface between 1.2 to 3.6v on the A port and 1.65 to 5.5v on
+					<div>the B port by connecting suitable supply voltages to each of the chip's two V<sub>CC </sub>pins. </div>
+					In addition, there are four uncommitted 2-input, 1.8v CMOS logic gates available for your use. These are
+					located between the Host chip and the hole grid of the prototyping area. The table below identifies the
+					connections and gate types.
+					Inputs
+					Output
+					TP11
+					TP12
+					TP13
+					TP10
+					Gate Type
+					2-input NAND
+					2-input OR
+					TP4
+					TP5
+					TP7
+					TP9
+					TP3
+					TP6
+					TP8
+					TP2
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					14
+					<a name="14_0"> </a>
+					<a name="14_1"> </a>
+					<a name="14_2"> </a>
+					<a name="14_3"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_14">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					7.4 Optional Connector Hole Patterns
+					Unpopulated hole patterns are provided along the edges of the prototyping area for various connectors. Some
+					connectors are supplied with the evaluation board so that you may solder in any that you require.
+					7.4.1 DB9 Connectors
+					To interface with RS-232 devices, there are two female
+					DB9 patterns. For your convenience, these are
+					equipped with minimalist RS232 interfaces that may be
+					used with our chips: Data receive and RTS signals are
+					simply connected to GA144 pins through current
+					limiting resistors, while data transmit is done with a pair
+					of inverting N transistors powered by the Data Terminal Ready (DTR) line from the RS232 device. If these circuits don't
+					do the trick, the components may be desoldered and direct connection made to the DB9 pins. Pins 1 of J54 and J59 are
+					received data going to the GA144, pins 2 are transmit from the GA144, and pins 3 are incoming RTS. The inactive state
+					of each of these RS232 lines is low.
+					7.4.2 General-Purpose LEDs
+					Located between the two DB9 patterns are four general-purpose LEDs, which may be turned on by
+					supplying them with 1.8 volts on the geometrically corresponding pin of the adjacent pattern J57.
+					7.4.3 VGA Connector
+					A pattern for a female 15-pin D shell provides the means for driving a
+					VGA display directly from the GA144. Terminating resistor networks
+					must be added if the device requires them.
+					7.4.4 USB Connector
+					To facilitate development of USB device hardware and software, provision is made for attaching a
+					USB type B receptacle to the prototyping area. Some interface circuitry will probably be needed.
+					7.4.5 RJ48 Connector
+					For development of 10baseT and perhaps other Ethernet interfaces, a
+					pattern is provided for an RJ48 receptacle. Like USB, we expect that
+					some minimal interface circuitry will be required as well.
+					7.4.6 Audio Connectors
+					For analog audio input/output development, up to three 3.5mm stereo TRS receptacles may be
+					soldered to patterns provided on the prototyping area.
+					7.4.7 SMA RF Connectors
+					At higher frequencies, RF connectors are more suitable
+					for carrying signals on and off the evaluation board.
+					Accordingly we provide five hole patterns for mounting
+					SMA connectors, chosen for their small size and ready
+					availability.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					15
+					<a name="15_0"> </a>
+					<a name="15_1"> </a>
+					<a name="15_2"> </a>
+					<a name="15_3"> </a>
+					<a name="15_4"> </a>
+					<a name="15_5"> </a>
+					<a name="15_6"> </a>
+					<a name="15_7"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_15">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					7.5 Optional use of SD socket
+					Although software being prepared for the evaluation board will be capable of taking
+					advantage of a dual voltage MMC card for various purposes, the board layout is
+					versatile enough to allow for development of code to access 3.3v SD cards as well.
+					To take advantage of this capability, you must arrange to supply the SD socket with
+					3.3v power and construct the circuitry needed to communicate with it using 3.3v
+					logic signals. All nine pins are available at the socket on J33 and J38, including two
+					<div>handhake lines, V<sub>DD </sub>, all four data lines, card-present and write-protect signals. </div>
+					7.6 Expanding the Prototyping Area
+					As suggested above, the grid of holes on 0.1" centers facilitates the installation of female headers into which various
+					expansion devices may be plugged.
+					<div><a href="http://www.schmartboard.com/" target="_blank">Schmartboard™ Products </a>include small boards </div>
+					which can connect various surface mount parts
+					to our prototyping area using 0.1" headers.
+					This is considerably simpler and more likely to
+					succeed than is "dead bugging" SMT
+					components.
+					As another example, by soldering double row
+					female headers appropriately in the
+					prototyping area, PC-104 boards may be
+					connected to the evaluation board. For
+					<div>example, see <a href="http://www.winsystems.com/" target="_blank">WinSystems® Products </a>which </div>
+					include prototyping boards that could simply
+					enlarge the prototyping area, or peripheral
+					boards that could be used with level shifters.
+					Here is one possible placement of a 16-bit PC-104 connector and two views of a PC-104 board mounted on it:
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					16
+					<a name="16_0"> </a>
+					<a name="16_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_16">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					8. Physical Documentation
+					This section includes signal tables, schematics and PCB layout artwork.
+					8.1 Bill of Materials
+					RefDes
+					Value
+					Type
+					Pins Qty Manufacturer
+					Supplier
+					Sup Part No.
+					C1
+					C4,C13,C20
+					C5 (for 0.1.1 layout only)
+					C6 (for 0.1.1 layout only)
+					C7
+					C8 (for 0.1.1 layout only)
+					C9,C10,C16,C21,C23,C27
+					C15
+					22uf-25V
+					4.7uf
+					0.22uf 10% 630v CAP_0805
+					0.47uf 50v 10% CAP_0805
+					470pf 5v
+					330pf 1Kv 5%
+					10nf
+					68uf-16V
+					0.1uF
+					CAP_0805
+					CAP_0603
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					1 SANYO
+					3
+					1
+					1
+					1
+					Caps Plus 25TQC22MV
+					Digi-Key
+					Mouser
+					Digi-Key
+					Digi-Key
+					Mouser
+					Digi-Key
+					490-5421-1-ND
+					81-GRM55DR72J224KW01
+					399-3752-1-ND
+					PCC471BQCT-ND
+					598-MC22FF331J-F
+					478-1114-1-ND
+					CAP_0402
+					CAP_0805
+					CAP_0402
+					CAP_0805
+					CAP_0402
+					1
+					6
+					1 SANYO
+					20 Amer Tech Ceramics ATC
+					Caps Plus 16TQC68M
+					C2,C3,C11,C12,C14,C17-
+					C19,C22,C24-C26,C28-C35
+					ATC530L104KT16T
+					D1,D3,D5,D6,D8
+					FB1,FB2,FB3
+					J1
+					J2
+					J3,J9,J18
+					J10,J11,J14-J16,J25,J39
+					J20,J29,J37
+					J22
+					J26,J34,J35
+					J23
+					J38 plus J40
+					JP1
+					K1,K2
+					L1
+					Q1,Q2
+					1N3016
+					2
+					2
+					10
+					3
+					6
+					3
+					4
+					6
+					2
+					12
+					10
+					15
+					2
+					2
+					6
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					2
+					33
+					11
+					89
+					48
+					8
+					12
+					12
+					20
+					5 On Semiconductor Digi-Key
+					MBRA340T3GOSCT-ND
+					490-5247-1-ND
+					ED2616-ND
+					Ferrite Bead
+					TERMBLK10
+					PJ-002B
+					USB
+					CON3
+					3
+					1
+					1
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Mouser
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Newark
+					CP-002BH-ND
+					737-USB-B-S-RA
+					A26513-03-ND
+					A34977-02-ND
+					A34977-03-ND
+					A26513-02-ND
+					A34977-06-ND
+					A34977-05-ND
+					69R4862
+					3 Adam Tech
+					7 Break up 1x40
+					3 Break up 2x40
+					1 Break up 2x40
+					3 Break up 1x40
+					1 Break up 2x40
+					1 Break up 2x40
+					1 GCT
+					HEADER_2X2
+					HEADER_2X3
+					HEADER_1X2
+					HEADER 2X6
+					HEADER 2X5
+					SD Connector
+					SWITCH_PB
+					Inductor
+					Dual 50v N-FET
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_0603
+					RES_1206
+					RES_0805
+					FT232RQ
+					C1-RST
+					3.3uH
+					1
+					Digi-Key
+					Coilcraft
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					Digi-Key
+					P10877S-ND
+					1 COILCRAFT
+					2 Diodes, Inc.
+					1 Panasonic
+					1 Panasonic
+					1 Panasonic
+					1 Panasonic
+					1 Panasonic
+					2 Panasonic
+					4 Panasonic
+					6 Panasonic
+					2 Vishay/Dale
+					2 Panasonic
+					3 FTDI
+					MSS1048-332NLC
+					DMN5L06DMKDICT-ND
+					P15KGCT-ND
+					P100KGCT-ND
+					P127KHCT-ND
+					P18.2KHCT-ND
+					P68.1KHCT-ND
+					P10KGCT-ND
+					P1.0KGCT-ND
+					P5.1KGCT-ND
+					541-470UACT-ND
+					P2.7KADCT-ND
+					768-1008-1-ND
+					LT3480EMSE#PBF-ND
+					R2
+					R4
+					R5
+					R7
+					15K 10%
+					100K
+					127K 1%
+					18.2K 1%
+					68.1K 10%
+					10K
+					R9
+					R12,R15
+					R13,R14,R16,R17
+					R18,R19,R20,R21,R28,R29
+					R22,R30
+					R23,R31
+					U1,U3,U4
+					U2
+					U5,U8
+					U6
+					U7
+					1K
+					5.1K
+					470 1/2W
+					2.7K 1/4W
+					USB Serial
+					Regulator
+					Multicomputer
+					SRAM
+					SPI Flash
+					Quad OR
+					Quad NAND
+					LT3480
+					GA144
+					CY62167EV18LL-55
+					SST25WF080
+					74LVC32 QFN
+					74LVC00 QFN
+					1 Linear Technology Digi-Key
+					2 GreenArrays
+					1 Cypress
+					1 Microchip
+					1
+					1
+					GreenArrays G144A12
+					Avnet
+					Microchip
+					Digi-Key
+					Mouser
+					CY62167EV18LL-55BVXI
+					SST25WF080-75-4I-SAF
+					568-3017-1-ND
+					771-LVC00ABQ115
+					595-TXB0108RGYR
+					U9
+					U10
+					U11-U16
+					Octal Levelshift TXB0108E
+					6 Texas Instruments Mouser
+					106
+					28 Jameco Valuepro
+					TOTAL ASSEMBLED
+					2pin Jumpers
+					DB9F
+					USB "B" female
+					RJ48 Ethernet
+					3.5mm Phone Jack
+					Clip leads
+					Jameco
+					Mouser
+					Mouser
+					Digi-Key
+					Mouser
+					19141
+					J52,J58
+					J71
+					J69
+					9
+					6
+					8
+					4
+					1 TE Connectivity
+					1 Adam Tech
+					1 TYCO
+					571-5747844-4
+					737-USB-B-S-RA
+					A31442-ND
+					161-4033-E
+					J62,J63,J64
+					3 KOBICONN
+					2 Circuit Specialists CircuitSpec
+					USB Cable
+					1
+					5
+					5
+					1
+					Monoprice
+					Jameco
+					Jameco
+					Jameco
+					Jameco
+					LED green 565nm T1 3/4
+					Res CF 47ohm 1/4w 5%
+					HEADER 2X40
+					HEADER 1X40
+					334086
+					690540
+					117197
+					160882
+					1
+					1 Kingston
+					2GB
+					MMC DV Flash
+					Price Angels 73297
+					TOTAL IN BAG
+					50
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					17
+					<a name="17_0"> </a>
+					<a name="17_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_17">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					8.2 GA144 Signal map
+					These tables identify header pins or holes at which each chip's signals may be found.
+					8.2.1 Host Chip
+					Type
+					Name
+					d00
+					d01
+					d02
+					d03
+					d04
+					d05
+					d06
+					d07
+					d08
+					d09
+					d10
+					d11
+					d12
+					d13
+					d14
+					d15
+					d16
+					d17
+					Pin
+					1
+					2
+					3
+					8
+					Access
+					D00
+					Description
+					9
+					10
+					11
+					12
+					13
+					16
+					21
+					22
+					23
+					24
+					25
+					30
+					31
+					32
+					Bits 0 through 17 of node 007 UP port.
+					General purpose bidirectional parallel bus.
+					None
+					SRAM Data
+					Bus
+					Bits 0 through 15 are connected to the SRAM BGA and probe access is not
+					supported except for bit 0 to probe timing. Mapping to SRAM data lines is
+					randomized for best layout.
+					Bits 16 and 17 are pulled down so that they will read as zero.
+					R14
+					R13
+					008.17
+					008.5
+					008.3
+					008.1
+					a17
+					a16
+					a15
+					a14
+					a13
+					a12
+					a11
+					a10
+					a09
+					a08
+					a07
+					a06
+					a05
+					33
+					34
+					35
+					36
+					37
+					38
+					39
+					42
+					43
+					44
+					45
+					46
+					53
+					54
+					55
+					56
+					57
+					58
+					65
+					66
+					67
+					68
+					None
+					General purpose 4-pin node used for SRAM control (1,3) and high order
+					address lines (5,17). Pins 1 and 3 are pulled up so that the SRAM is made
+					inactive when chip is reset.
+					GPIO
+					WE-
+					CE-
+					Bits 17 through 0 of node 009 UP port.
+					General purpose bidirectional parallel bus.
+					None
+					SRAM
+					Address Bus
+					Bits 0 through 17 are connected to the SRAM BGA and probe access is not
+					supported except for bit 0 to probe timing. Mapping to the low order 17
+					SRAM address lines is randomized for best layout. A17 must be mapped
+					directly so that the layout will accommodate chips with 128k or fewer words.
+					a04
+					a03
+					a02
+					a01
+					a00
+					A00
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					18
+					<a name="18_0"> </a>
+					<a name="18_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_18">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					001.17
+					001.1
+					701.17
+					701.1
+					300.17
+					300.1
+					708.17
+					708.1
+					27
+					26
+					86
+					87
+					14
+					15
+					78
+					79
+					85
+					84
+					81
+					80
+					20
+					18
+					7
+					J75
+					J74
+					S17
+					Node 001 Clock
+					Node 001 Data
+					Node 701 Clock
+					Node 701 Data
+					SERDES
+					SERDES
+					GPIO
+					Available at dedicated SMA connector hole patterns..
+					Connected to Target node 001 SERDES. Both chips reset to
+					SDERDES boot.
+					S1
+					J35.1
+					J34.1
+					J23.2
+					J23.4
+					DI
+					DO
+					SS-
+					SCK
+					J23.8
+					J23.6
+					J22.1
+					J39.1
+					J21.5
+					J21.4
+					J27.3
+					J27.2
+					J27.4
+					J27.5
+					J27.8
+					J27.7
+					Sync clock
+					Sync data
+					Rx Input
+					Tx Out
+					General purpose 2-pin node. ROM supports synchronous boot.
+					May be connected to Target node 300.
+					General purpose 2-pin node. ROM supports asynchronous
+					boot. May be connected to USB port A for IDE operations.
+					GPIO
+					705.17
+					705.5
+					705.3
+					Data In
+					General purpose 4-pin node. Normally used for boot and/or
+					read/write on SPI Flash and/or mass storage such as MMC
+					depending on jumpers. May also be free for application use.
+					When MMC selected, SS- and other signals are on J40.
+					Data Out
+					Chip Enable-
+					Clock
+					GPIO
+					GPIO
+					705.1
+					100.17
+					200.17
+					500.17
+					600.17
+					317.17
+					417.17
+					709.ai
+					709.ao
+					713.ai
+					713.ao
+					717.ai
+					717.ao
+					1-pin GPIO nodes. May be connected to USB port B for use with high level
+					Virtual Machines.
+					1-pin GPIO node. May be used to reset the Target chip.
+					1-pin GPIO node. May be used in selecting expanded SPI bus.
+					6
+					52
+					59
+					76
+					77
+					73
+					72
+					69
+					70
+					1-pin GPIO nodes. Available for application use.
+					Analog In
+					Analog Out
+					Analog In
+					Analog Out
+					Analog In
+					<div>Analog nodes whose I/O is powered by separate V<sub>DD</sub>A bus. Available for </div>
+					application use.
+					Analog Out
+					General purpose 1-pin node whose pin is shared (read only) by the above
+					analog nodes and may be used by them for timing or other purposes.
+					GPIO
+					715.17
+					71
+					J27.6
+					Analog In
+					Analog Out
+					GPIO
+					Analog In
+					Analog Out
+					GPIO
+					617.ai
+					617.ao
+					517.17
+					117.ai
+					117.ao
+					217.17
+					RESET-
+					61
+					63
+					60
+					48
+					50
+					51
+					88
+					5
+					J21.2
+					J21.1
+					J21.3
+					J21.8
+					J21.7
+					J21.6
+					J20.1
+					<div>Analog node whose I/O is powered by V<sub>DD</sub>I bus. </div>
+					General purpose 1-pin node whose pin is shared (read only) by Analog 617.
+					<div>Analog node whose I/O is powered by V<sub>DD</sub>I bus. </div>
+					General purpose 1-pin node whose pin is shared (read only) by Analog 117.
+					Reset signal, active low. Also pin J20.2.
+					Input
+					17
+					29
+					41
+					49
+					62
+					75
+					83
+					4
+					19
+					28
+					40
+					47
+					64
+					82
+					74
+					Core power bus. Powers F18A computers, and parts of I/O circuitry (such as
+					registers) that are internal to them.
+					Power
+					Power
+					<div>V<sub>DD </sub></div>
+					C
+					J10.2
+					I/O power bus. Powers I/O pads including the parts of the I/O circuitry
+					collocated with the pads. Includes analog pads for nodes 117 and 617.
+					<div>V<sub>DD </sub></div>
+					I
+					J11.2
+					J11.2
+					Power
+					<div>V<sub>DD</sub>A </div>
+					Analog power bus for pads of nodes 709, 713 and 717.
+					Ground
+					GND
+					DAP any gnd Common ground and heat sink.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					19
+				</div>
+			</div>
+		</div>
+		<div id="page_19">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					8.2.2 Target Chip
+					Type
+					Name
+					Pin
+					Access
+					Description
+					d00
+					d01
+					d02
+					d03
+					d04
+					d05
+					d06
+					d07
+					d08
+					d09
+					d10
+					d11
+					d12
+					d13
+					d14
+					d15
+					1
+					2
+					3
+					8
+					J30.1
+					J30.2
+					J30.3
+					J30.6
+					J30.7
+					J30.8
+					J30.9
+					J30.10
+					J30.11
+					J30.12
+					J30.15
+					J30.16
+					J31.1
+					J31.2
+					J31.3
+					J31.4
+					J31.5
+					J31.6
+					J31.7
+					J31.8
+					J31.9
+					J31.10
+					J31.11
+					J31.12
+					J31.13
+					J31.14
+					J31.15
+					J31.16
+					J36.15
+					J36.14
+					J36.9
+					J36.8
+					J36.7
+					J36.6
+					J36.5
+					J36.4
+					J32.15
+					J32.14
+					J32.13
+					J32.12
+					S17
+					9
+					10
+					11
+					12
+					13
+					16
+					21
+					22
+					23
+					24
+					25
+					30
+					31
+					32
+					33
+					34
+					35
+					36
+					37
+					38
+					39
+					42
+					43
+					44
+					45
+					46
+					53
+					54
+					55
+					56
+					57
+					58
+					65
+					66
+					67
+					68
+					27
+					26
+					86
+					87
+					14
+					15
+					Bits 0 through 17 of node 007 UP port.
+					Bus I/O
+					General purpose bidirectional parallel bus, such as external memory data.
+					d16
+					d17
+					008.17
+					008.5
+					008.3
+					008.1
+					a17
+					a16
+					a15
+					a14
+					a13
+					a12
+					a11
+					a10
+					a09
+					a08
+					a07
+					a06
+					a05
+					General purpose 4-pin node.
+					Might be used for memory or bus control and handshake lines.
+					GPIO
+					Bits 17 through 0 of node 009 UP port.
+					Bus I/O
+					General purpose bidirectional parallel bus, such as external memory address.
+					a04
+					a03
+					a02
+					a01
+					a00
+					001.17
+					001.1
+					701.17
+					701.1
+					300.17
+					300.1
+					Node 001 Clock
+					Node 001 Data
+					Node 701 Clock
+					Node 701 Data
+					Connected to Host node 701 SERDES. Both chips reset to
+					SDERDES boot.
+					SERDES
+					SERDES
+					GPIO
+					S1
+					J28.2
+					J28.4
+					J35.2
+					J34.2
+					Available for experimentation.
+					Sync clock
+					Sync data
+					General purpose 2-pin node. ROM supports synchronous boot.
+					May be connected to Host node 300.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					20
+					<a name="20_0"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_20">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					708.17
+					708.1
+					705.17
+					705.5
+					705.3
+					705.1
+					100.17
+					200.17
+					500.17
+					600.17
+					317.17
+					417.17
+					709.ai
+					709.ao
+					713.ai
+					713.ao
+					717.ai
+					717.ao
+					78
+					79
+					J23.10 Rx Input
+					J23.12 Tx Out
+					General purpose 2-pin node. ROM supports asynchronous
+					boot. May be connected to USB port C for IDE operations.
+					GPIO
+					GPIO
+					85
+					84
+					81
+					80
+					20
+					18
+					7
+					J32.1
+					J32.2
+					J32.3
+					J32.4
+					J30.14
+					J30.13
+					J30.5
+					J30.4
+					J36.10
+					J36.3
+					J32.6
+					J32.5
+					J32.7
+					J32.8
+					J32.11
+					J32.10
+					Data In
+					General purpose 4-pin node. If 705.17 is low on reset, ROM
+					will attempt SPI memory boot using signal assignments
+					shown, driving signals on 705.5, 3, 1, and will leave these in
+					output mode unless programmed otherwise.
+					Data Out
+					Chip Enable-
+					Clock
+					General purpose 1-pin nodes.
+					No special ROM or interconnections.
+					GPIO
+					6
+					52
+					59
+					76
+					77
+					73
+					72
+					69
+					70
+					Analog In
+					Analog Out
+					Analog In
+					Analog Out
+					Analog In
+					<div>Analog nodes whose I/O is powered by separate V<sub>DD</sub>A bus. </div>
+					Analog Out
+					General purpose 1-pin node whose pin is shared (read only) by the above
+					analog nodes and may be used by them for timing or other purposes.
+					GPIO
+					715.17
+					71
+					J32.9
+					Analog In
+					Analog Out
+					GPIO
+					Analog In
+					Analog Out
+					GPIO
+					617.ai
+					617.ao
+					517.17
+					117.ai
+					117.ao
+					217.17
+					RESET-
+					61
+					63
+					60
+					48
+					50
+					51
+					88
+					5
+					J36.1
+					J32.16
+					J36.2
+					J36.13
+					J36.12
+					<div>Analog node whose I/O is powered by V<sub>DD</sub>I bus. </div>
+					General purpose 1-pin node whose pin is shared (read only) by Analog 617.
+					<div>Analog node whose I/O is powered by V<sub>DD</sub>I bus. </div>
+					J36.11 General purpose 1-pin node whose pin is shared (read only) by Analog 117.
+					J22.2
+					Input
+					Reset signal, active low. Also pins J22.4 and 6.
+					17
+					29
+					41
+					49
+					62
+					75
+					83
+					4
+					19
+					28
+					40
+					47
+					64
+					82
+					74
+					Core power bus. Powers F18A computers, and parts of I/O circuitry (such as
+					registers) that are internal to them.
+					Power
+					Power
+					<div>V<sub>DD </sub></div>
+					C
+					J14.2
+					I/O power bus. Powers I/O pads including the parts of the I/O circuitry
+					collocated with the pads. Includes analog pads for nodes 117 and 617.
+					<div>V<sub>DD </sub></div>
+					I
+					J15.2
+					J16.2
+					Power
+					<div>V<sub>DD</sub>A </div>
+					Analog power bus for pads of nodes 709, 713 and 717.
+					Ground
+					GND
+					DAP any gnd Common ground and heat sink.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					21
+				</div>
+			</div>
+		</div>
+		<div id="page_21">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					8.3 Connector Pinouts
+					8.3.1 Power Control Section
+					J15
+					1
+					External Connector
+					External Target Pwr
+					Pin 1 of J1 is oriented toward the bottom edge of the
+					board and thus is an exception to the rule.
+					2
+					3
+					<div>V<sub>DD</sub>I to Target </div>
+					Main 1.8v Bus
+					J1
+					J16
+					1
+					10 Gnd
+					External Target Pwr
+					9
+					8
+					7
+					6
+					5
+					4
+					3
+					2
+					User supply, J4
+					Gnd
+					User supply, J5
+					Gnd
+					User supply, J6
+					Gnd
+					External Host Pwr
+					Gnd
+					2
+					3
+					<div>V<sub>DD</sub>A to Target </div>
+					Main 1.8v Bus
+					8.3.2 USB Serial Interfaces
+					Port Data Connections to Host and Target
+					J23
+					1
+					External Target Pwr
+					Incoming from Port A
+					1
+					2
+					Host 708.17
+					Outgoing to Port A
+					Incoming from Port B
+					Outgoing to Port B
+					3
+					5
+					7
+					9
+					4
+					6
+					8
+					Host 708.1
+					Host 200.17
+					Host 100.17
+					Single Pins
+					J4 User supply, J1.9
+					J5 User supply, J1.7
+					J6 User supply, J1.5
+					Incoming from Port C
+					10 Target 708.17
+					Outgoing to Port C 11 12 Target 708.1
+					Port A Access
+					Host Power Select
+					J7 FTDI 3.3v Pwr
+					J8
+					J10
+					1
+					2
+					3
+					External Host Pwr
+					<div>V<sub>DD</sub>C to Host </div>
+					Main 1.8v Bus
+					1
+					DTR signal
+					2
+					3
+					4
+					CBUS2
+					CBUS3
+					CBUS4
+					J11
+					1
+					2
+					3
+					External Host Pwr
+					<div>V<sub>DD</sub>I and A to Host </div>
+					Main 1.8v Bus
+					Port B Access
+					J12 FTDI 3.3v Pwr
+					J24 RTS signal
+					Target Power Select
+					J14
+					J13
+					1
+					External Target Pwr
+					1
+					DTR signal
+					2
+					3
+					<div>V<sub>DD</sub>C to Target </div>
+					Main 1.8v Bus
+					2
+					3
+					4
+					CBUS2
+					CBUS3
+					CBUS4
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					22
+					<a name="22_0"> </a>
+					<a name="22_1"> </a>
+					<a name="22_2"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_22">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					Port C Access
+					J19 FTDI 3.3v Pwr
+					Uncommitted Host Pins
+					J21
+					1
+					617.ao
+					J17
+					2
+					3
+					4
+					5
+					6
+					7
+					8
+					617.ai
+					517.17
+					417.17
+					317.17
+					217.17
+					117.ao
+					117.ai
+					1
+					2
+					3
+					4
+					DTR signal
+					CBUS2
+					CBUS3
+					CBUS4
+					8.3.3 Host Chip
+					Probe Points
+					J27
+					1
+					Ground
+					CE-
+					SRAM chip enable from 008.1
+					2
+					3
+					4
+					5
+					6
+					7
+					8
+					709.ao
+					709.ai
+					713.ai
+					713.ao
+					715.17
+					717.ao
+					717.ai
+					WE- SRAM write enable from 008.3
+					D00 SRAM data bit
+					A00
+					SS-
+					SRAM address bit
+					Chip select for SPI Flash chip
+					Clock line for SPI bus (selectively
+					enabled to the SD socket)
+					SCK
+					DO
+					DI
+					Data out bus from G144 to SPI devices
+					Data in bus from SPI devices to G144
+					8.3.4 Target Chip
+					Reset and Boot
+					Probe Points
+					J20
+					S17
+					S1
+					SERDES Clock between Host and Target
+					SERDES Data
+					Host RESET pin
+					1
+					3
+					2
+					4
+					Host RESET pin
+					USB A RTS signal
+					Host reset ckt &amp; J25.3
+					Reset and Host Communication
+					J25
+					J22
+					1
+					2
+					3
+					Ground
+					Host 500.17
+					1
+					2
+					SPI Flash RST- pin
+					Host reset ckt &amp; J20.4
+					Target RESET- pin
+					USB C RTS signal
+					Target reset circuit
+					3
+					5
+					4
+					6
+					J26
+					1
+					J35
+					Host 705.17
+					1
+					2
+					Host 300.17
+					2
+					1K Pull-up to 1.8v
+					Target 300.17
+					SPI Bus Expansion
+					J34
+					1
+					J39
+					Host 300.1
+					1
+					2
+					3
+					Host 600.17
+					2
+					Target 300.1
+					FLASHENABLE-
+					Ground
+					J37
+					1
+					3
+					2
+					4
+					FLASHENABLE-
+					on SPI bus.
+					2 inputs to NAND. Output
+					low enables MMC on SPI bus.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					23
+					<a name="23_0"> </a>
+					<a name="23_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_23">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					Uncommitted Target Pins
+					8.3.5 Prototyping Area
+					J30
+					SD/MMC Socket Signals
+					d00
+					1
+					2
+					d01
+					SD Socket signals
+					J38 J40 SPI Bus signals
+					d02
+					500.17
+					d04
+					3
+					5
+					7
+					9
+					4
+					6
+					8
+					600.17
+					d03
+					d05
+					CLK/SCLK
+					DAT3/CS-
+					CMD/SI
+					DAT0/SO
+					<div>V<sub>DD </sub></div>
+					1
+					2
+					3
+					4
+					5
+					1
+					2
+					3
+					4
+					5
+					SPI CLK MMC
+					SPI CS- MMC
+					SPI DO
+					SPI DI
+					1.8v
+					d06
+					10 d07
+					12 d09
+					14 100.17
+					16 d11
+					d08 11
+					200.17 13
+					d10 15
+					J33 SD Socket Signals
+					1
+					DAT1
+					J31
+					J32
+					J36
+					J28
+					2
+					3
+					4
+					DAT2
+					Card Present
+					Write Protect
+					d12
+					d14
+					d16
+					1
+					3
+					5
+					7
+					9
+					2
+					4
+					6
+					8
+					d13
+					d15
+					d17
+					008.5
+					008.17
+					008.3
+					TI TXB0108 Level Shifterss
+					Each level shifter is surrounded by this hole pattern:
+					10 008.1
+					12 a16
+					14 a14
+					16 a12
+					a17 11
+					a15 13
+					a13 15
+					<div>A2 V<sub>CC</sub>A A1 </div>
+					B1
+					<div>V<sub>CC</sub>B B2 </div>
+					A3
+					A4
+					A5
+					A6
+					B3
+					B4
+					B5
+					B6
+					705.17
+					1
+					2
+					4
+					6
+					8
+					705.5
+					705.1
+					709.ai
+					713.ao
+					705.3
+					709.ao
+					713.ai
+					715.17
+					717.ai
+					3
+					5
+					7
+					9
+					11
+					10 717.ao
+					12 a00
+					14 a02
+					A7
+					A8
+					<div>OE V<sub>SS </sub></div>
+					B8
+					B7
+					a01 13
+					a03 15
+					16 617.ao
+					Convenience Logic
+					TP4
+					TP5
+					TP11
+					TP6
+					TP7
+					TP12
+					TP8
+					TP9
+					TP13
+					TP2
+					NAND 1 Input
+					NAND 1 Input
+					NAND 1 Output
+					NAND 2 Input
+					NAND 2 Input
+					NAND 2 Output
+					NAND 3 Input
+					NAND 3 Input
+					NAND 3 Output
+					OR Input
+					617.ai
+					1
+					3
+					5
+					7
+					9
+					2
+					4
+					6
+					8
+					517.17
+					a04
+					a06
+					417.17
+					a05
+					a07
+					a09
+					a08
+					10 317.17
+					12 117.ao
+					14 a10
+					217.17 11
+					117.ai 13
+					a11 15
+					16 Ground
+					TP3
+					OR Input
+					1
+					2
+					4
+					701.17 SERDES clock
+					701.1 SERDES data
+					TP10
+					OR Output
+					Ground
+					3
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					24
+					<a name="24_0"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_24">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					RJ48 site (J69)
+					DB9 RS232 site Left (J52)
+					J66
+					1
+					J54
+					TX+
+					1
+					RX Incoming
+					2
+					3
+					4
+					5
+					TX-
+					RX+
+					RX-
+					n/c
+					2
+					3
+					TX Outgoing
+					RTS Incoming
+					Note these signals are on chip side of minimal
+					quasi-RS232 transceiver.
+					Audio site (J62, 63, 64)
+					General Purpose LEDs
+					J65
+					J57
+					1
+					1
+					RING
+					<div>V<sub>DD </sub>for D12 </div>
+					2
+					3
+					4
+					NC TIP SWITCH
+					TIP
+					SLEEVE
+					2
+					3
+					4
+					<div>V<sub>DD </sub>for D13 </div>
+					<div>V<sub>DD </sub>for D14 </div>
+					<div>V<sub>DD </sub>for D15 </div>
+					J60
+					1
+					DB9 RS232 site Right (J58)
+					RING
+					J59
+					2
+					3
+					4
+					NC TIP SWITCH
+					TIP
+					SLEEVE
+					1
+					RX Incoming
+					2
+					3
+					TX Outgoing
+					RTS Incoming
+					J61
+					1
+					Note these signals are on chip side of minimal
+					quasi-RS232 transceiver.
+					RING
+					2
+					3
+					4
+					NC TIP SWITCH
+					TIP
+					SLEEVE
+					VGA site (J70)
+					J67
+					1
+					RED
+					SMA RF site (J41, 49, 51, 55)
+					2
+					3
+					4
+					5
+					6
+					GREEN
+					BLUE
+					HSYNC
+					VSYNC
+					gnd
+					J48
+					1
+					2
+					J41 Signal
+					Gnd
+					J50
+					1
+					USB site (J71)
+					J49 Signal
+					Gnd
+					2
+					J68
+					1
+					<div>V<sub>CC </sub></div>
+					D+
+					D-
+					J53
+					1
+					2
+					3
+					J51 Signal
+					Gnd
+					2
+					J56
+					1
+					J55 Signal
+					Gnd
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					25
+				</div>
+			</div>
+		</div>
+		<div id="page_25">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					8.4 Errata
+					Known problems at the time of this writing are as follow:
+					PCB REV
+					DESCRIPTION
+					FIX OR WORK-AROUND
+					The VGA connector hole pattern J70 is rotated 180
+					degrees. Ground pins are connected
+					Do not use J70. The pattern and wiring will be
+					corrected in the next board revision.
+					0.1.1
+					inappropriately and connector is physically
+					impractical to use when pointed inward.
+					The FTDI transmit and receive LEDs are not
+					populated due to an error in circuit design.
+					The general purpose LEDs (see J57) are not
+					populated due to an error in circuit design.
+					Do not use. Circuit and layout will be corrected in
+					the next board revision.
+					Do not use. Circuit and connectors will be changed
+					in the next board revision.
+					0.1.1
+					0.1.1
+					8.5 Schematics and Layout
+					The following nine pages may be used to print or view high resolution renderings of these graphics.
+					Status of artwork: These are production drawings.
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					26
+					<a name="26_0"> </a>
+					<a name="26_1"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_26">
+		</div>
+		<div id="page_27">
+		</div>
+		<div id="page_28">
+		</div>
+		<div id="page_29">
+		</div>
+		<div id="page_30">
+		</div>
+		<div id="page_31">
+		</div>
+		<div id="page_32">
+		</div>
+		<div id="page_33">
+		</div>
+		<div id="page_34">
+			<div>
+				<div>
+					DB003 Evaluation Board Reference for EVB001
+					9. Data Book Revision History
+					REVISION
+					DESCRIPTION
+					110726
+					Preliminary release with pre-production drawings.
+					Upgrade document status to Production reflecting board revision 0.1.1. Added details in Power
+					Configuration section (3). Added table showing FTDI flash configuration (4.3). Corrected Target pin
+					connections to J32 in 8.1.2 and 8.2.4. Clarified jumper table in 8.2.2. Added Errata. Updated schematics
+					and layout to Production. Added Bill of Materials. Various typos.
+					110926
+					Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+					35
+					<a name="35_0"> </a>
+				</div>
+			</div>
+		</div>
+		<div id="page_35">
+			<div>
+				<div>
+					<div>GreenArrays<sup>™ </sup></div>
+					Product Data Book DB003 Revised 9/26/11
+					IMPORTANT NOTICE
+					GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other
+					changes to its products and services at any time and to discontinue any product or service without notice. Customers should
+					obtain the latest relevant information before placing orders and should verify that such information is current and complete. All
+					products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
+					GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties
+					relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual
+					property right.
+					GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and
+					applications using GAI components. To minimize the risks associated with customer products and applications, customers should
+					provide adequate design and operating safeguards.
+					GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright,
+					mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products
+					or services are used. Information published by GAI regarding third-party products or services does not constitute a license from
+					GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a
+					third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other
+					intellectual property of GAI.
+					Reproduction of GAI information in GAI data books or data sheets is permissible only if reproduction is without alteration and is
+					accompanied by all associated warranties, conditions, limitations, and notices. Reproduction of this information with alteration is
+					an unfair and deceptive business practice. GAI is not responsible or liable for such altered documentation. Information of third
+					parties may be subject to additional restrictions.
+					Resale of GAI products or services with statements different from or beyond the parameters stated by GAI for that product or
+					service voids all express and any implied warranties for the associated GAI product or service and is an unfair and deceptive
+					business practice. GAI is not responsible or liable for any such statements.
+					GAI products are not authorized for use in safety-critical applications (such as life support) where a failure of the GAI product
+					would reasonably be expected to cause severe personal injury or death, unless officers of the parties have executed an
+					agreement specifically governing such use. Buyers represent that they have all necessary expertise in the safety and regulatory
+					ramifications of their applications, and acknowledge and agree that they are solely responsible for all legal, regulatory and safety-
+					related requirements concerning their products and any use of GAI products in such safety-critical applications, notwithstanding
+					any applications-related information or support that may be provided by GAI. Further, Buyers must fully indemnify GAI and its
+					representatives against any damages arising out of the use of GAI products in such safety-critical applications.
+					GAI products are neither designed nor intended for use in military/aerospace applications or environments unless the GAI
+					products are specifically designated by GAI as military-grade or "enhanced plastic." Only products designated by GAI as military-
+					grade meet military specifications. Buyers acknowledge and agree that any such use of GAI products which GAI has not
+					designated as military-grade is solely at the Buyer's risk, and that they are solely responsible for compliance with all legal and
+					regulatory requirements in connection with such use.
+					GAI products are neither designed nor intended for use in automotive applications or environments unless the specific GAI
+					products are designated by GAI as compliant with ISO/TS 16949 requirements. Buyers acknowledge and agree that, if they use
+					any non-designated products in automotive applications, GAI will not be responsible for any failure to meet such requirements.
+					The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the
+					<div>GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc<a href="http://www.forth.com/" target="_blank">. (</a><a href="http://www.forth.com/" target="_blank">www.forth.com</a><a href="http://www.forth.com/" target="_blank">) </a>and is used by permission. All other </div>
+					trademarks or registered trademarks are the property of their respective owners.
+					<div>For current information on GreenArrays products and application solutions, see <a href="http://www.greenarraychips.com/" target="_blank">www.GreenArrayChips.com </a></div>
+					Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451
+					Printed in the United States of America
+					Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com
+					Copyright © 2010-2011, GreenArrays, Incorporated
+					<div>
+						<a href="http://www.forth.com/" target="_blank">
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

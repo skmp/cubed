@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+					EVB001 for GA144-1.20
+					PROPRIETARY
+					DRAFT
+					9 Oct 2010
+					EVB001 Evaluation Board
+					Dual GA144-1.2 Retail Evaluation Board
+					To support GA144 production run of Winter 2010-11
+					1. GA144 Evaluation Board
+					This board will be offered for sale at about the same time as we announce release of the GA144 to production. It will be designed
+					to work with RS232 interfaces and will be packaged in such a way that the customer can get it working with minimal time and
+					effort.
+					Power will be supplied by an onboard regulator fed by paralleled “wall wart” or USB connectors. The USB connector will not
+					communicate with the USB host but will merely accept the 100 mA at 4.4v guaranteed as minimum by the USB spec. Regulator
+					will be an efficient switcher running darn fast and tested with the kinds of dynamic loads we can present. There will be a reset
+					button and onboard reset R-C circuit so the board can work usefully without an IDE feed, however full IDE control is supported.
+					GA144 chip 0 will have an external SRAM and will boot eForth from SPI flash. By connecting power and an RS232 interface on
+					port B, the customer can see useful operation immediately after applying power and striking space bar on a terminal or emulator.
+					The SPI boot may be disabled by a jumper, and whether or not it is disabled full IDE control may be exercised over the chip using
+					RS232 port A. Reset may be optionally supplied by IDE.
+					GA144 chip 1 is connected to chip 0 via SERDES and by a 1-wire interface that may be disconnected by jumper. Reset may be
+					from the onboard RC/button, or from IDE on port C, or from chip 0. The intent in defining connections for chip 1 is that as much
+					of its I/O as possible is available for prototyping or evaluation use.
+					The customer must ensure there is enough power for the intended use of the board. Minimal USB (440 mW) is sufficient for
+					eForth and modest other use of the GA144s, but power requirements can exceed 400 mW for VddC (core power) if enough F18A
+					computers are busy simultaneously, and likewise VddI (I/O power) can be greater than this depending on what the customer
+					connects to the board.
+					For higher power levels, a “wall wart” may be used to supply up to (estimated) 2 amps (3.6 watts) of 1.8V power on the board.
+					This is sufficient to run all 288 computers flat out continuously along with moderate I/O.
+					If the customer requires more than 2 amps due to I/O connections, the VddI and VddC buses may be isolated and power for either
+					or both may be supplied by the customer.
+					 GreenArrays, Inc.
+					Printed 10/09/10 12:10
+					[Page 1]
+		</div>
+		<div id="page_1">
+					EVB001 for GA144-1.20
+					PROPRIETARY
+					DRAFT
+					9 Oct 2010
+					1.1 Block Diagram
+					WALL WART
+					DB9
+					RX/TX/DTR
+					MINIMAL
+					RS232
+					XCVR C
+					708.1/17
+					REGULATOR
+					USB
+					RTS
+					SECOND
+					GA144
+					CHIP 1
+					VDD BUS
+					RESET(S)
+					200.17
+					001 RESET
+					RTS
+					10KΩ
+					.01 UF
+					MINIMAL
+					RS232
+					XCVR A
+					RX/TX/DTR
+					DB9
+					708.1/17
+					600.17
+					RESET
+					701
+					SPI BOOT
+					FLASH
+					4
+					PRIMARY
+					GA144
+					CHIP 0
+					(EFORTH)
+					STATIC
+					RAM
+					(EFORTH)
+					RX/TX/DTR
+					DB9
+					200.17
+					100.17
+					MINIMAL
+					RS232
+					XCVR B
+					40
+					As delivered, eval board boots eForth from flash and talks to terminal on
+					RS232 port B. Ports A and C are available for IDE operations on chips
+					0 and 1. Chip 1 may be fully isolated from chip 0 with the exception of
+					the SERDES connection.
+					1.2 Additional Items
+					Specific I/O connections
+					Prototyping area
+					Analog terminations
+					 GreenArrays, Inc.
+					Printed 10/09/10 12:10
+					[Page 2]
+		</div>
+	</body>
+</html>

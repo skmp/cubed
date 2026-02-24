@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					Commissioning GreenArrays PCBs
+					Instructions to Staff
+					for Inspection, Configuration, Testing &amp; Packing our Products
+					1. EVB002 G144A12 Eval Board rev 0ha
+					Rev 0h applies to all layers on the fabricated boards. 0ha is the final revision of paste layer for assembly. Serial 201-300 built in
+					Apr-May 2019 at Advanced Assembly. Perform the steps called out on the Traveler form, as follows:
+					1.1 Pre-Shipment Steps
+					These actions are taken en masse to prepare boards for same-day shipment. Materials to have on hand are:
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					These instructions and a copy of AN021, Getting Started with Eval Board EVB002, for parts bag list &amp; default jumpers.
+					Anti-static work area. Wear wrist strap throughout these procedures.
+					Voltmeter.
+					Serialized quarter-page Traveler forms in forms/shipping: EVB002 Inspection Tags.docx.
+					Serialized bag labels in forms/shipping: avery5160x30-EVB002-p.doc.
+					P-touch adhesive serial numbers.
+					Untested / unopened eval boards.
+					Bag of jumpers (each board will use 32 of these.)
+					Computer with current release arrayForth-3, and three USB cables.
+					Optional Wall-Wart set for 5v. If using a Wall Wart to power this board using ethernet drivers powered from J41, the
+					wall wart should not be supplying more than 5v after the diode drop, as measured at J41.
+					As the following steps are taken, initial the completion of each on the traveler form.
+					1.1.1 Serialize Board &amp; Bag
+					Select the next pre-serialized Traveler form. Using label from P-touch printer, put same serial number in lower left corner of
+					board. Select an antistatic bubble envelope bag and apply a bag label with the same serial number.
+					1.1.2 Initial Power Check
+					Plug in USB port A, noting the assigned COM port number, and use voltmeter to measure supply voltage at right-hand stakes
+					(pin 3) of any of the power configuration jumpers (J10-11, J14-16). Record voltage in "Remarks" column. If the voltage differs
+					by more than 20 mV from 1.800, seek technical guidance. Unplug the USB cable to de-power the board.
+					1.1.3 Install Default Jumpers.
+					Refer to 1.2.1 in AN021 and install jumpers as specified. Watch out for jumpers with missing metal contacts inside; we have
+					found more than a few of these. If you don't feel resistance when inserting the jumper, double check. Include the long yellow
+					jumper wire between J41 &amp; J76 temporarily.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 1]
+		</div>
+		<div id="page_1">
+			<div>
+				<div>
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					1.1.4 Configure FTDI Chips.
+					This is the most complex of the operations and requires special attention to the computer you use for this step.
+					1.1.4.1 Windows Setup for Testing
+					On windows boxes, you will gain six more COM ports for each board you test, and will eventually be wanting to delete surplus
+					ports from the Device Manager.
+					Your machine should have the FTDI VCP drivers installed for general COM port use by arrayForth and by sF-NT. At the time of
+					this writing, the latest version was 2.08.30 for windows, released 7/12/13 or 8/01/13. In Windows 10 we find .12.24.0 9/28/16.
+					You will also need to install the ft_prog utility which is available in the GA SupSW (supported software) repository. It may be
+					<div>obtained <a href="http://www.ftdichip.com/" target="_blank">from </a><a href="http://www.ftdichip.com/" target="_blank">http://www.ftdichip.com </a>website; as of the time of this writing, it could be found in the FTDI menu structure at </div>
+					support / utlities. We have used versions 2.2 and 2.6.8 in the past. The latest version at the time of this writing is 2.8.2.0. This
+					utility requires the "D2XX" drivers. As of 2.08.30, the WHQL Certified installer from FTDI appears to install both VCP and D2XX
+					driver sets; the separately downloadable installers are bitwise identical. Install the full driver set by unzipping the distribution
+					and running the executable; you will have to use "run as administrator" instead of simply clicking this program. Install the
+					ft_prog utility by unzipping its distribution and running its executable and taking a full install.
+					Run FT_Prog before proceeding. Perform scan and parse from the Devices menu now, to identify any FTDI chips connected to
+					your machine so you don't program any of them by accident. Your chances of doing this by accident will be reduced, of course,
+					if you disconnect any devices you don't need at this time.
+					1.1.4.2 FTDI Chip Programming
+					Perform the following steps for each of the three Eval Board USB ports in the order A, B, C:
+					1. Plug USB cable into socket on EVB and let Windows install drivers, watching Device Manager till COM port appears.
+					2. Perform a Scan &amp; Parse on FT Prog to see the new device in its list. Note: It will not necessarily appear at the end of
+					the list if you have other devices! Recognize the un-programmed FTDI chip by selecting its root entry in the Device
+					Tree on left of FT Prog window. Product Description will by default be "FT232R USB UART" and serial number will
+					clearly not be GreenArrays assigned.
+					3. If there are any other FTDI devices shown than the one you intend to program, you will need to right-click each of these
+					and say "close device". This is the price for not unplugging them in the first place.
+					4. Rightclick the device root and say "Apply Template from File". Navigate to the current arrayForth release directories
+					and find three files named in the form EVB002-?-std-190430.xml where "?" is A, B or C for ports A, B, or C respectively.
+					Select the appropriate file for this port and say "open". Expect a dialog saying template was successfully applied.
+					5. Navigate down the device tree to FT EEPROM / USB String Descriptors / SerialNumber. Put the cursor in the Serial
+					Number field on the right hand side and be careful because the box is not big enough to show the whole number. Each
+					port of each board should have a globally unique serial number of the form GAEVB002S0201A (this is the default serial
+					number in the template for port A). GAEVB002 identifies the product. S0201 is serial number. A is port. You will need
+					to replace the serial number 0201 with the actual serial number for this PCB.
+					6. Menu select Devices/Program, make sure the right device is checked, and say "Program". Wait till it completes and
+					check the display for the device root: Double check that it says "EVB002 Port x" and has the correct serial number.
+					When using this menu item you may need to re-scan &amp; parse to see the correct serial number in the root; right clicking
+					the root and saying "Program Device" seems to work without this step, although you don't get a completion dialog.
+					7. Unplug the USB cable from this port.
+					When you have completed the above steps for each of the three ports, use three USB cables to plug ports A, B and C in, waiting
+					to see the COM port numbers assigned them in Device Manager. These will be three new COM port numbers, not the same as
+					those you saw above; when Windows is correctly configured, our Serial Numbers are used to identify the devices so that the
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 2]
+				</div>
+			</div>
+		</div>
+		<div id="page_2">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					same port on the same board has the same COM port number regardless of where you have plugged that port into your
+					computer's complex of USB hubs and connectors.
+					YOU STILL AREN'T DONE YET. Plug each of the USB connectors in, one at a time, noting new COM port numbers. You will need
+					to set advanced port settings for each of the new ports using Device Manager. USB Transfer Sizes should be reduced from 4096
+					to 128 bytes; Latency timer from 16 to 1 ms. Turn off Serial Enumerator, turn on Set RTS On Close and Disable Modem Ctrl At
+					Startup. While this step is not absolutely necessary, failing to do so will make the next few things abysmally slow. Initial the box
+					when this is all complete.
+					1.1.5 Host Chip Self-Test
+					In sF, type &lt;a&gt; SELFTEST where &lt;a&gt; is the COM port number for port A. Initial the box when the status is Ok!
+					1.1.6 Target Chip Self-Test
+					In sF, type &lt;c&gt; SELFTEST where &lt;c&gt; is the COM port number for port C. Initial the box when the status is Ok! Note that
+					you can save time by doing this in parallel with the Host Chip Self Test; all it requires is starting a second instance of aF3. If you
+					run multiple instances, pick one for editing the disk and stick with it. Initial the box when the status is Ok!
+					1.1.7 Two Chip Selftest
+					After both chips are done, type &lt;a&gt; AUTOTEST in sF. Initial the box when the status is Ok! .
+					1.1.8 Serial boot pF, run Extended SRAM tests
+					Using sF, edit block CONFIG so that A-COM has the correct port number for USB port A and edit block SERIALto use the
+					correct port number for USB port B. If you already have AFORTH loaded, reload it by saying RELOAD then HI AFORTH.
+					Ensure no-boot jumper J26 and the USB reset enable J20:1-3 are installed on the EVB002.
+					In sF, type:
+					•
+					If this system has been used for general chip development, STOCK LOAD for standard object.
+					• 2205 LOAD to reset the EVB002 and send a serial boot stream for polyFORTH. ?CLKand ?ETHdon't matter here.
+					Type SERIAL LOAD PLUG.
+					In terminal emulator, type:
+					•
+					•
+					Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
+					• 20 DRIVE HI
+					Type 261 LOAD to compile the extended memory tests and then run each of these tests by typing its name:
+					• HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for
+					any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open
+					high order address lines.
+					• ?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
+					• !ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
+					• ?ALL simply replies ok if the pattern checks out.
+					Initial the box if and only if all the above occurs as expected. Leave aF-3 sitting as is for use in the next step.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 3]
+		</div>
+		<div id="page_3">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					1.1.9 Install polyFORTH in flash with arrayForth-3
+					If polyFORTH is not already running on the EVB002 under test, repeat the above steps through 20 DRIVE HI . Otherwise just
+					pick up below:
+					In terminal emulator, type:
+					• AFORTH
+					•
+					•
+					•
+					If this is not a vanilla system, you may need STOCK LOAD for standard object.
+					Check block 2211 for ?CLK = 2 and ?ETH = 1. 2211 LOAD WRITE-FLASH
+					AT MINIMUM, WRITE polyFORTH NUCLEUS TO FLASH:
+					BULK LOAD 0 DRIVE 24000 0 9 BLOCKS 0 24000 9 MATCHES
+					OPTIONALLY, WRITE ONE OR MORE UNITS OF SOURCE:
+					•
+					BULK LOAD 0 DRIVE 24000 0 4800 BLOCKS 0 24000 4800 MATCHES
+					Remove EVB002 no-boot jumper J26 and hit the reset button nearest front edge of the board.
+					Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
+					•
+					• 20 DRIVE HI (or simply HI if ≥4800 blocks copied to flash above)
+					You are now running from flash boot; initial the box.
+					1.1.10 Configure Ethernet
+					Connect the board to a switch capable of negotiating 10baseT full duplex (our software defined NIC requires this). After a short
+					while the link should come up, reflected usually by LEDs on the switch. If the link does not come up, something is very wrong
+					and until it's been debugged you will not be able to complete this step.
+					Edit block 559 as follows (instructions for use in GreenArrays Cheyenne office):
+					•
+					Connect the board to a switch capable of negotiating 10baseT full duplex (our software defined NIC requires this).
+					After a short while the link should come up, reflected usually by LEDs on the switch. If the link does not come up,
+					something is very wrong and until it's been debugged you will not be able to complete this step.
+					•
+					•
+					Set S/Nto the board's serial number, important so this board has an unique MAC address.
+					Verify the IP address in the INET line is the one reserved for testing evaluation boards. In Cheyenne, this address is
+					192.88.236.76 (uut.owl-fort.com).
+					Check block 540 for time server address of 192.88.236.6
+					Edit block 9 to select Ethernet crystal as clock source (Change 1 to 0 at start of line 8, 0 to 1 at start of line 9.)
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 4]
+		</div>
+		<div id="page_4">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					1.1.11 Test/Exercise Ethernet
+					•
+					Connect the board to a switch as above if not already done.
+					•
+					RELOAD or reset, boot and say HI (on whichever drive you edited when configuring).
+					• ETHER LOAD which takes a while. Ideally you will see a line indicating that the clock has been set.
+					• .SUMM to display counts. There should be both incoming and outgoing traffic with no Ethernet layer errors.
+					.SUMM
+					.SUMM Redefined
+					Portal-name # &lt;In-Sub Forward Errs -Forwd&gt; &lt;Ou-Sub Forward Errs -Forwd&gt;
+					1_ETHER
+					0 547495 547495
+					0
+					0 17313 17313
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					0
+					IEEE802.3 1 547495 469630
+					ETHERTYPE 2 469630 365217
+					ARP
+					DOD-IP
+					ICMP
+					UDP
+					0 77865 17313 17313
+					0 104413 17313 17313
+					0
+					0 135071
+					0
+					0
+					3 212530 212393
+					3 152687 17616
+					137
+					7636
+					9677
+					6307
+					4
+					7636
+					9677
+					6307
+					4
+					4
+					4
+					4
+					6322
+					6050
+					5244
+					6322
+					0
+					6046
+					5234
+					4
+					0
+					TCP
+					10
+					3366
+					3366
+					•
+					Try a PINGor two:
+					PING 192.88.236.1
+					PING Redefined
+					Pinging [192.88.236.1] with 32 bytes of data:
+					Reply from [192.88.236.1]: bytes=32 time=6883.2 us TTL=255
+					Reply from [192.88.236.1]: bytes=32 time=6816.1 us TTL=255
+					Reply from [192.88.236.1]: bytes=32 time=6816.5 us TTL=255
+					Reply from [192.88.236.1]: bytes=32 time=6816.9 us TTL=255
+					If you have something else to do for a while, leave the board running and check .SUMM again later. Watch for errors in .SUMM
+					or "flapping" of link status. If you see either, don't initial this box but refer the board to Greg.
+					1.1.12 Install No-Boot Jumper
+					Re-insert J26 so that flash will not boot on reset. Remove the temporary long yellow jumper wire. Initial the box.
+					The board is now ready to await shipment. Insert the board and the traveler into the antistatic bubble envelope bag, ensuring
+					that the same serial number is on all three items, leave the bag unsealed, and place it in the carton of boards ready to ship.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 5]
+		</div>
+		<div id="page_5">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					1.2 Shipping Day Steps
+					Materials to have on hand are:
+					•
+					•
+					•
+					•
+					•
+					•
+					As many boards, with travelers in unsealed bags, as you plan to ship.
+					One bagged USB cable for each board.
+					One parts bag for each board. See AN021 section 3.1 for a list of what should be in the bag.
+					Anti-static work area. Wear wrist strap throughout these procedures.
+					Tape gun for sealing boxes.
+					For each single board going to US, the following:
+					o
+					o
+					o
+					o
+					One small flat rate box
+					One 3M plastic parts list envelope
+					One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc.
+					One printed copy of AN021.
+					•
+					•
+					For multiple-board US shipments substitute a medium flat rate box.
+					For each foreign shipment, the following:
+					o
+					o
+					o
+					o
+					o
+					o
+					One medium flat rate box
+					One 3M plastic parts list envelope
+					One USPS plastic external shipping label envelope
+					One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc.
+					One printed copy of AN021.
+					Bubblepack or other material as needed so it will not rattle.
+					As the following steps are taken, initial the completion of each on the traveler form. This will require cheating on the last couple
+					of steps :)
+					1.2.1 Visual Inspection &amp; Bag
+					Remove board and traveler from bag. Make sure serial numbers match on all three items. Check that traveler shows finished
+					down to this step. Then examine the board visually, particularly giving attention to correct settings of all jumpers. When
+					satisfied, insert board (but not traveler) in bag and seal; initial the box on traveler form.
+					1.2.2 Add Parts &amp; App Note
+					Stack a USB cable in its own bag, other parts in their own bag, and a copy of AN021 with the bagged board and initial.
+					1.2.3 Pack For Shipment
+					Assemble and tape box as appropriate, then stuff contents:
+					•
+					•
+					For small boxes, insert all three bagged items with no packing material. Slide quarter folded AN021 in.
+					For medium boxes, pack the three bagged items with packing material so the box won't rattle. Insert half folded
+					AN021.
+					Apply serialized box label(s) as appropriate; on end of small box, on side of medium. Initial traveler.
+					1.2.4 Print &amp; Apply Commercial Invoice
+					Fold commercial invoices and insert in 3M bag (1 copy if domestic, 3 copies if foreign.) Stick bag to bottom of small box, side of
+					medium. Initial traveler. Also initial the next step, put traveler in box, and seal the box.
+					1.2.5 Print &amp; Apply Shipping Label
+					For domestic shipment the ½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four
+					copies of the ½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 6]
+		</div>
+		<div id="page_6">
+			<div>
+				<div>
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					2. EVB001 GA144 Eval Board rev 0.1.1a
+					Serial 0-100 did not have the GP LEDs D12-15 populated. Serial 101-200 added amber LEDs that may be driven high by pins. In
+					either case, follow the steps called out on the Traveler form, as follows
+					2.1 Pre-Shipment Steps
+					These actions are taken en masse to prepare boards for same-day shipment. Materials to have on hand are:
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					•
+					These instructions and a copy of AN004, Getting Started with Eval Board.
+					Anti-static work area. Wear wrist strap throughout these procedures.
+					Voltmeter.
+					Serialized quarter-page Traveler forms in forms/shipping: EVB001 Inspection Tags.docx.
+					Serialized bag labels in forms/shipping: avery5160x30-EVB001-p.doc.
+					P-touch adhesive serial numbers.
+					Untested / unopened eval boards.
+					Bag of jumpers (each board will use 28 of these.)
+					Computer with current release arrayForth and three USB cables.
+					As the following steps are taken, initial the completion of each on the traveler form.
+					2.1.1 Serialize Board &amp; Bag
+					Select the next pre-serialized Traveler form. Using label from P-touch printer, put same serial number in lower left corner of
+					board. Select an antistatic bubble envelope bag and apply a bag label with the same serial number.
+					2.1.2 Initial Power Check
+					Plug in USB port A, noting the assigned COM port number, and use voltmeter to measure supply voltage at right-hand stakes
+					(pin 3) of any of the power configuration jumpers (J10-11, J14-16). Record voltage in "Remarks" column. If the voltage differs
+					by more than 20 mV from 1.800, seek technical guidance. Unplug the USB cable to de-power the board.
+					2.1.3 Install Default Jumpers.
+					Refer to 1.2.1 in AN004 and install jumpers as specified. Watch out for jumpers with missing metal contacts inside; we have
+					found more than a few of these. If you don't feel resistance when inserting the jumper, double check.
+					2.1.4 Configure FTDI Chips.
+					This is the most complex of the operations and requires special attention to the computer you use for this step.
+					2.1.4.1 Windows Setup for Testing
+					On windows boxes, you will gain six more COM ports for each board you test, and will eventually be wanting to delete surplus
+					ports from the Device Manager.
+					Your machine should have the FTDI VCP drivers installed for general COM port use by arrayForth and by sF-NT. At the time of
+					this writing, the latest version was 2.08.30 for windows, released 7/12/13 or 8/01/13.
+					You will also need to install the ft_prog utility which is available in the GA SupSW (supported software) repository. It may be
+					<div>obtained <a href="http://www.ftdichip.com/" target="_blank">from </a><a href="http://www.ftdichip.com/" target="_blank">http://www.ftdichip.com </a>website; as of the time of this writing, it could be found in the FTDI menu structure at </div>
+					support / utlities. We have used versions 2.2 and 2.6.8 in the past. The latest version at the time of this writing is 2.8.2.0. This
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 7]
+				</div>
+			</div>
+		</div>
+		<div id="page_7">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					utility requires the "D2XX" drivers. As of 2.08.30, the WHQL Certified installer from FTDI appears to install both VCP and D2XX
+					driver sets; the separately downloadable installers are bitwise identical. Install the full driver set by unzipping the distribution
+					and running the executable; you will have to use "run as administrator" instead of simply clicking this program. Install the
+					ft_prog utility by unzipping its distribution and running its executable and taking a full install.
+					Run FT_Prog before proceeding. Perform scan and parse from the Devices menu now, to identify any FTDI chips connected to
+					your machine so you don't program any of them by accident. Your chances of doing this by accident will be reduced, of course,
+					if you disconnect any devices you don't need at this time.
+					2.1.4.2 FTDI Chip Programming
+					Perform the following steps for each of the three Eval Board USB ports in the order A, B, C:
+					8. Plug USB cable into socket on EVB and let Windows install drivers, watching Device Manager till COM port appears.
+					Note: When Windows is correctly
+					9. Perform a Scan &amp; Parse on FT Prog to see the new device in its list. Note: It will not necessarily appear at the end of
+					the list if you have other devices! Recognize the un-programmed FTDI chip by selecting its root entry in the Device
+					Tree on left of FT Prog window. Product Description will by default be "FT232R USB UART" and serial number will
+					clearly not be GreenArrays assigned.
+					10. If there are any other FTDI devices shown than the one you intend to program, you will need to right-click each of these
+					and say "close device". This is the price for not unplugging them in the first place.
+					11. Rightclick the device root and say "Apply Template from File". Navigate to the current arrayForth release directories
+					and find three files named in the form EVB001-?-std-110831.xml where "?" is A, B or C for ports A, B, or C respectively.
+					Select the appropriate file for this port and say "open". Expect a dialog saying template was successfully applied.
+					12. Navigate down the device tree to FT EEPROM / USB String Descriptors / SerialNumber. Put the cursor in the Serial
+					Number field on the right hand side and be careful since the box is not big enough to show the whole number. Each
+					port of each board should have a globally unique serial number of the form GAEVB001S0001A (this is the default serial
+					number in the template for port A). GAEVB001 identifies the product. S0001 is serial number. A is port. You will need
+					to replace the serial number 0001 with the actual serial number for this PCB.
+					13. Menu select Devices/Program, make sure the right device is checked, and say "Program". Wait till it completes and
+					check the display for the device root: Double check that it says "EVB001 Port x" and has the correct serial number.
+					When using this menu item you may need to re-scan &amp; parse to see the correct serial number in the root; right clicking
+					the root and saying "Program Device" seems to work without this step, although you don't get a completion dialog.
+					14. Unplug the USB cable from this port.
+					When you have completed the above steps for each of the three ports, use three USB cables to plug ports A, B and C in, waiting
+					to see the COM port numbers assigned them in Device Manager. These will be three new COM port numbers, not the same as
+					those you saw above; when Windows is correctly configured, our Serial Numbers are used to identify the devices so that the
+					same port on the same board has the same COM port number regardless of where you have plugged that port into your
+					computer's complex of USB hubs and connectors.
+					You still aren't done yet. Now you will need to set advanced port settings for each of the new ports using Device Manager. USB
+					Transfer Sizes should be reduced from 4096 to 128 bytes; Latency timer from 16 to 1 ms. Turn off Serial Enumerator, turn on
+					Set RTS On Close and Disable Modem Ctrl At Startup. While this step is not absolutely necessary, failing to do so will make the
+					next few things abysmally slow. Initial the box when this is all complete.
+					2.1.5 Host Chip Self-Test
+					In arrayForth, type &lt;a&gt; selftest where &lt;a&gt; is the COM port number for port A. Initial the box when the selftest status is
+					ok!
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 8]
+		</div>
+		<div id="page_8">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					2.1.6 Target Chip Self-Test
+					In arrayForth, type &lt;c&gt; selftest where &lt;c&gt; is the COM port number for port C. Initial the box when the selftest status is
+					ok! Note that you can save time by doing this in parallel with the Host Chip Self Test; all it requires is starting a second instance
+					of arrayForth. If you did this, say bye to the second instance after running the test.
+					2.1.7 Two Chip Selftest
+					After both chips are done, type &lt;a&gt; autotest on the arrayForth instance that you used for talking to the Host chip. Initial
+					the box when the autotest status is ok! (If you try doing this with the arrayForth instance you were using to talk with the target
+					chip you will get an error message.) When completed, say bye.
+					2.1.8 Install polyFORTH in flash
+					Using a new arrayForth, used in 1.1.5 and 1.1.7 above, edit block 202 so that a-com has the correct port number for USB port
+					A and type warm. Then type 460 load and follow instructions on screen, burning boot stream and nucleus. Initial the box
+					when you see "checking nucleus success". Keep this instance around, you will be able to use it later.
+					Run the "Terminal Emulator" (sF-NT), say HI and then edit the block SERIAL to use the B port of this board. Say SERIAL LOAD
+					after editing the block. This may be done while the flash is being burned.
+					Once the program is in flash, type PLUG and hit the reset button on the eval board. Hit the space bar on the terminal emulator
+					to allow polyFORTH to autobaud, and expect to see a pf/G144 version ID line followed by hi . Respond to this with HI . After a
+					while expect to see a G144A12 polyFORTH development system ID screen and ok as the last thing displayed. Initial the box
+					when this has happened.
+					2.1.9 Extended SRAM tests
+					Type 261 LOAD to compile the extended memory tests and then run each of these tests by typing its name:
+					•
+					HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for
+					any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open
+					high order address lines.
+					•
+					•
+					•
+					?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
+					!ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
+					?ALL simply replies ok if the pattern checks out.
+					Initial the box if and only if all the above occurs as expected. Leave sF-NT sitting as is for use in the next step.
+					2.1.10 Install eForth in Flash
+					On the same instance of arrayForth as you employed in 1.1.8 above (or a new one with the correct a-com value if you had
+					closed the instance), type 1190 load and follow instructions. Initial the box after "checking nucleus successful."
+					2.1.11 Verify eForth Runs
+					Once it has fully installed, hit reset on the eval board and type a space on the terminal emulator to autobaud. Expect to see
+					eForth btc:20110826 ga144:20110826 followed by ok . Type a line like 100 1 2 3 + + + . and expect to see 106 ok .
+					Initial the box if all this happens as expected.
+					2.1.12 No-boot Jumper Installed
+					Re-insert J26 so that flash will not boot on reset. Initial the box.
+					The board is now ready to await shipment. Insert the board and the traveler into the antistatic bubble envelope bag, ensuring
+					that the same serial number is on all three items, leave the bag unsealed, and place it in the carton of boards ready to ship.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 9]
+		</div>
+		<div id="page_9">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					2.2 Shipping Day Steps
+					Materials to have on hand are:
+					•
+					•
+					•
+					•
+					•
+					•
+					As many boards, with travelers in unsealed bags, as you plan to ship.
+					One bagged USB cable for each board.
+					One parts bag for each board. See AN004 section 3.1 for a list of what should be in the bag.
+					Anti-static work area. Wear wrist strap throughout these procedures.
+					Tape gun for sealing boxes.
+					For each single board going to US, the following:
+					o
+					o
+					o
+					o
+					One small flat rate box
+					One 3M plastic parts list envelope
+					One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc.
+					One printed copy of AN004.
+					•
+					•
+					For multiple-board US shipments substitute a medium flat rate box.
+					For each foreign shipment, the following:
+					o
+					o
+					o
+					o
+					o
+					o
+					One medium flat rate box
+					One 3M plastic parts list envelope
+					One USPS plastic external shipping label envelope
+					One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc.
+					One printed copy of AN004.
+					Bubblepack or other material as needed so it will not rattle.
+					As the following steps are taken, initial the completion of each on the traveler form. This will require cheating on the last couple
+					of steps :)
+					2.2.1 Visual Inspection &amp; Bag
+					Remove board and traveler from bag. Make sure serial numbers match on all three items. Check that traveler shows finished
+					down to this step. Then examine the board visually, particularly giving attention to correct settings of all jumpers. When
+					satisfied, insert board (but not traveler) in bag and seal; initial the box on traveler form.
+					2.2.2 Check &amp; Add Parts Kit
+					Stack a USB cable and parts bag with the bagged board and initial.
+					2.2.3 Pack For Shipment
+					Assemble and tape box as appropriate, then stuff contents:
+					For small boxes, insert all three bagged items with no packing material. Slide quarter folded AN004 in.
+					For medium boxes, pack the three bagged items with packing material so the box won't rattle. Insert half folded AN004.
+					Apply serialized box label(s) as appropriate; on end of small box, on side of medium. Initial traveler.
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 10]
+		</div>
+		<div id="page_10">
+					PCBCOM - Commissioning GA PCBs
+					PROPRIETARY
+					5/27/19
+					2.2.4 Print &amp; Apply Commercial Invoice
+					Fold commercial invoices and insert in 3M bag (1 copy if domestic, 3 copies if foreign.) Stick bag to bottom of small box, side of
+					medium. Initial traveler. Also initial the next step, put traveler in box, and seal the box.
+					2.2.5 Print &amp; Apply Shipping Label
+					For domestic shipment the ½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four
+					copies of the ½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
+					3. Ethernet Boards for EVB001
+					xxx
+					© GreenArrays, Inc.
+					Printed 5/27/19 06:12
+					[Page 11]
+		</div>
+	</body>
+</html>

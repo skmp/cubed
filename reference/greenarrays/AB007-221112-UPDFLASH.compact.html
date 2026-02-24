@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+			<div>
+				<div>
+					<div>GreenArrays<sup>® </sup></div>
+					Application Brief AB007 Revised 11/12/22
+					Updating EVB002 Flash
+					This brief consolidates information published elsewhere to simplify the process of updating the flash on your EVB002.
+					The EVB002 is shipped with a bootable polyFORTH® system in its flash (level 03b2 initially. To understand exactly what was done
+					to your board before shipping it to you, read PCBCOM from the Index of Downloads). With no-boot jumper removed, this
+					sytem will boot on reset, await a CR space character on FTDI USB COM-B to autobaud, after which it announces itself and says
+					hi awaiting instructions. You can get to this point by following the instructions in AN021 through 1.5. If this fails on a board you
+					have not used, contact us; if you suspect you've clobbered your flash, follow the instructions in section 9 of DB013.
+					ASSUMING that you have a bootable polyFORTH system on your flash, you may do the following:
+					1. If you have not already done so, download the current version of arrayForth-3 from our website (Customer Support
+					Central) with attention to DB013 section 2.2.1 (Installation on Win32 Platforms).
+					2. Connect to your EVB with SERIAL and bring the system up (reset, space, HI). OFFSET will be 0 and disk structured thus:
+					a. 0 DRIVE absolute 0: 16256 usable blocks of flash (starting at absolute 128 on the flash itself).
+					b. 20 DRIVE absolute 24000: 24000-block serial disk delivered with the system you installed.
+					c. 40 DRIVE absolute 48000: 128-block boot area (starting at absolute 0 on the flash itself).
+					3. If your existing system is 03b2 (see block 29) as was delivered on the board, you'll need to consider whether you made
+					changes to the system or added your own code in the first 4800 blocks. (If you're not sure, audit with DISKING utility; if
+					<div>you're not familiar with reconciling code in polyFORTH systems, conta<a href="mailto:hotline@greenarraychips.com" target="_blank">ct </a><a href="mailto:hotline@greenarraychips.com" target="_blank">hotline@greenarraychips.com </a>for help.) </div>
+					a. If you have been using 03c and later systems, and if you've taken our advice to put your code into a project
+					subdirectory of EVB002/projects as illustrated in the DEFAULT model distributed, your project directories will
+					be preserved during installation and, if you choose the backup option during installation, the 4800 blocks of
+					system source and shadows you may have changed will be saved in EVB002/backup . When you start
+					saneFORTH from a shortcut you've made for your project which selects your project, then your code will be
+					mapped on the serial disk in 4800-9600 as it was before the installation. Again, if you need help reconciling
+					<div>any O/S changes you might have made, contact <a href="mailto:hotline@greenarraychips.com" target="_blank">hotline@greenarraychips.com </a>for assistance. </div>
+					4. After considering the above, copy new code from the serial disk to your flash as follows (the additional content if you
+					plan to assemble F18 code includes your working object code for boot streams, and the reference code for comparison
+					to detect unintended changes):
+					a. (you need to be talking to pF on chip:) 0 DRIVE BULK LOAD
+					i. (if all you want is polyFORTH and your project file:) 24000 0 9600 BLOCKS
+					ii. (OR, if you will be assembling F18 code:) 24000 0 16256 BLOCKS
+					5. Once you've updated the flash, hit the reset button on your EVB, hit space on terminal emulator, and whatever mode
+					of booting your project's config.txt file specifies will take place.
+					6. You've now updated all system source and the polyFORTH nucleus. If you would like to update the flash boot, which
+					includes the polyFORTH virtual machine, do one of the following after saying AFORTH (note that the two stream load
+					blocks cited below contain options for ether clock and ethernet NIC; select these options before the following.)
+					a. STREAMER LOAD 1671 LOAD WRITE-FLASH (for single chip polyFORTH only)
+					b. STREAMER LOAD 1668 LOAD WRITE-FLASH (for 2-chip polyFORTH only)
+					7. Finally, if you have changed the polyFORTH nucleus you'll need to make your source changes, compile them, and
+					INSTALL to blocks 0..8; and, if you've changed the polyFORTH VM or added F18 code to the boot, you will need to
+					remake your own boot stream and write it to flash. You should know how to do these things because you will have
+					done them before.
+					If all else fails, start over by performing the full recommissioning procedure in the PCBCOM document from the index of
+					<div>downloads, and, if you have any questions or problems with any of the above, please contact <a href="mailto:hotline@greenarraychips.com" target="_blank">hotline@greenarraychips.com </a>. </div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

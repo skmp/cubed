@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+</head>
+	<body>
+		<div id="page_0">
+			<div>
+				<div>
+					<div>GreenArrays<sup>™ </sup></div>
+					Application Brief AB003 Revised 10/18/12
+					Measuring Currents
+					used on the EVB001 Evaluation Board
+					The power configuration jumpers on the EVB001 board serve two
+					purposes. The first is independent selection of power sources for
+					five buses: J10 and 11 select Host chip core and IO/Analog buses;
+					J14, 15 and 16 select Target chip core, IO and Analog, respectively.
+					Each jumper has three stakes. The center stake leads to the chip
+					bus, and may be connected to the right (default) for use of the
+					onboard 1.8V supply, or to the left for selection of an external supply
+					using barrier strip J1. See DB003 for more information about these
+					options.
+					The second purpose is to allow insertion of current measuring
+					apparatus in series with one or more of these buses. For example,
+					at GreenArrays we have used a Keithley model 2100 6.5-digit
+					multimeter for this purpose. The photo at left shows the
+					connections used to monitor Host Core power in this example;
+					clipleads place the multimeter between the center and right hand
+					pins of J10, monitoring current drawn from the onboard power
+					supply by the Host Core bus. The photo below shows a reading
+					made while polyFORTH is running on the board with Ethernet and
+					TCP/IP code running both on the chip and in the virtual machine.
+					Although more than 50 of the chip's nodes are involved in this
+					particular case, most duty cycles are low so the total consumption
+					of 28.6 mA represents less than 500 microamps mean per node.
+					Considerations: Test leads should be kept as short as is
+					possible, and we twist the leads together to improve their
+					transmission line characteristics. The choice of meter and
+					mode of its use is extremely important, and is one of the
+					reasons for our selection of the meter shown here. Most
+					ammeters are of the shunt type, inserting a resistor in series
+					with the current path to be measured and then measuring the
+					voltage drop across this resistance. When using a three or
+					four digit meter, it is necessary to employ a resistor with
+					relatively high value to measure relatively small currents, but
+					this leads to significant voltage drops as the current increases.
+					Since it is usually impractical to change the resistor's value without cutting power to the circuit under test, this means that a low
+					enough valued resistor must be selected so that the circuit will survive all phases of the experiment including those phases that
+					consume relatively high power and would cause an unacceptable voltage drop. When this is done with a low-resolution meter,
+					the result may be the inability to obtain useful current resolution during the low-power, interesting part of the experiment.
+					Therefore we have selected a 6.5-digit meter (the display above is filtered and omits the 10 µA digit) and prefer to use it in its 3
+					Ampere scale. This meter uses an 0.1Ω shunt resistor on that scale, so that even when the circuit is using 1 amp the voltage
+					drop is only 100 mV, within our spec, yet the meter has a resolution of 10 µA.. Conversely, on the 100 mA scale a 5.1Ω resistor
+					is used, and in this case if the circuit is consuming only 100 mA the voltage drop is 510 mV, well outside our spec.
+					Thus, if you wish to use the on-board power supply, you should also use a meter whose resolution is high enough, and shunt
+					resistance low enough, that you can see everything you need to without dropping the supply voltage too far. If you must use a
+					low resolution meter then you will probably need to use an external, adjustable power supply to keep the operating voltage of
+					<div>the circuit within spec. For more information see <a href="http://www.greenarraychips.com/" target="_blank">http://www.greenarraychips.com </a></div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
