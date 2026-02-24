@@ -1,10 +1,10 @@
-[Derived from: ../../reference/greenarrays/DB006-221112-PF-G144A12.compact.html]
-GreenArraysÆ
+[Derived from: ../../reference/greenarrays/pdfs/DB006-221112-PF-G144A12.pdf]
+GreenArrays¬Æ
 Product Data Book DB006 Revised 11/12/22
-G144A12 polyFORTHÆ
+G144A12 polyFORTH¬Æ
 Supplement to DB005 polyFORTH Reference
-as of arrayForthÆ 3 Rev 03d
-polyFORTHÆ is a programming environment that runs in memory external to an F18 computer array. In the hierarchy of programming models for the GreenArrays architecture, polyFORTH is an example of the sort of virtual machine (VM) environment which allows for the largest programs. Running slowly when compared with the internal speed of an F18, the speed is quite high enough for the parts of an application that are bulky but not time-critical. Facilities are provided for tight communication with and control over application code running in high speed node clusters.
+as of arrayForth¬Æ 3 Rev 03d
+polyFORTH¬Æ is a programming environment that runs in memory external to an F18 computer array. In the hierarchy of programming models for the GreenArrays architecture, polyFORTH is an example of the sort of virtual machine (VM) environment which allows for the largest programs. Running slowly when compared with the internal speed of an F18, the speed is quite high enough for the parts of an application that are bulky but not time-critical. Facilities are provided for tight communication with and control over application code running in high speed node clusters.
 The virtual machine was derived from that developed by Bill Muench and John Rible for use by eForth. The VM has been adapted to meet design goals for a different class of applications, and the programming system written for it has been derived from polyFORTH implementations on equipment with similar properties. The VM consists entirely of RAM resident code running in any necessary number of nodes, while the operating system resides in memory external to the chip. Roles and responsibilities of nodes are assigned dynamically by boot software, and application code may be written in high level Forth or in F18 node level "microcode" as appropriate.
 This is a 16-bit, cell addressed system with extended addressing capability up to one megaword of memory when using the SRAM controller. It is very similar architecturally to the polyFORTH system developed for the Novix NC4000P chips. This manual supplements the polyFORTH Reference by documenting this system's departures beyond the model described by that Reference.
 This book will familiarize you with the structure, organization, operation, maintenance and use of polyFORTH as provided for the G144A12 chips.
@@ -29,7 +29,7 @@ Chapter 1: Introduction.........................................................
 
 2
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 3.3.7 3.3.8 3.3.9 3.3.10 3.4 3.5 3.5.1 3.5.2 3.5.3 3.5.4 3.6 3.7 3.8
 4.
@@ -40,7 +40,7 @@ Calendar Support ...............................................................
 System Features...................................................................... 23
 Addresses, Data and Arithmetic.....................................................................23 Using Memory ...............................................................................................23 Using High Memory ............................................................................................24 Using Extended Memory ....................................................................................24 Character Operations..........................................................................................25 Using the Active Compiler ..............................................................................26 Dictionary Structure............................................................................................26 Vocabularies .......................................................................................................27 Program Structure ..............................................................................................27 Compiler Internals ..............................................................................................28 Missing Interpretables ........................................................................................28 Using the Multiprogrammer ..........................................................................29 The USER Area ....................................................................................................29 Creating and Managing BACKGROUND tasks .....................................................29 Creating and Managing TERMINAL tasks............................................................29 Additional Entitlements .................................................................................30 Basic Forth Vocabulary .......................................................................................30 Exception Handling .............................................................................................31 Source Code Management .............................................................................32 Source Code Organization ..................................................................................32 Editor ..................................................................................................................33 DISKING Utility ....................................................................................................33 BULK Utility .........................................................................................................34 I/O .................................................................................................................35 Mass storage.......................................................................................................35 Terminal I/O........................................................................................................36 Choice of Terminal Emulators.............................................................................37 The Snorkel and Ganglia .....................................................................................37 Clock and Calendar ........................................................................................37 Serial Clock..........................................................................................................38 FTDI Clock ...........................................................................................................38 10 MHz Clock ......................................................................................................39 More Optional Entitlements...........................................................................39 String Arrays .......................................................................................................39 Exception Handling .............................................................................................40 Unix Time Stamps ...............................................................................................40
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 3
 
@@ -62,7 +62,7 @@ Data Book Revision History......................................................
 
 4
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -74,14 +74,14 @@ This manual describes the standard Virtual Machine and polyFORTH operating syste
 This book will familiarize you with the structure, organization, operation, maintenance and use of polyFORTH as provided for the G144A12 chips. The ATS, the F18 development system and any other I/O options and applications based on this system are documented separately.
 Installation procedures make use of the arrayForth 3 system; see the Operation and Maintenance chapter later in this document. To facilitate installation, a Terminal Emulator is provided with arrayForth 3 as part of saneFORTH, a stripped-down Win32 Forth system derived from polyFORTH, provided by ATHENA Programming, Inc., on the same basis as is all the other software distributed by GreenArrays.
 1.1 Related Publications
-∑ DB005 polyFORTH Reference Manual is the foundation for understanding the polyFORTH model, tools, and development methods. This manual supplements that Reference; it assumes you understand the material in the Reference, documenting only implementation-specific details. We recommend that you familiarize yourself with the Reference before studying this manual.
-∑ DB013 arrayForth 3 User's Manual describes the tools and development methods used for working with F18 code. This manual assumes you have familiarized yourself with arrayForth operations.
-∑ DB001 F18A Technology Reference serves as the Programmer's Reference for the F18 computers and I/O architecture.
-∑ DB002 G144A12 Chip Reference documents the configuration of this specific chip. Both DB001 and DB002 should be understood before you begin programming F18 code.
-∑ DB003/DB014 Evaluation Board Reference Manual for EVB001 and EVB002, respectively, contain information with which every user of these boards should be familiar. The polyFORTH release may be adapted for other hardware configurations but is shipped with configuration settings suitable for running on the EVB002 Evaluation Board.
-∑ Application Notes exist, or are planned, for many software modules that are either intrinsic to polyFORTH (such as the SRAM Control Cluster, Snorkel, and Ganglia) or optional (such as the Ethernet NIC and networking packages.) These and other reference materials for our chips, such as the boot protocols supported by ROM code in their boot nodes, may be found on our website at http://www.greenarraychips.com . The most comprehensive list of these will be found in the Index of Downloads tab. It is always advisable to ensure that you are using the latest documents before starting work
+‚Ä¢ DB005 polyFORTH Reference Manual is the foundation for understanding the polyFORTH model, tools, and development methods. This manual supplements that Reference; it assumes you understand the material in the Reference, documenting only implementation-specific details. We recommend that you familiarize yourself with the Reference before studying this manual.
+‚Ä¢ DB013 arrayForth 3 User's Manual describes the tools and development methods used for working with F18 code. This manual assumes you have familiarized yourself with arrayForth operations.
+‚Ä¢ DB001 F18A Technology Reference serves as the Programmer's Reference for the F18 computers and I/O architecture.
+‚Ä¢ DB002 G144A12 Chip Reference documents the configuration of this specific chip. Both DB001 and DB002 should be understood before you begin programming F18 code.
+‚Ä¢ DB003/DB014 Evaluation Board Reference Manual for EVB001 and EVB002, respectively, contain information with which every user of these boards should be familiar. The polyFORTH release may be adapted for other hardware configurations but is shipped with configuration settings suitable for running on the EVB002 Evaluation Board.
+‚Ä¢ Application Notes exist, or are planned, for many software modules that are either intrinsic to polyFORTH (such as the SRAM Control Cluster, Snorkel, and Ganglia) or optional (such as the Ethernet NIC and networking packages.) These and other reference materials for our chips, such as the boot protocols supported by ROM code in their boot nodes, may be found on our website at http://www.greenarraychips.com . The most comprehensive list of these will be found in the Index of Downloads tab. It is always advisable to ensure that you are using the latest documents before starting work
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 5
 
@@ -99,12 +99,12 @@ If you wish to run this system before reading all of the recommended documentati
 
 6
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 1.4 Documentation Conventions
 1.4.1 Numbers
-Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing "hex" or by preceding the number with the lowercase letter "x". This is true in source code as well.
+Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing ‚Äúhex‚Äù or by preceding the number with the lowercase letter ‚Äúx‚Äù. This is true in source code as well.
 1.4.2 Node coordinates
 Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays are represented as seen from the top of the silicon die, which is normally the top of the chip package, oriented such that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as node 000. This convention is expanded to cyyxx on multi-chip boards such as the EVB001 and 2, in which case c is chip number (0 for host, 1 for target, etc). All functions herein accepting yxx notation also recognize cyyxx appropriately.
 1.4.3 Cardinal directions
@@ -114,7 +114,7 @@ Register names in prose may be used with or without the word "register" and are 
 1.4.5 Bit Numbering
 Binary numbers are represented as a horizontal row of bits, numbered consecutively right to left in ascending significance with the least significant bit numbered zero. Thus bit n has the binary value 2n. The notation P9 means bit 9 of register P, whose binary value is x200, and T17 means the sign (high order) bit of 18-bit register T.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 7
 
@@ -134,7 +134,7 @@ Our motivation for creating this system was to maximize performance, flexibility
 
 8
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -305,10 +305,10 @@ polyFORTH Virtual Machine for GA144-1.2
 
 The ten nodes of the pFVM may optionally cooperate with nearby nodes depending on the application. The SRAM control cluster may have two other autonomous principal clients (108 and/or 207) shown in pink.
 The virtual CPU may be extended with application specific functions that interface through (and may be housed in) nodes 004, 305 and/or 306, shown in lavender, or any nodes that may be reached through these. As noted earlier, nodes 205 and 206 are reserved for application microcode, as is part of the RAM in node 005.
-One method of communicating with the pFVM is to use a terminal interface such as the full duplex version shown in yellow; this is not optimal but is simply one way of arranging the necessary "wiring".
-Like any Virtual Machine, the pFVM executes pseudo-instructions from external memory. This chapter describes this virtual machine and its instruction set with sufficient detail to program it in "machine language" or to write compilers or assemblers for the pFVM.
+One method of communicating with the pFVM is to use a terminal interface such as the full duplex version shown in yellow; this is not optimal but is simply one way of arranging the necessary ‚Äúwiring‚Äù.
+Like any Virtual Machine, the pFVM executes pseudo-instructions from external memory. This chapter describes this virtual machine and its instruction set with sufficient detail to program it in ‚Äúmachine language‚Äù or to write compilers or assemblers for the pFVM.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 9
 
@@ -319,7 +319,7 @@ External memory is addressed in 16-bit cells using cell addresses and 8-bit byte
 
 The principal VM environment exists within the 32K words of memory starting at address zero. Unrestricted high level code and single precision byte addressing work only in this area. Single precision cell addressing, and the ability to execute VM instructions covers the full 64K words of low memory, and double precision cell and byte addressing covers all of physical memory. No form of memory mapping or segmentation is supported.
 
-There may be up to three first-tier Memory Masters; the pFVM is but one of these. One of the special operators that can access all of memory is "compare and exchange", useful for coordinating the work of memory masters. Mechanism exists for Masters to suspend operations until stimulated by other Masters.
+There may be up to three first-tier Memory Masters; the pFVM is but one of these. One of the special operators that can access all of memory is ‚Äúcompare and exchange‚Äù, useful for coordinating the work of memory masters. Mechanism exists for Masters to suspend operations until stimulated by other Masters.
 
 2.2 Execution Model
 The VM microcode functions as a central processor interpreting VM code residing in external memory. Consecutive pseudo-instructions are fetched from external memory and interpreted by the microcode.
@@ -356,7 +356,7 @@ Executing a high level execution token is a classical Forth call, pushing p onto
 
 10
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 2.3 Implementation
@@ -366,7 +366,7 @@ The SRAM control node 107 accepts requests from three possible clients, of which
 2.3.2 Interactions among VM nodes
 Bitsy embodies the "main program" of the VM. The other five processor nodes only act under the direction of Bitsy.
 For stack node instructions, Bitsy sends the following through its left port to the stack node:
-∑ The instruction word @p @p . . ∑ The unshifted instruction word ∑ The instruction word shifted left 3 bits ∑ The instruction word sco . . . (a call to the sco decoding routine; subsequent decode and action is
+‚Ä¢ The instruction word @p @p . . ‚Ä¢ The unshifted instruction word ‚Ä¢ The instruction word shifted left 3 bits ‚Ä¢ The instruction word sco . . . (a call to the sco decoding routine; subsequent decode and action is
 the responsibility of the stack node.)
 The coprocessor nodes 005 and 205 receive instructions from Bitsy, while 006 206 receive theirs from the stack node. The protocol is the same in each case.
 A coprocessor node perpetually executes a three word routine called idle . It is worthwhile to examine the code:
@@ -379,7 +379,7 @@ Coprocessors of the stack node have access to sp, t, s, and main memory as well 
 Coprocessors of Bitsy have access to r, i, p, and all the code in BItsy, as well as main memory and the stack node's other resources by commanding the stack node through Bitsy.
 In addition it is possible for a coprocessor to extend the VM further by using a different idle routine. In that case it would probably wish to accept both shifted and unshifted VM instructions and decode them further as the stack node does; there are two unused bits in the VM instruction that would allow for considerable extension.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 11
 
@@ -388,9 +388,9 @@ Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
 2.3.3 Bitsy Node (105)
 The register assignments in the Bitsy node are:
 
-∑ T holds 16-bit instruction pointer p (word address in low 64k words of external RAM.) Address of the next word to execute.
-∑ S holds the top element of the external return stack, referred to as i . ∑ Third stack item holds 16-bit Return Stack pointer r (word address in low 64k words of external RAM.) The
-external return stack grows downward in memory and r holds the address of the next unused cell. ∑ A is the port address (right) for the serial terminal interface node (104). ∑ B is the port address (left) for the stack node (106). ∑ P is normally in bitsy RAM.
+‚Ä¢ T holds 16-bit instruction pointer p (word address in low 64k words of external RAM.) Address of the next word to execute.
+‚Ä¢ S holds the top element of the external return stack, referred to as i . ‚Ä¢ Third stack item holds 16-bit Return Stack pointer r (word address in low 64k words of external RAM.) The
+external return stack grows downward in memory and r holds the address of the next unused cell. ‚Ä¢ A is the port address (right) for the serial terminal interface node (104). ‚Ä¢ B is the port address (left) for the stack node (106). ‚Ä¢ P is normally in bitsy RAM.
 
 The primitives and other routines in the Bitsy node are as follow:
 
@@ -469,7 +469,7 @@ Function
 
 12
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -498,7 +498,7 @@ RP!
 2.3.4 Bitsy Down Node (005)
 This node contains overflow functions from Bitsy with room left for application functions. Its register assignments are:
 
-∑ B is the port address (down) for the Bitsy node (105). ∑ A is available for application assignment and will typically contain the address of the right port for
+‚Ä¢ B is the port address (down) for the Bitsy node (105). ‚Ä¢ A is available for application assignment and will typically contain the address of the right port for
 communication with node 004..
 
 As a coprocessor node, it is continually executing the idle routine. Its primitives and routines are:
@@ -513,7 +513,7 @@ Fetches VM instruction from controlling node and executes it. Loop that provides
 2.3.5 Bitsy Up Node (205)
 This node is set aside for application microcode. It includes optional routines to facilitate interactive testing whereby the IDE is used to compile and test new microcode on a live polyFORTH system.
 
-∑ B is the port address (up) for the Bitsy node (105). ∑ A is available for application assignment.
+‚Ä¢ B is the port address (up) for the Bitsy node (105). ‚Ä¢ A is available for application assignment.
 
 As a coprocessor node, it is continually executing the idle routine. Its primitives and routines are:
 
@@ -524,7 +524,7 @@ pF Symbol -------N205
 Function
 Fetches VM instruction from controlling node and executes it. Loop that provides service to controlling node. Callable from IDE to initiate coprocessor mode. Terminates idle to allow IDE access to the node. <57 words of node RAM uncommitted. 61 available if start and free removed.>
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 13
 
@@ -533,8 +533,8 @@ Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
 2.3.6 Stack Node (106)
 The register assignments in the Stack node are:
 
-∑ T holds the top element of external stack, commented as t . ∑ S holds the second element of external stack, commented as s . ∑ Third stack item holds 16-bit Data Stack pointer sp (shown in stack comments as p ). It is a word address in
-low 64k words of external RAM.) The external data stack grows downward in memory and sp holds the address of the topmost active cell. The top two elements t and s are not included in the external stack but are pushed there when the stack pointer is replaced. ∑ A is unassigned. ∑ B is the port address (right) for the SRAM interface node. ∑ P is normally the port address (left) for the bitsy node.
+‚Ä¢ T holds the top element of external stack, commented as t . ‚Ä¢ S holds the second element of external stack, commented as s . ‚Ä¢ Third stack item holds 16-bit Data Stack pointer sp (shown in stack comments as p ). It is a word address in
+low 64k words of external RAM.) The external data stack grows downward in memory and sp holds the address of the topmost active cell. The top two elements t and s are not included in the external stack but are pushed there when the stack pointer is replaced. ‚Ä¢ A is unassigned. ‚Ä¢ B is the port address (right) for the SRAM interface node. ‚Ä¢ P is normally the port address (left) for the bitsy node.
 
 In stack comments, p denotes the stack pointer which by default resides underneath S . The external data stack grows downward in memory and the stack pointer holds the address of the topmost active cell.
 
@@ -579,7 +579,7 @@ Function
 
 14
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -592,7 +592,7 @@ OR XOR AND NEGATE INVERT 0= 0< UM+ NOP +
 2.3.7 Stack Down Node (006)
 This node contains overflow functions from Stack with room left for application functions. Its register assignments are:
 
-∑ B is the port address (down) for the Stack node (106). ∑ A and the carry flag are reserved for math routines and may be used to hold state between commands.
+‚Ä¢ B is the port address (down) for the Stack node (106). ‚Ä¢ A and the carry flag are reserved for math routines and may be used to hold state between commands.
 
 As a coprocessor node, it is continually executing the idle routine. Its primitives and routines are:
 
@@ -633,11 +633,11 @@ Executes in stack node: 'sp@ (pst-p'tp") Classical Forth 'S (-a). Pushes stack p
 
 2.3.8 Stack Up Node (206)
 This node is set aside for application microcode. It includes optional routines to facilitate interactive testing whereby the IDE is used to compile and test new microcode on a live polyFORTH system.
-∑ B is the port address (up) for the Stack node (106). ∑ A is available for application assignment.
+‚Ä¢ B is the port address (up) for the Stack node (106). ‚Ä¢ A is available for application assignment.
 As a coprocessor node, it is continually executing the idle routine. Its primitives and routines are:
 F18 Symbol pF Symbol Function
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 15
 
@@ -651,7 +651,7 @@ Fetches VM instruction from controlling node and executes it. Loop that provides
 
 16
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 3. polyFORTH Model Differences
@@ -676,7 +676,7 @@ This is a stand-alone, native system, complete with user programmable hardware/f
 3.1.2.1 Memory Organization
 The basic memory model for polyFORTH systems, as shown in the Reference Manual, applies to the lowest-addressed 32k words of external RAM. This region is fully addressable, both as bytes and cells, using a single precision address. This system supports two additional classes of external memory: The second 32k words, called "high memory", and then the full 1 megaword, called "extended memory." High memory is accessible with a 16-bit cell address; facilities
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 17
 
@@ -701,7 +701,7 @@ This system uses conventional "shadow blocks" for primary code documentation, an
 
 18
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -749,7 +749,7 @@ In general character oriented words produce and consume byte addresses and count
 3.2.4 Program Structures
 FORTH, Inc. systems have always supported flexible program structuring. During compilation, the parameter stack holds cell addresses and is what ANS Forth calls the "control flow stack." These addresses may be manipulated freely to build useful structures, such as multi-exit loops, that are more efficient of code and of execution time than the less flexible alternatives. Please see ANS Forth for examples of what may be accomplished.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 19
 
@@ -774,7 +774,7 @@ When parsing a potential number, regardless of the current radix (BASE), its fir
 
 20
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 behavior is always performed as the first act of the routines in the 'NUMBER vector so it takes precedence over recognizing such things as floating point numbers.
@@ -799,7 +799,7 @@ Booting procedures and options are numerous and flexible. See the chapter on Sys
 This system's multiprogrammer is very near to the generic polyFORTH model. The dispatcher loop is implemented in VM code, with sleeping tasks jumping to the next task's STATUS and awakened tasks calling a routine WAKE which marks the task asleep, unpacks its stacks and registers, and lets it run. The STOP and PAUSE functions operate conventionally as do GET and RELEASE . GRAB is included and has been present in polyFORTH systems for years.
 The options and mechanisms for creating BACKGROUND and TERMINAL tasks are quite similar but include options such as allocating memory for BACKGROUND tasks in high memory. See later sections for details.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 21
 
@@ -824,7 +824,7 @@ The methods described in Chapter 8 of the Reference Manual are not deemed releva
 
 22
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -870,7 +870,7 @@ HERE ( -a) returns the cell address contained in H .
 
 UNUSED ( - n) returns the number of available cells in a task's dictionary area.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 23
 
@@ -902,7 +902,7 @@ X@ ( da - n) Fetches a cell from an extended, 20-bit cell address.
 
 24
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1019,7 +1019,7 @@ MOVE ( as ad n) WFILL ( a n w)
 
 ERASE ( a n)
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 25
 
@@ -1084,7 +1084,7 @@ While remote heads and remote code are provided for in this system's design, nei
 
 26
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1134,7 +1134,7 @@ n
 
 VM-instruction that pushes the address of the following cell and returns
 
-Diagram showing the dictionary entry for the definition: : D0= ( D ≠ T) OR 0= ;
+Diagram showing the dictionary entry for the definition: : D0= ( D ‚Äì T) OR 0= ;
 
 Locate Link Field Field
 
@@ -1159,7 +1159,7 @@ The following words enhance the standard polyFORTH capabilities. Note that DO LO
 AHEAD C( - a) is an IMMEDIATE word that compiles an unconditional jump (typically forward). Leaves its address on the stack during compilation, to be resolved by a matching THEN or equivalent.
 FOR ( n) C( - a) is an IMMEDIATE word that begins a NEXT loop by compiling >R to push its induction variable onto the return stack. Leaves its address on the stack during compilation for later use by NEXT or equivalent.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 27
 
@@ -1213,7 +1213,7 @@ BYTE
 
 28
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1246,7 +1246,7 @@ Any task (BACKGROUND or TERMINAL) may be assigned work using ACTIVATE . To put a
 4.4.3 Creating and Managing TERMINAL tasks
 TERMINAL tasks will not be relevant unless an I/O option supporting terminals is added. Note that BACKGROUND tasks allocated in main memory have all other TERMINAL task entitlements, including the ability to compile and interpret; the only thing they lack is the set of behaviors connecting them to a terminal device.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 29
 
@@ -1261,7 +1261,7 @@ Display: .R ( n w) Displays a signed number right justified in a field of w char
 
 30
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 Compilation and Source Code: FH (n-n) "From Here" computes a block number based on a relative distance by adding n to a "current" block. When executed while interpreting from disk, adds n to the block number being interpreted. When executed from the keyboard, adds n to the editor focus block. Load ( n blk) Interprets source block blk to its end, but starts n bytes after the start of the block. AKA ( _old _new) Creates an alternative name new for an existing word old . .( ( _) ) While interpreting or compiling, immediately displays the following string which is terminated by right parenthesis character, for example .( Temporary Kludge! ) . { ( _} ) While interpreting or compiling, skips the following characters until a right curly bracket is encountered. Used for commenting code containing parentheses.
@@ -1269,7 +1269,7 @@ Conditional Compilation: IF{ ( t) Process the following text if the condition is
 4.5.2 Exception Handling
 The exception handling mechanism in ANS Forth is added in some options such as the TCP/IP package. Since it is not supported in the nucleus at present, the resulting implementation is not fully compliant.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 31
 
@@ -1344,7 +1344,7 @@ Net printing
 
 32
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1407,7 +1407,7 @@ SWEEP ( l h) Reads blocks in the range [l..h[ identifying any with errors.
 
 The auditing extensions are as follow:
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 33
 
@@ -1428,7 +1428,7 @@ BULK LOAD gives you a version of the DISKING utility whose BLOCKS operation (and
 
 34
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1475,7 +1475,7 @@ Usable 16256 24000
 Unit mapped into SPI Flash main area (device block 128)
 Serial Disk from Terminal Emulator SPI flash boot stream (device block 0)
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 35
 
@@ -1522,7 +1522,7 @@ The terminal emulator also supports umbilical operations such as disk access and
 
 36
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 4.7.3 Choice of Terminal Emulators
@@ -1545,7 +1545,7 @@ COUNTER ( - d) Starts a measured time interval.
 TIMER ( d) Ends a measured time interval since the time at which COUNTER was used, displaying the length of the interval. Units and formats depend upon the clock in use.
 Time delays may be produced as follows:
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 37
 
@@ -1571,7 +1571,7 @@ The resolution supported for wall time is 10.9226 ms and in addition to wall tim
 
 38
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 4.8.3 10 MHz Clock
@@ -1596,7 +1596,7 @@ A string array is a data type consisting of a 1-D indexed array of strings. It's
 SARRAY (n) ( i - a n) Defines a string array of n elements, initialized with zero pointers; returns double zero for a nonexistent element. May be initialized by hand (for example, declare with zero length then comma addresses of the strings, but normally initialized using S{ .
 S{ ( n _}) Defines element n of the most recent definition, which must be an SARRAY . Usage: 2 SARRAY Y/N 0 S{ No } 1 S{ Yes }
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 39
 
@@ -1617,7 +1617,7 @@ Booted ( - d n) Returns values of @TIME and MJD at the time the system was boote
 
 40
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 5. Operation and Maintenance
@@ -1636,15 +1636,15 @@ To run the polyFORTH system, two major steps are necessary: Loading F18 code to 
 5.2.1 Customizing the VM using arrayForth
 Load descriptors for the VM environment lie in three blocks starting at ENIC 1+ (the load block).
 Stream generator blocks such as 1662 configure the chip for pF/144 including configuration parameters (and addition of application code if desired):
-∑ ?CLK if nonzero loads nodes 616 and 617 with code to monitor a hardware clock on pin 517.17; and, if the value is 2, also loads the cluster to start and maintain oscillation in a crystal connected between that pin and ground into nodes 517, 516, 416 and 415.
+‚Ä¢ ?CLK if nonzero loads nodes 616 and 617 with code to monitor a hardware clock on pin 517.17; and, if the value is 2, also loads the cluster to start and maintain oscillation in a crystal connected between that pin and ground into nodes 517, 516, 416 and 415.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 41
 
 DB006 G144A12 polyFORTH Supplement
-∑ ?ETH if nonzero loads the Ethernet NIC Mark 1 into the lower right section of the chip.
-∑ A line labeled "Async bootable" will, by default, leave node 708 in its reset state after the boot stream has been processed, and therefore willing to be communicated with externally for booting or External IDE use. When ?ETH is enabled, ?CLK must be either 1 or 2.
+‚Ä¢ ?ETH if nonzero loads the Ethernet NIC Mark 1 into the lower right section of the chip.
+‚Ä¢ A line labeled "Async bootable" will, by default, leave node 708 in its reset state after the boot stream has been processed, and therefore willing to be communicated with externally for booting or External IDE use. When ?ETH is enabled, ?CLK must be either 1 or 2.
 To add your own F18 code for other nodes not used by the polyFORTH VM, first assemble them into available bins, and then load your own boot descriptors for those nodes by adding them to the appropriate stream generator block(s).
 See Application Notes for the development and testing of custom VM extensions, and for programming the Snorkel and Ganglia.
 We recommend that you start with the default settings and familiarize yourself with the system before making changes to the VM configuration.
@@ -1664,7 +1664,7 @@ This is a one-time operation. If you crash polyFORTH, cycle power or otherwise r
 
 42
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 5.2.2.3 Installing to SPI Flash with pF/144 Running on Target System (such as EVB)
@@ -1680,7 +1680,7 @@ flash to location zero in external SRAM.
 4. A third boot frame is then processed to load all the rest of the chip with the polyFORTH virtual machine and any additional I/O code that's been configured as described above. This step is more complex if a second chip is being booted.
 5. A fourth boot frame loads the SPI flash disk support routines into node 705. The polyFORTH virtual machine immediately begins running the nucleus starting at its cold-start entry. By default, this entry point waits for a space bar from USB port B, uses it to auto-baud, and proceeds with normal polyFORTH greeting.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 43
 
@@ -1700,7 +1700,7 @@ In a system with only SPI flash, it is worth biting the bullet by living with a 
 
 44
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 
@@ -1720,7 +1720,7 @@ If you're planning to use the 780/60 organization this is just fine. For 480/416
 f. To use the new definition, FLUSH the disk and say RELOAD then again 20 DRIVE HI .
 g. You should now find that SHADOWS is 2400. TESTING LOAD INSTALL will copy the test nucleus from SHADOWS to zero on your serial disk, replacing the nucleus at the start of pFDISK.blk . Just to make sure all is good, COMPILER LOAD CHIP LOAD and then say 50 LOAD HUNT . The utility should run completely without showing any differences.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 45
 
@@ -1741,16 +1741,16 @@ To be completed when MMC support is released.
 
 46
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 5.3 Maintaining the Virtual Machine
 The F18 code comprising the virtual machine is maintained using arrayForth. The IDE may be used to load and run it interactively, or it may be used to generate a boot stream and nucleus image for rapid serial boot or writing to flash where it will be booted automatically by the SPI node each time the chip is reset.
 5.3.1 Walk-through
 The source code is presently located in the index page containing block PFVM .
-∑ Compilation is defined by block PFVM , covering all code to be booted as part of loading polyFORTH into a chip. Code for application nodes would be added here.
-∑ Loading (via boot stream) is defined by Block PFVM 1+; again, code for application nodes could be added here or in the block defining creation of the stream.
-∑ IDE paths for use once polyFORTH has been booted are not, at present, available in predefined form. You will have to create your own.
+‚Ä¢ Compilation is defined by block PFVM , covering all code to be booted as part of loading polyFORTH into a chip. Code for application nodes would be added here.
+‚Ä¢ Loading (via boot stream) is defined by Block PFVM 1+; again, code for application nodes could be added here or in the block defining creation of the stream.
+‚Ä¢ IDE paths for use once polyFORTH has been booted are not, at present, available in predefined form. You will have to create your own.
 Note that the polyFORTH environment includes other modules such as the SRAM cluster, and populates all otherwise unused nodes with ganglia.
 5.3.2 Extending the Virtual Machine
 For compatibility with future releases, we recommend that you not change nodes 005, 006, 105 or 106. Furthermore, nodes 004 through 000 may be used by the VM in the future. Nodes 205 and 206 are reserved for applications and will only be used if you put code there and reference it with the appropriate instructions.
@@ -1765,7 +1765,7 @@ TESTING LOAD INSTALL Copies the target output image to the boot image in blocks 
 50 LOAD HUNT Shows differences between the target output image at SHADOWS and the working boot image at block 0 relative to OFFSET .
 The boot image and target output image areas named above refer to the system source presently addressed by OFFSET . The effects of the above activities depend on what device is addressed there.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 47
 
@@ -1817,7 +1817,7 @@ Additional protocols allow the terminal emulator to be used as a means for inter
 
 48
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/12/22
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/12/22
 
 DB006 G144A12 polyFORTH Supplement
 6. Application Extensions
@@ -1846,10 +1846,10 @@ Revision History
 
 51
 
-GreenArraysÆ
+GreenArrays¬Æ
 Product Data Book DB006 Revised 11/12/22
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI‚Äôs terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -1861,6 +1861,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010 GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright ¬© 2010 GreenArrays, Incorporated
 
 

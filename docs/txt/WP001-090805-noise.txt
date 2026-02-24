@@ -1,8 +1,8 @@
-[Derived from: ../../reference/greenarrays/WP001-090805-noise.compact.html]
+[Derived from: ../../reference/greenarrays/pdfs/WP001-090805-noise.pdf]
 GreenArrays, Incorporated
 WHWITEhPitAePEPRaper
 
-Noise Reduction by the GreenArraysTM Analog to Digital Converter
+Noise Reduction by the GreenArraysâ„¢ Analog to Digital Converter
 Written by: Greg Bailey
 GreenArray chips are not merely minimalist designs internally. The I/O pins, and the circuitry and cores behind them, have been designed to facilitate minimalist board level implementations with minimal "glue" chips, circuits, or even passive components. Such components generally consume energy and in many cases limit the I/O capabilities. Our preferred model for I/O is moving minimal charges to and from small capacitive loads, usually at unprecedentedly high impedances. This certainly includes our Analog to Digital converter input, which is on the order of 2 pF and 10 megohms.
 This note briefly addresses inherent noise amelioration in the current Analog to Digital Converter and explains why external, analog antialiasing filters may be unnecessary in your application.
@@ -14,11 +14,11 @@ GreenArrays, Incorporated August 2009
 
 signal processing, a filter might be enhanced with circuits designed to address the noise, such as slew rate limiters or tailored FIR filters.
 Eliminating the hold circuit
-The present GA A/D converter design works quite differently. Instead of capturing an instantaneous voltage and converting it, this design consists of a VCO whose frequency is a function of the input voltage, and whose output drives a binary counter. The first order effect of this circuit is that the value in the counter represents the continuous moving average of the input voltage across the interval of time between two samples of the 18 bit counter. The VCO frequency varies from about 2 to 4 gigacounts per second, so the maximum period of time for rollover varies from about 65.5 to 131.07 µS; taking the counter as a window, the window frequency across which it averages varies from about 7.6 KHz to 15.3 KHz.
+The present GA A/D converter design works quite differently. Instead of capturing an instantaneous voltage and converting it, this design consists of a VCO whose frequency is a function of the input voltage, and whose output drives a binary counter. The first order effect of this circuit is that the value in the counter represents the continuous moving average of the input voltage across the interval of time between two samples of the 18 bit counter. The VCO frequency varies from about 2 to 4 gigacounts per second, so the maximum period of time for rollover varies from about 65.5 to 131.07 ÂµS; taking the counter as a window, the window frequency across which it averages varies from about 7.6 KHz to 15.3 KHz.
 Page 1
 
 Continuously Variable Sampling Frequency and Resolution
-In practical use, input voltage is measured by computing the difference, modulo 218, between two counter values separated by a measured amount of time. The longest practical amount of time is as indicated above, 65.5 µS which would, if done continuously, yield a sampling frequency of 15.3 KHz. This frequency yields the greatest resolution; sampling more frequently simply reduces the resolution of the samples, while proportionally increasing the window frequency of the counter. On the other hand, the window can be effectively lengthened, and its frequency reduced, by taking multiple consecutive samples and averaging them in software.
+In practical use, input voltage is measured by computing the difference, modulo 218, between two counter values separated by a measured amount of time. The longest practical amount of time is as indicated above, 65.5 ÂµS which would, if done continuously, yield a sampling frequency of 15.3 KHz. This frequency yields the greatest resolution; sampling more frequently simply reduces the resolution of the samples, while proportionally increasing the window frequency of the counter. On the other hand, the window can be effectively lengthened, and its frequency reduced, by taking multiple consecutive samples and averaging them in software.
 Inherent Low Pass Filtering
 In terms of filtering, then, consider the case of continuously sampling the counter at an effective frequency of 1 KHz.
 Each reading of the counter yields a number that represents the moving average voltage of the input over the past 65 to 131 microseconds. We sample the counter at a real rate of, say, 32 KHz, averaging or summing 32 consecutive differences to produce one effective sample. Each of these software averages, produced at 1 KHz, then represents the moving average over 1 mS, which would be equivalent to a first order lowpass filter whose 3dB point lay around 500 Hz.
@@ -26,7 +26,7 @@ Note that this is an analog moving average, not a digital moving average, since 
 GreenArrays, Incorporated August 2009
 
 not measured the attenuation of high frequency spiky noise, it should be excellent since at those relatively high frequencies this filter will act like an analog, not a digital, filter, and so the rolloff of 6 dB per octave should continue indefinitely without aliasing. Thus, in this example, with a 1 KHz sampling frequency, noise at 1 KHz is attenuated 9 dB; noise at 10 KHz, 29 dB; at 100 KHz, 49 dB, due to the averaging alone and ignoring the second order effects mentioned above.
-But multiple inputs require muxes which in turn require a filter and track and h old for each channel, don't they?
+But multiple inputs require muxes which in turn require a filter and track and h old for each channel, donâ€™t they?
 Often it is believed that sample and hold circuits are necessary because converters are expensive and thus for multiple inputs there must be a multiplexor and therefore, "obviously", a sample and hold for each multiplexor channel. We prefer to use simple, fast, cheap, very low power converters so that one may be committed to each input. Our GA4 has one A/D; the GA32 has three, and the GA144 has five. In future designs we are considering making each analog pin programmable as either A/D or DAC, so that the number of possible analog inputs on each chip will be double the number currently available. For a customized chip the number of converters is limited mainly by the number of pins on the package.
 It might be all you need.
 While this will not solve every problem, our point is that the basic A/D design incorporates the equivalent of a first order antialiasing and antinoise filter which is already 15 dB down at twice the sampling frequency and 21 dB down at the 4x frequency. Further filtering, outside in hardware or inside the chip in software, can always be added if it proves to be necessary; as, for example, the reduction in filter
@@ -37,7 +37,7 @@ Page 2
 extend the sampling frequency below the counter rollover limit of 15.3 KHz.
 
 Greg Bailey is Vice President of Engineering at GreenArrays, maker of multicore processors with integrated peripherals. For more information, please visit our website: http://www.GreenArrayChips.com
-© 2009 GreenArrays, Inorporated. All Rights Reserved. Doc WP001-090805. Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
+Â© 2009 GreenArrays, Inorporated. All Rights Reserved. Doc WP001-090805. Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
 
 GreenArrays, Incorporated August 2009
 

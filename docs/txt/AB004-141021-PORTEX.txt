@@ -1,10 +1,10 @@
-[Derived from: ../../reference/greenarrays/AB004-141021-PORTEX.compact.html]
-GreenArraysTM Application Brief AB004 Revised 10/21/14
+[Derived from: ../../reference/greenarrays/pdfs/AB004-141021-PORTEX.pdf]
+GreenArrays™ Application Brief AB004 Revised 10/21/14
 
 Port Execution
 Communication Between two GA144 Nodes
 
-Learning to understand and use port execution is perhaps the most important rite of passage when learning to program a GA144. The arrayForth program below is a simple demo showing how one node can use a neighbor's memory for data storage.
+Learning to understand and use port execution is perhaps the most important rite of passage when learning to program a GA144. The arrayForth program below is a simple demo showing how one node can use a neighbor’s memory for data storage.
 
 Concentrate on the word set first. The first four instructions fill a single 18 bit cell and are all that this word does. @p reads the next 18 bit cell and places it on the stack. In this case that happens to be an instruction word containing @p a! .. . This is not executed here but is to be passed as data
 
@@ -30,16 +30,16 @@ The third instruction is also ! . This writes the address that was already on th
 
 The final instruction is ; which returns to the word which called set . Note the yellow .. after ; . This is to ensure that the next instruction starts in slot zero of the next available word. Being yellow is a convention that tells us the next word is meant to be executed in a neighbor rather than in this node. In arrayForth, as opposed to PC colorForth, the yellow and green words behave in the same way so a green .. would have worked just as well.
 
-The instruction word @p a! .. when executed by the neighbor will receive the address from the port and place it into the A register. The word set then is used to set a neighbor's A register. Notice that all code executed by the neighbor comes through the port, none of it resides in the neighbors memory. This leaves all 64 words of neighbor memory free to be used for data storage.
+The instruction word @p a! .. when executed by the neighbor will receive the address from the port and place it into the A register. The word set then is used to set a neighbor’s A register. Notice that all code executed by the neighbor comes through the port, none of it resides in the neighbors memory. This leaves all 64 words of neighbor memory free to be used for data storage.
 
-Now that you understand set it should be clear how @next and !next work. @next executes @p ! @ ; sending an instruction word via ! and receiving a value via @ . The neighbor executes @+ !p .. , which fetches a value from memory via the A register, increments the A register, and sends the value back through the port. !next is nearly the same, but in this case a value is first sent to the neighbor, then stored via the neighbor's A register, which is post incremented.
+Now that you understand set it should be clear how @next and !next work. @next executes @p ! @ ; sending an instruction word via ! and receiving a value via @ . The neighbor executes @+ !p .. , which fetches a value from memory via the A register, increments the A register, and sends the value back through the port. !next is nearly the same, but in this case a value is first sent to the neighbor, then stored via the neighbor’s A register, which is post incremented.
 
-The words fetch and store use the previously defined words set , @next , and !next to set the neighbor's A register before sending or receiving a value. The word test can be used in the simulator to watch memory being written and read using these techniques. In order to run this in softsim you'll need to compile the code, provide boot descriptors, load them from block 216 as shown below, and of course run softsim by typing "so".
+The words fetch and store use the previously defined words set , @next , and !next to set the neighbor’s A register before sending or receiving a value. The word test can be used in the simulator to watch memory being written and read using these techniques. In order to run this in softsim you’ll need to compile the code, provide boot descriptors, load them from block 216 as shown below, and of course run softsim by typing “so”.
 
 200 list user f18 code 820 load exit
 822 list boot descriptors, 609 +node right /p, 608 +node right /a 608 /ram a /p
 216 list softsim configuration 822 load exit
 
-For more information see http://www.greenarraychips.com In particular, DB004 arrayForth User's Manual.
+For more information see http://www.greenarraychips.com In particular, DB004 arrayForth User’s Manual.
 
 

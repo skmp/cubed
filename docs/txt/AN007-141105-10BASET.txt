@@ -1,11 +1,11 @@
-[Derived from: ../../reference/greenarrays/AN007-141105-10BASET.compact.html]
-GreenArrays® AN007 A Bit-Banged 10baseT NIC
+[Derived from: ../../reference/greenarrays/pdfs/AN007-141105-10BASET.pdf]
+GreenArraysÂ® AN007 A Bit-Banged 10baseT NIC
 Application Note AN007 Revised 11/05/14
 Software-Defined NIC
-10baseT full duplex, Mark 1 as distributed in arrayForth® Rev 2b
-A software-defined full duplex 10baseT Network Interface Controller is implemented as a team of nodes controlling transmit and receive signal pins directly. The signals are conditioned by minimal electrical interface circuitry. External transmit timing is used. The team is designed to function as a memory-mapped device but may be stripped down for direct use by other node teams. This NIC is supported by the polyFORTH® TCP/IP package on the host chip of the EVB001 Evaluation Board.
+10baseT full duplex, Mark 1 as distributed in arrayForthÂ® Rev 2b
+A software-defined full duplex 10baseT Network Interface Controller is implemented as a team of nodes controlling transmit and receive signal pins directly. The signals are conditioned by minimal electrical interface circuitry. External transmit timing is used. The team is designed to function as a memory-mapped device but may be stripped down for direct use by other node teams. This NIC is supported by the polyFORTHÂ® TCP/IP package on the host chip of the EVB001 Evaluation Board.
 Related Documents
-IEEE Standard 802.3-2002® or later DB001: F18A Technology Reference DB002: G144A12 Chip Reference DB003: EVB001 Eval Board Reference DB004: arrayForth User's Guide DB006: polyFORTH Supplement for G144A12 DB008: polyFORTH TCP/IP Package AN003: SRAM Control Cluster Mark 1 AB002: 10baseT Line Receiver & Manchester Decoder
+IEEE Standard 802.3-2002Â® or later DB001: F18A Technology Reference DB002: G144A12 Chip Reference DB003: EVB001 Eval Board Reference DB004: arrayForth User's Guide DB006: polyFORTH Supplement for G144A12 DB008: polyFORTH TCP/IP Package AN003: SRAM Control Cluster Mark 1 AB002: 10baseT Line Receiver & Manchester Decoder
 Contents
 1. Problem Statement ................................................................................. 2
 1.1 Results.............................................................................................................................. 2
@@ -32,7 +32,7 @@ The fourth section shows how to configure the software to use the E-NET board. T
 
 2
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -114,7 +114,7 @@ Not used
 
 The use of these structures to control the NIC is explained in the next section.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 3
 
@@ -141,7 +141,7 @@ To shut the NIC down in an orderly fashion, for example to reboot a system, use 
 
 4
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -624,7 +624,7 @@ The inbound path is shown in green, using nodes 117 and 017 through 010. The two
 Although the polyFORTH timing signal is not shown, when this NIC is active the system is normally configured to use a 10 MHz clock obtained by having nodes 516 and 517 witness the 10 MHz signal on pin 417.17. This clock is normally interrogated by high level code using the Snorkel/Ganglion mechanism. Nothing prevents the system from using some other timing signal if it serves the application better, but the TCP/IP RFCs require that the system have some sort of timing signal to meet timing requirements.
 The power used by the NIC is dominated by three nodes that must run continuously. These are 110 and 315, which must poll io because they receive unsynchronized stimuli from multiple places, and 016 which must continually measure the time between incoming bits.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 5
 
@@ -645,7 +645,7 @@ the ethernet rx pin node acts as a continuous manchester decoder, recovering and
 
 6
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 Functionally, this node decodes incoming bits and passes them to node 017 in the high order (sign) bit of a word that is otherwise garbage (the entire content of io).
@@ -658,7 +658,7 @@ Please refer to AB002 for additional information about this code including scope
 It's imperative that, whenever node 017 decodes a bit and writes it to a COM port, the recipient is already reading the port so that the time delay to dispose of the value does not vary other than by PVT. There's a good deal of decision making involved in the next steps of processing each incoming bit. If any part of that were to "back up" enough that the first node was not reading before node 017 wrote, this would cause jitter in node 017's timing, and compromise bit synchronization. In such a case, inserting one buffering node in the timing sequence relieves the tight timing pressure on the following nodes. Node 017 is almost a wire node; however, because it has 100 ns to work with, we gave it a modest task to perform by masking off the sign bit received from 117 and shifting it into bit position 0. Note that the node runs in extended arithmetic mode to facilitate this circular shift.
 Functionally, node 017 passes a sequence of bits to node 016 as numeric values (0 and 1).
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 7
 
@@ -679,7 +679,7 @@ idle waits for line activity (packets or link pulses). The link pulses must occu
 
 lkp is used by idle to wait for a 1-bit, signifying either a link pulse or start-of-packet, within the given number of microseconds. If another 1-bit is seen within about one microsecond, this must be a data packet so we in effect jump off to pkt which ends by jumping to idle for sending the end-of-packet value. Otherwise it sends the -flp event and enters flps ...
 
-flps sends the starting -flp event and waits to see if more pulses follow. Pulses occurring within the approximate timing margins for fast link pulses (111 to 139 µs between clock pulses, data pulse 55.5 to 69.5 µs after clock pulse, total of 17 clock pulses) are sent as flp0 or flp1 events. When there is no pulse within about 150 µs, this marks the end of a sequence of zero or more fast link pulses so it sends the slp event and goes idle . Thus, a fast link pulse message sends -flp followed by one or more of flp0 or flp1 and slp. An isolated slow link pulse is simply -flp followed by slp .
+flps sends the starting -flp event and waits to see if more pulses follow. Pulses occurring within the approximate timing margins for fast link pulses (111 to 139 Âµs between clock pulses, data pulse 55.5 to 69.5 Âµs after clock pulse, total of 17 clock pulses) are sent as flp0 or flp1 events. When there is no pulse within about 150 Âµs, this marks the end of a sequence of zero or more fast link pulses so it sends the slp event and goes idle . Thus, a fast link pulse message sends -flp followed by one or more of flp0 or flp1 and slp. An isolated slow link pulse is simply -flp followed by slp .
 
 The timings employed by this node are not critical because the intervals distinguishing data bits, fast and slow link pulses are matters of scale, not of fine values. Because this node must detect an idle line, it is logically necessary that it must spin; so it is running, and using power, continuously.
 
@@ -688,7 +688,7 @@ The standards require a link pulse to drive the differential line high but then 
 
 8
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -713,7 +713,7 @@ node 15 parses incoming events from node 15,, maintaining link state and sending
 
 Functionally, node 015 mainly sends packets, verbatim, to node 014 including preamble and transmitted CRC. These are denoted by a word of zero to indicate start-of-packet, one and zero values to indicate bits, and a negative value to indicate end-of-packet. In addition, incoming link status changes (link words, or link-down) are passed as a nonzero
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 9
 
@@ -759,7 +759,7 @@ report is used to pass link status messages to node 014. In some envisioned usag
 
 10
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -785,7 +785,7 @@ idl is the main program of this node, waiting for data from node 015. Link state
 
 pre adaptively strips the preamble. A standard preamble consists of 62 consecutive bits of alternating 1 and 0, starting with 1. It's followed by two consecutive 1-bits indicating start of frame delimiter. Noise, weak signals, common mode offset and other factors can shorten the effective length of the preamble and can also delay our capture of synchronization with the bit stream. What we do is to receive 8 bits, ignoring their states, and then receive a maximum of 56 more bits, watching for two consecutive 1-bits. During both of these loops we abort processing and send the status and count words if end-of-packet occurs. If we do not find them within that maximum of 64 bits, the packet is delivered as zero length. If we find the two consecutive ones within that sequence of 56, we fall through into pkt which passes data bits, counting them, and appends status and bit count after the last data bit has been copied. Otherwise we jump ahead to -pkt where we check for, and stop preamble processing on, two consecutive 0's. In the exceptional cases of two 0's in the preamble or of no start of frame delimiter within 64 bits, this code simply jumps to runt which is unsafe; instead it should continue absorbing bits from node 015 until the negative end-of-packet word appears, and only then jump to runt . Until this is fixed in a release later than 02c, node 016 is capable of confusing node 015. It's never caused a problem so far simply because preamble garbage is vanishingly rare in full duplex connections.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 11
 
@@ -804,12 +804,12 @@ run is the main program of this node, waiting for data from node 014. Link state
 
 12
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
 2.3.7 Node 012: Rx Packing
-After the CRC has been calculated we no longer need to process one bit at a time; we can now pack the bits into 16-bit octet pairs. This reduces the operating cycle of successive nodes in the pipeline from 100 ns to 1.6 µs, a reasonable interval for interleaving transmit and receive DMA operations with high level Virtual Machine program execution.
+After the CRC has been calculated we no longer need to process one bit at a time; we can now pack the bits into 16-bit octet pairs. This reduces the operating cycle of successive nodes in the pipeline from 100 ns to 1.6 Âµs, a reasonable interval for interleaving transmit and receive DMA operations with high level Virtual Machine program execution.
 
 node 12 packs framed data into 16-bit pairs of octets, little-endian, last word padded if odd output messages..., , ..-1 state new link state 0 down, 1 10hd,, ....else last active code word received., , ..0 packet as follows, ....00 bbbb bbbb aaaa aaaa a 1st octet b 2nd, ....10 8000 0000 0c00 0000 where, ......c crc-error, ....length in bits after preamble including, ......any dribble bits.
 
@@ -830,7 +830,7 @@ Functionally, this node delivers packets to node 010 byte-swapped into big-endia
 
 In addition it checks the length field and uses it to determine the r (runt) and l (too long) status bits as well as the d field, but does not change the value of the length word. In passing and byte-swapping words, only a maximum of 1520 octets are actually transferred to node 010, to limit the size of DMA transfer and avoid overrunning buffers in the event of jumbo packets. Remaining data are silently discarded, in which case the actual CRC field of the packet will not be transferred to memory.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 13
 
@@ -857,7 +857,7 @@ It's possible to accomplish this much relatively high-level work in 56 words of 
 
 14
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -867,7 +867,7 @@ This section follows the outbound packets from memory to the pin, in the same ma
 726 list - tx load descriptor, , tx 417 +node 417 /ram 2 /p, ..317 +node 317 /ram 20000 30000 over over, ....over over over over over over 10 /stack, ....io /b up /a 4 /p, ..316 +node 316 /ram left /a right /b 0 /p, ..315 +node 315 /ram left /b C 10 /p, ..215 +node 215 /ram up /a down /b 9 /p, ..115 +node 115 /ram down /a io /b 7 /p, ..314 +node 314 /ram down /a right /b A /p, ..214 +node 214 /ram up /a down /b 27 /p, ..114 +node 114 /ram left /a up /b 20A /p, ..113 +node 113 /ram right /a left /b A /p, ..112 +node 112 /ram left /a right /b 0 /p, ..111 +node 111 /ram right /b left /a 16 /p, exit, mon 517 +node 517 /ram io /b 200 /p, ..516 +node 516 /ram left dup /a /p right /b
 
 2.4.1 Node 111: Tx Control
-This node controls the memory operations to process Tx commands. By design, the outbound data path can begin with node 112 when interfacing directly to node code; in that case, it is absolutely essential that you never let the pipeline run dry downstream by introducing undue delays within the data stream. There is only the time buffering of one wire node (112) available; as soon as the first bit moves from 113 to 114, the crystal starts pulling bits and you must sustain a rate of 1.6 µs per word.
+This node controls the memory operations to process Tx commands. By design, the outbound data path can begin with node 112 when interfacing directly to node code; in that case, it is absolutely essential that you never let the pipeline run dry downstream by introducing undue delays within the data stream. There is only the time buffering of one wire node (112) available; as soon as the first bit moves from 113 to 114, the crystal starts pulling bits and you must sustain a rate of 1.6 Âµs per word.
 
 111 is xmit dma control. note that b points to dma and a to tx chain, reverse of normal., , +tx command from pf alerts us to new function found in t.xn ..., , ..-1 force autonegotiation, ..0 invalid, ignored, ..+n transmit packet of n octets starting at, ....double address in t.xa. data guaranteed, ....not to cross page boundary., , when any of these functions complete, t.xn is set zero to show done and pf task is awakened. a new tx command may not be stored and +tx cmd sent until t.xn is zero. dma controller will, lock up if this protocol is violated
 
@@ -875,14 +875,14 @@ This node controls the memory operations to process Tx commands. By design, the 
 
 run is the main program of this node, and waits for signal from the Nexus that a command has been sent. The command is retrieved from t.xn , processed, and then t.xn is zeroed and the task is stimulated. For t.xn negative it sends a negative number onward to force link-down and autonegotiation. For t.xn positive it sends that value (octet count) followed by (t.xn+1)/2 16-bit big-endian octet pairs. For t.xn zero it assumes an anomaly and does nothing and the task is not stimulated.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 15
 
 AN007 A Bit-Banged 10baseT NIC
 
 2.4.2 Node 112: Wire
-This node is necessary geometrically, however it also serves a useful purpose as a 1-word buffer, allowing an additional 1.6 µs of time buffering which may simplify the code feeding the pipeline.
+This node is necessary geometrically, however it also serves a useful purpose as a 1-word buffer, allowing an additional 1.6 Âµs of time buffering which may simplify the code feeding the pipeline.
 
 112 is just a wire.
 
@@ -908,18 +908,18 @@ run is the main program, and waits for a link-down (-1) which is passed along, o
 
 16
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
 2.4.5 Node 214: Special Delay FIFO
-Here we solve the timing problem created by that 2.5 µs gap before the first CRC bit from the preceding node.
+Here we solve the timing problem created by that 2.5 Âµs gap before the first CRC bit from the preceding node.
 
 214 buffers bits out from crc node, holding 32 bit times of data to keep the packet flowing, while calculating final crc. see crc node for incoming stimuli., , outgoing data..., ..-1 force renegotiation of link., , ..n packet of n bytes follows in n*8 words, ....0/1 data bits, multiple of 8, 1 per word, ....0/1 crc bits, 32 words, ....1x xxxx xxxx xxxx xxxx, , we start a packet by notifying framer to send preamble. this gives us 64 bit times during, which we prime our 32 bit fifo. thereafter we send one bit for each new bit received. upon, receiving end packet indicator we empty the, fifo while crc node generates the final 32, bits that we pass through.
 
 738 list 214 tx delay 214 node 0 org reclaim, , 00 buffer 32 words 20 org, , @!+ an-a'n' 20 a push push dup a!, ..1 . + 31 and @ pop ! pop a! ;, , run 27 begin @ dup !b - -until dup or fill a-a 2A 31 for @ @!+ drop next, pass a-a 2E @ -if*, ..purge a-a 2F push 31 for dup @!+ !b next*, ..crc a-a 33 31 for @ !b unext pop !b run ; body a-a 38 then @!+ !b pass ;, 3A reclaim
 
-Functionally this node simply passes along the outbound event (link down or start packet); however for packets, the first data bit is delayed while it fills a 32-bit (3.2 µs) FIFO. Functionally this node is a special 32-bit FIFO. One special aspect is that the first data bit is not sent onward until the FIFO has filled; at which point for each bit coming in from the CRC node, a bit is pushed out to the next. When the end data marker is received, it pushes out the remaining 32 bits in the FIFO, giving the CRC node plenty of time to be ready with the first CRC bit. At that point it copies 32 bits across from the CRC node and follows it up with the negative value that now indicates end-of-packet, including CRC.
+Functionally this node simply passes along the outbound event (link down or start packet); however for packets, the first data bit is delayed while it fills a 32-bit (3.2 Âµs) FIFO. Functionally this node is a special 32-bit FIFO. One special aspect is that the first data bit is not sent onward until the FIFO has filled; at which point for each bit coming in from the CRC node, a bit is pushed out to the next. When the end data marker is received, it pushes out the remaining 32 bits in the FIFO, giving the CRC node plenty of time to be ready with the first CRC bit. At that point it copies 32 bits across from the CRC node and follows it up with the negative value that now indicates end-of-packet, including CRC.
 
 2.4.6 Node 314: Framing
 The next step is to frame the packet with a 64-bit preamble and an ending idle pulse, expressing the resulting sequence of events as subroutine calls for port execution in the multiplexor node.
@@ -934,7 +934,7 @@ pre requests the multiplexor's attention and as soon as its first command is acc
 
 pkt receives the entire packet, translating it to /one and /zer calls in the mux node. The packet is ended and the mux is released with a jump to /idle .
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 17
 
@@ -953,7 +953,7 @@ run is the main program of this node. It continuously polls io looking for write
 
 /slp generates a link pulse. No time delay is included, either before or after the pulse.
 
-/flp produces a precise 62.5 µs time delay, measured by the Tx pin node using the reference oscillator.
+/flp produces a precise 62.5 Âµs time delay, measured by the Tx pin node using the reference oscillator.
 
 /wd transmits a 16-bit code word using a sequence of 17 clocking link pulses at 130 us intervals with 1s being represented as additional link pulses halfway between these clock pulses. The Tx pin is forced to be silent for 14 ms after each code word.
 
@@ -961,7 +961,7 @@ run is the main program of this node. It continuously polls io looking for write
 
 18
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -983,7 +983,7 @@ If the most recent state is not what it's looking for, then node 215 gets the mu
 2.4.8 Node 316: Wire
 This node's code is in the same block as that of node 317, below. It's a unidirectional wire and is only there because the topology of the cluster requires it. However, as usual its presence presents a timing buffer on the order of 100 ns which may relieve demands on earlier nodes in the pipeline.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 19
 
@@ -1006,7 +1006,7 @@ The routines that may be called through the port from the pipeline are these:
 
 flp delays 62.5 us with the pin at high impedance and resumes idle loop.
 
-slp generates a slow link pulse by driving the pin high for one bit time then releasing it to high impedance for 162 clock edges, or 8.1 µs. No time delay is included before or after the pulse.
+slp generates a slow link pulse by driving the pin high for one bit time then releasing it to high impedance for 162 clock edges, or 8.1 Âµs. No time delay is included before or after the pulse.
 
 0bit Manchester codes a zero by driving the pin high at the next clock edge then low at the following edge.
 
@@ -1016,7 +1016,7 @@ idle produces the "end of transmission delimiter". If the pin is not already hig
 
 20
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1029,7 +1029,7 @@ fox 819a-10 10 mhz oscillator input., each 50 ns edge sends a return instruction
 
 As noted above, this routine waits for a word from the Tx Pin node before starting its operations, waiting for each edge of the input signal and transmitting a word to the Tx Pin node on each. The code listed above leaves the pin terminated by weak pull-down, which helps with noise on prototype electrical interfaces. We have not explored whether or not this is necessary when using the E-NET board.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 21
 
@@ -1057,7 +1057,7 @@ stm is used to shut down DMA operations until a stimulus is received from the SR
 
 22
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1072,7 +1072,7 @@ node 109 connects dma nexus with 108, the, actual sram master., , supports passt
 
 ?cm shows how to define a high level function in this node; it's the operation to poll for a new command from the host.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 23
 
@@ -1095,7 +1095,7 @@ poll loops on testing io for writes from nodes 109, 111 or 010, returning to ?cm
 
 24
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1121,7 +1121,7 @@ Host 517.17 Host 517.17 Osc Out
 
 The Y2/4 devices are designed for ceramic resonators and/or crystals. Code in the package supports the ceramic resonator but our experience is that most lack the absolute accuracy demanded by most link partners. We have considered using the onboard oscillator only to start a crystal and then maintain the crystal at lower power by "dribbling" it at the node; this board is designed to permit such experimentation.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 25
 
@@ -1136,7 +1136,7 @@ This image shows an EVB001 with E-NET board installed and running. Note that the
 
 28
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1162,7 +1162,7 @@ Review block 200 to make sure you are not compiling any code for any of the node
 4.1.1 Block 772: Rx Node Internal Delay Setting
 As noted in the description of the F18 NIC code, there is an internal delay in node 117 that may need adjustment for reliable reception. The default value, 4, may require lengthening. Contact our hotline if you need assistance.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 29
 
@@ -1226,7 +1226,7 @@ When you are done editing block 9, type FLUSH RELOAD . Assuming all is well, the
 
 30
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1307,7 +1307,7 @@ Line 12: Uncomment by removing both parentheses and edit. The string following I
 
 Leave the rest alone until you have studied the TCP/IP package documentation.
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 31
 
@@ -1338,7 +1338,7 @@ Please contact our hotline for further assistance if needed, and please refer to
 
 32
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 AN007 A Bit-Banged 10baseT NIC
 
@@ -1440,7 +1440,7 @@ ELSE Notify THEN P_QUE ?QUE IF P_QUE @ 'bufr !
 
 Txgo EXIT THEN 0 txact ! ;
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
 33
 
@@ -1534,12 +1534,12 @@ DEPTH UNTIL OOPS TALLY NOD ;
 
 34
 
-Copyright© 2010-2014 GreenArrays, Inc. 11/05/14
+CopyrightÂ© 2010-2014 GreenArrays, Inc. 11/05/14
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN007 Revised 11/05/14
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -1551,6 +1551,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2014, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2014, GreenArrays, Incorporated
 
 

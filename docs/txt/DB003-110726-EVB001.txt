@@ -1,4 +1,4 @@
-[Derived from: ../../reference/greenarrays/DB003-110726-EVB001.compact.html]
+[Derived from: ../../reference/greenarrays/pdfs/DB003-110726-EVB001.pdf]
 EVB001 Evaluation Board for G144A12
 Document DB003
 Revised 26 July 2011
@@ -9,7 +9,7 @@ PRELIMINARY DATA SUBJECT TO CHANGE WITHOUT NOTICE
 PRELIMINARY DATA
 
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -21,7 +21,7 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Copyright � 2010-2011, GreenArrays, Incorporated
+Copyright © 2010-2011, GreenArrays, Incorporated
 2
 
 PRELIMINARY DATA
@@ -89,7 +89,7 @@ EVB001 Evaluation Board for G144A12
 
 1. Introduction
 This is the primary reference manual for the EVB001 Evaluation Board. With two GreenArrays G144A12 chips, peripherals sufficient for a complete software and hardware development environment, and a large prototyping area, this highly configurable board is intended to serve both engineers and programmers well in evaluating our chips in all stages of application development.
-Initially shipped with eForth in flash, this board is field upgradable with additional system software, such as polyFORTH�. In addition, our Application Notes will use this board as their default platform so that our customers may make immediate use of the hardware and software solutions published in those exercises.
+Initially shipped with eForth in flash, this board is field upgradable with additional system software, such as polyFORTH®. In addition, our Application Notes will use this board as their default platform so that our customers may make immediate use of the hardware and software solutions published in those exercises.
 1.1 Related Documents
 This book describes an application of GreenArray chips, in particular the GA144. In the interest of avoiding needless and often confusing redundancy, it is designed to be used in combination with other documents.
 The general characteristics and programming details for the F18A computers and I/O used in the GA144 are described in a separate document; please refer to F18A Technology Reference. The boot protocols supported by the chip are detailed in Boot Protocols for GreenArrays Chips. The configuration and electrical characteristics of the chip are documented in G144A12 Chip Reference. The current editions of these, along with many other relevant documents and application notes as well as the current edition of this document, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
@@ -97,7 +97,7 @@ The general characteristics and programming details for the F18A computers and I
 The data given herein are preliminary. The subject application is under development. Production data may be released in subsequent editions.
 1.3 Documentation Conventions
 1.3.1 Numbers
-Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing "hex" or by preceding the number with the lowercase letter "x". In colorForth coding examples, hexadecimal values are italicized and darkened.
+Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing “hex” or by preceding the number with the lowercase letter “x”. In colorForth coding examples, hexadecimal values are italicized and darkened.
 1.3.2 Node coordinates
 Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays are represented as seen from the top of the silicon die, which is normally the top of the chip package, oriented such that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as node 000. Thus, for a GA144 chip whose computers are configured in an array of 18 columns and 8 rows, the numbers of the nodes in the lower right, upper left, and upper right corners are 017, 700, and 717 respectively.
 1.3.3 Register names
@@ -142,8 +142,8 @@ USB PORT B
 
 SWITCHING REGULATOR
 1.8V BUS 2A MAX
-RESET 1 10K .01 UF
-RESET 0 10K .01 UF
+RESET 1 10KΩ .01 UF
+RESET 0 10KΩ .01 UF
 RTS
 PORT A FTDI CHIP
 PORT B FTDI CHIP
@@ -247,7 +247,7 @@ EVB001 Evaluation Board for G144A12
 You must ensure there is enough power for the intended use of the board. Minimal USB (80% of 440 mW) is sufficient for eForth/polyFORTH and many typical projects, but power requirements can exceed 400 mW for VDDC (core power) if enough F18A computers are busy simultaneously, and likewise VDDI (I/O power) can be greater than this depending on what you connect to the chips. Several power sources are available in the upper left corner of the board.
 
 3.1 Main 1.8v Bus
-Primary 1.8v power is supplied by an onboard fixed voltage regulator fed by an optional "wall wart" and up to three USB connectors. Each source is diode protected from the others so whichever one is supplying the highest voltage will be the one that is used at any given time. Each USB connector communicates with a USB host using an FTDI chip. The power available from each USB connection varies from a minimum of 100 mA at 4.4V to the maximum of 500 mA at 5V; the FTDI chips are configured to request permission to use the maximum to improve flexibility. An efficient (78%) switching regulator produces a maximum of 2A at 1.8V for the logic circuitry on the board.
+Primary 1.8v power is supplied by an onboard fixed voltage regulator fed by an optional “wall wart” and up to three USB connectors. Each source is diode protected from the others so whichever one is supplying the highest voltage will be the one that is used at any given time. Each USB connector communicates with a USB host using an FTDI chip. The power available from each USB connection varies from a minimum of 100 mA at 4.4V to the maximum of 500 mA at 5V; the FTDI chips are configured to request permission to use the maximum to improve flexibility. An efficient (≈78%) switching regulator produces a maximum of 2A at 1.8V for the logic circuitry on the board.
 
 The main 1.8v bus is used to power our side of the FTDI chips, the SPI flash, the Host chip's external SRAM, and the two logic chips used in SPI bus multiplexing. This bus is also the default source of VDDC, VDDI and VDDA for the Host and Target chips. Finally it is available to power the SD/MMC socket, the level shifter chips, and is routed for easy availability in the prototyping area.
 
@@ -599,8 +599,8 @@ EVB001 Evaluation Board for G144A12
 Although software being prepared for the evaluation board will be capable of taking advantage of a dual voltage MMC card for various purposes, the board layout is versatile enough to allow for development of code to access 3.3v SD cards as well. To take advantage of this capability, you must arrange to supply the SD socket with 3.3v power and construct the circuitry needed to communicate with it using 3.3v logic signals. All nine pins are available at the socket on J33 and J38, including two handhake lines, VDD , all four data lines, card-present and write-protect signals.
 7.6 Expanding the Prototyping Area
 As suggested above, the grid of holes on 0.1" centers facilitates the installation of female headers into which various expansion devices may be plugged.
-SchmartboardTM Products include small boards which can connect various surface mount parts to our prototyping area using 0.1" headers. This is considerably simpler and more likely to succeed than is "dead bugging" SMT components.
-As another example, by soldering double row female headers appropriately in the prototyping area, PC-104 boards may be connected to the evaluation board. For example, see WinSystems� Products which include prototyping boards that could simply enlarge the prototyping area, or peripheral boards that could be used with level shifters. Here is one possible placement of a 16-bit PC-104 connector and two views of a PC-104 board mounted on it:
+Schmartboard™ Products include small boards which can connect various surface mount parts to our prototyping area using 0.1" headers. This is considerably simpler and more likely to succeed than is "dead bugging" SMT components.
+As another example, by soldering double row female headers appropriately in the prototyping area, PC-104 boards may be connected to the evaluation board. For example, see WinSystems® Products which include prototyping boards that could simply enlarge the prototyping area, or peripheral boards that could be used with level shifters. Here is one possible placement of a 16-bit PC-104 connector and two views of a PC-104 board mounted on it:
 
 Prototyping Area
 
@@ -1551,7 +1551,7 @@ Revision History
 35
 
 For more information, visit www.GreenArrayChips.com
-� 2010-2011 GreenArrays, Incorporated. Document DB003-110726 Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
+© 2010-2011 GreenArrays, Incorporated. Document DB003-110726 Specifications are subject to change without notice. GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo are trademarks of GreenArrays, Inc. All other trademarks or registered trademarks are the property of their respective owners.
 
 GreenArrays, Inc.
 774 Mays Blvd #10 PMB 320 Incline Village, NV 89451

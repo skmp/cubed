@@ -1,4 +1,4 @@
-[Derived from: ../../reference/greenarrays/g144poster.A1.compact.html]
+[Derived from: ../../reference/greenarrays/pdfs/g144poster.A1.pdf]
 Pads 104 103 102 101 100 099 098 097 096 095 094 093 092 091 090 089 088 087 086 085 084 083 082 081 080 079
 
 001
@@ -1007,9 +1007,9 @@ name ; 02 jump to a red word, name
 
 name 03 call to a red word, name
 
-unext 04 jump r0 decrement r
+unext 04 jump r≠0 decrement r
 
-next 05 jump r0 decrement r
+next 05 jump r≠0 decrement r
 
 if 06 jump t=0
 
@@ -1109,6 +1109,6 @@ ga144 poster 20091212
 
 www.GreenArrayChips.com
 
-� 2009 GreenArrays, Inc.
+© 2009 GreenArrays, Inc.
 
 

@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AB006-171108-BRIDGE.compact.html]
-GreenArraysTM Application Brief AB006 Revised 11/08/17
+[Derived from: ../../reference/greenarrays/pdfs/AB006-171108-BRIDGE.pdf]
+GreenArrays™ Application Brief AB006 Revised 11/08/17
 
 Transparent Port Bridge
 Emulating a COM Port Connecting Two Chips

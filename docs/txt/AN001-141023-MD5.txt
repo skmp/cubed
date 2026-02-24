@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN001-141023-MD5.compact.html]
-GreenArArN0a01 MyD5s�
+[Derived from: ../../reference/greenarrays/pdfs/AN001-141023-MD5.pdf]
+GreenArArN0a01 MyD5s®
 Application Note AN001 Revised 10/23/14
 
 Implementing MD5 on a GA144
@@ -103,7 +103,7 @@ Application Interface ..........................................................
 
 6.
 
-Testing the MD5 Module using polyFORTH� ................................................................................... 16
+Testing the MD5 Module using polyFORTH® ................................................................................... 16
 
 6.1
 
@@ -123,11 +123,11 @@ There are four bitwise functions applied to the ABCD data. They are called f', g
 f'(X, Y, Z) = (X and Y) ior (not(X) and Z) g'(X, Y, Z) = (X and Z) ior (Y and not(Z)) h'(X, Y, Z) = (X xor Y) xor Z i'(X, Y, Z) = Y xor (X ior not(Z))
 Note that ior (inclusive or) and xor (exclusive or) are spelled out in order to be perfectly clear.
 Let abcd represent the current rotation of ABCD, DABC, CDAB, or BCDA. Let "function" stand for one of the four functions listed above. Using the other symbols also introduced above this is how the 64 operations for each message buffer will look:
-a := b + (rotate ( s, (a + function(bcd) + X(k) + T(i)))) We'll soon see how such an equation can be implemented as a cluster of F18 nodes.
+a := b + (rotate ( s, (a + function(bcd) + X(k) + T(i)))) We’ll soon see how such an equation can be implemented as a cluster of F18 nodes.
 
 2
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 2. Green Arrays Architecture
@@ -143,7 +143,7 @@ Now we've already split the high and low 16 bit word operations into separate ro
 2.3 Other Code and Data
 The other data buffers, ABCD and the message buffer, are smaller and can be in nodes that also contain code. One pair of nodes is pretty much dedicated to calculating the message buffer index, reading a word each from their buffers, and passing those words down the line to nodes that apply the MD5 algorithm. Since the rotation amount is the same for high word and low word, a single node can calculate this amount and pass it to both the high row and the low row. Similarly a single node buffers ABCD when a particular message block begins and adds that back in to the message digest at the end of that block's processing. One pair of nodes is pretty well occupied with the four bitwise functions but has room to also do a bit of addition before passing the sum off to another pair that handles resolving the carry, fetching and adding the constants from the lookup tables, and performing the 32 bit rotations.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 3
 
@@ -159,7 +159,7 @@ When it comes to addition or rotation you might think that propagating the carry
 
 4
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 4.2 Layout
@@ -172,14 +172,14 @@ In addition to the five pairs of nodes involved in the calculation of each round
 Another pair of nodes, 209 and 109, is added to the west in order to receive each octet of the message block, assemble them into 16 bit words and distribute those to the high and low buffer nodes. 109 receives, counts and passes on message octets, pads the message buffer at the end and gets the other nodes to start their processing. 209 is the application interface. It receives message octets, a negative number signalling end of message, from the outside world and presents the message digest to the outside world when the hash has finished. Each node begins by jumping to a neighbor, waiting to be told what to do. Node 209 jumps to node 208. This node starts a chain reaction by telling its neighbor to start, that neighbor tells others to start, each of those tells a neighbor to start until the application is up and running. When the hash is finished each node has returned to its neighbor waiting for instructions including 208, which jumps to the IDE or ganglion path which will be mentioned later. This way all the nodes used in the application can be reclaimed to do something else without having to reset the chip.
 For purposes of testing in softsim or the IDE, node 208 gets the hash started in 209 and feeds an octet test stream in to the application interface.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 5
 
 AN001 MD5
 
 5. Discussion of the details
-It's time to discuss the f18 code.
+It’s time to discuss the f18 code.
 
 5.1 Main Load Block
 
@@ -192,7 +192,7 @@ the 200 line works on the high words the 100 line works on the low words they co
 1020 list relocate host 32 fh load /west col if r--- ; then --l- ; /east col if --l- ; then r--- ; target md5 data
 215 +xy node high 4 fh load 40 115 +xy node low 6 fh load 40 const and adder and rotator 214 +xy node high 8 fh load 12 fh load 27 114 +xy node low 10 fh load 12 fh load 36 md5 213 +xy node high 14 fh load 3F 113 +xy node low 14 fh load 3F msg 212 +xy node high 0 org 16 fh load 39 112 +xy node low 0 org 16 fh load 39 rots 211 +xy node high 18 fh load 3B 111 +xy node low 20 fh load 3B entry point 210 +xy node high 22 fh load 1A 110 +xy node low 24 fh load 40 octet feeder 109 +xy node 26 fh load 40 209 +xy node 28 fh load 26 208 +xy node 30 fh load 24
 
-Starting with the main load block, note that the shadow screen on the left has a very simple block diagram with hints as to the functions and placement of each node in the application. The load block on the right begins by loading some tools which allow the direction ports to be addressed in a relocatable way. "fh" means "from here". 32 fh load causes block 1052 to be loaded. It defines words such as east, west, inward, outward, and +n which make the application easier to reposition in the array. Note that +xy is both commented out in 1020 and made a nop in 1052. It can be restored if the MD5 module needs to be moved.
+Starting with the main load block, note that the shadow screen on the left has a very simple block diagram with hints as to the functions and placement of each node in the application. The load block on the right begins by loading some tools which allow the direction ports to be addressed in a relocatable way. “fh" means "from here". 32 fh load causes block 1052 to be loaded. It defines words such as east, west, inward, outward, and +n which make the application easier to reposition in the array. Note that +xy is both commented out in 1020 and made a nop in 1052. It can be restored if the MD5 module needs to be moved.
 
 1052 list - relocating code +xy n-n -1 + 100 + ; inward up ; outward down ; col com @ 1 and drop ; west col if right ; then left ; east col if left ; then right ; -west east ; -east west ;
 The load block 1020 follows a pattern of declaring the node being programmed and then loading the source block(s) for
@@ -202,7 +202,7 @@ show as light gray italic here. They're used to learn the address at that point 
 
 6
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 
@@ -221,9 +221,9 @@ exit 0 34 209 break 3 3F 109 break
 
 Block 1022 contains initialization code for the application. This block can be loaded by softsim, or by the IDE loader or
 
-by the flasher to build a flash bootstream. Boot Descriptors are described in detail in section 5.5 of "DB004 arrayForth User's Manual".
+by the flasher to build a flash bootstream. Boot Descriptors are described in detail in section 5.5 of “DB004 arrayForth User’s Manual”.
 
-The word "break" though only works for softsim. It should be commented out (as shown with a preceding exit) when burning flash or running the IDE. "break" allows you to set breakpoints in softsim allowing you to run a program for thousands of steps if you like, stopping at exactly the point you're interested in looking at. The arguments to break are slot, address, node.
+The word “break” though only works for softsim. It should be commented out (as shown with a preceding exit) when burning flash or running the IDE. “break” allows you to set breakpoints in softsim allowing you to run a program for thousands of steps if you like, stopping at exactly the point you're interested in looking at. The arguments to break are slot, address, node.
 
 Note that blocks 1020 and 1022 are loaded in different contexts and each loads block 1052 in order to facilitate relocation. This is not redundant.
 
@@ -244,7 +244,7 @@ FFFA , 8771 , 6D9D , FDE5 , A4BE , 4BDE , F6BB , BEBF , 289B , EAA1 , D4EF , 488
 F429 , 432A , AB94 , FC93 , 655B , 8F0C , FFEF , 8584 , 6FA8 , FE2C , A301 , 4E08 , F753 , BD3A , 2AD7 , EB86 ,
 1026 list
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 7
 
@@ -272,7 +272,7 @@ The main program go first initalizes the A and B registers to point right and le
 
 8
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 
@@ -301,7 +301,7 @@ rotate shift right via +* and partner node to effect a 32 bit rotation
 
 rotate and +c are defined differently for the low partner. +c still does the addition. The carry accumulates in the high two bits of an 18 bit word, and we need it in the low two bits. We could have shifted right with 15 for 2/ unext ffff and. This takes less code space but a longer time to execute. Instead the carry was constructed by checking the top two bits one at a time. rotate is different only in that the high partner sends before receiving while the low partner receives before sending.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 9
 
@@ -321,11 +321,11 @@ The same code is compiled for both nodes 213 and 113. A temporary message digest
 
 The four md5 bitwise functions are then defined followed by pass and send which are used to pass data from west to east or just to send data to the east. Note that pass falls through into send. There are four rounds for each 64 octet message block. The word round first patches the current function into address 02e and yes, this is selfmodifying code. The code just barely fits into 64 words of RAM this way. Then round loops 16 times where it fetches the current hash values, sending the "B" hash value on to the right neighbor before executing the current function and adding it to the "A" hash value. This sum is sent to the east neighbor. Then the message fragment and rotation amount are received from the west and passed on to the east. The neighbor to the east does its calculations and sends a result back, which is fetched from the port and stored here in the temporary hash buffer. The hash buffer pointer in the A register is then incremented twice and kept within the range 0-3 by @+ drop @+ drop clip before moving on to the next step of this round. Note that the drops are commented out. The values are abandoned on the stack as nothing important lies below them on the (circular) stack.
 
-Back to the patching. In the word md5 you see phrases such as @p round f'. The @p is compiled into slot 0 with the call to round in slot 1. The next word in memory will contain a call to f'. This function call will not be executed here. It is simply data to be stored into address 2e where it will be executed later. Perhaps it would have been more clear if the f' were yellow rather than green. It's only a convention, not a requirement.
+Back to the patching. In the word md5 you see phrases such as @p round f'. The @p is compiled into slot 0 with the call to round in slot 1. The next word in memory will contain a call to f'. This function call will not be executed here. It is simply data to be stored into address 2e where it will be executed later. Perhaps it would have been more clear if the f’ were yellow rather than green. It’s only a convention, not a requirement.
 
 10
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 
@@ -352,7 +352,7 @@ Nodes 211 and 111 have very different functions. They should not be considered p
 
 which passes it to 214 where it is used. Also 211 passes the rotation amount down to node 112 which then passes it on to 114 via 112 and 113. The only function of node 111 during the 64 steps is as a wire, passing data from 211 to 112.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 11
 
@@ -388,7 +388,7 @@ The ten nodes mentioned so far implement the complete md5 algorithm for a single
 
 12
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 5.9 Getting a Hash Started
@@ -399,7 +399,7 @@ The first line of block 1042, labeled 211, is executed by node 211 in the port i
 Node 110 has a little more work to do than 210 did. It receives the 64 octets of a message buffer from node 109 and assembles them into the high and low 16 bit words of message chunks before sending those on to nodes 210 and 111, eventually to be stored in 212 and 112. The word code is identical to that already mentioned in node 210 and sets up similar port pumps in nodes 111 and 112.
 half does the work of assembling a 16 bit word from two octets, then sends it to the port passed as a parameter. The main program for this node, lows first starts node 210 running highs. Then it sets up the port pumps in nodes 111 and 112 before reading in octets from 109, assembling them into 16 bit words and sending those on to the high row and the low row. Its final act is to tell node 111 to run sums in order to add the new hash values to the old ones saved in node 111. prime is run remotely in order to "prime the pump", initializing the message buffer once at the beginning of a hash. pass is also run remotely at the end of a hash in order to help send the result back to the interface node, 209.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 13
 
@@ -428,7 +428,7 @@ digest is executed remotely by node 209 at the end of a hash in order to move th
 
 14
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 
@@ -449,31 +449,31 @@ Node 209 is the application interface node. It receives a message from outside a
 7 for +* unext pop a! ; md5/ 09 -1 !b 7 for @b swab ! next ; !hi n-n dup 7 for 2/ unext !lo n FF and !b ; md5 15 @ @ -1 . + -if dup ! ; then
 push 1 and if @ ahead * swap then loop @ !hi zif dup ! ; then * then !lo zif dup ! ; then loop ; 24
 
-Node 208 is called the snorkel interface. It is designed to be remotely operated by polyFORTH via a snorkel. More about this in the next section. For now note that it has three entry points for the beginning, middle, and end of a hash. An outside program such as the snorkel will call each of these words in turn, providing a stream of double octets along with "md5" which will be divided into single octets and passed into the md5 module via the interface at node 209. Whet the final octet has been received a negative number is sent to 209 to signal end of stream.
+Node 208 is called the snorkel interface. It is designed to be remotely operated by polyFORTH via a snorkel. More about this in the next section. For now note that it has three entry points for the beginning, middle, and end of a hash. An outside program such as the snorkel will call each of these words in turn, providing a stream of double octets along with “md5” which will be divided into single octets and passed into the md5 module via the interface at node 209. Whet the final octet has been received a negative number is sent to 209 to signal end of stream.
 
 1070 list softsim test md5 308 node 0 org start outward a! @p .. /md5 .. ! @ .. @p ! .. md5 .. adr 0 ! len 3 0 ! ab 6162 ! c 6300 ! @ .. @p ! .. md5/ .. 7 11/1 for @ unext .. 12 begin end 13
 
 Node 308 is added just for testing the application in softsim or via the IDE. A short message (abc) is fed to the snorkel interface node 208 after telling 209 to begin the application. It behaves just as a snorkel program would to deliver a message to be hashed.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 15
 
 AN001 MD5
-6. Testing the MD5 Module using polyFORTH�
+6. Testing the MD5 Module using polyFORTH®
 Now we have a module that seems to perform an MD5 hash on a particular test string provided by a custom arrayForth program. It would be nice to have a way to feed arbitrary strings to the MD5 module and compare results with known test vectors. For this purpose we will use polyFORTH, an interactive higher level language running as a virtual machine. See DB005 polyFORTH Reference Manual and DB006 polyFORTH Supplement for G144A12 for more information.
 The polyFORTH virtual machine communicates with the rest of the chip via the Snorkel and Ganglia. The Snorkel is a DMA (Direct Memory Access) virtual machine running in memory master node 207. A Snorkel program will stream code and/or data between memory and a port in node 207. In order to allow such code and data to reach other parts of the chip, the rest of the uncommitted nodes have Ganglion code in them. Ganglia are used to transport code/data along a path. When the path ends at an edge node with I/O pins, polyFORTH has access to those pins. If the path ends at a module interface node, as in the case of the MD5 module, polyFORTH can arrange to transport data to the module and read results back via DMA.
 A ganglion program is streamed into a ganglion node through the port shared by that node and the snorkel. Such a program begins with a focusing call to the shared port followed by a call to address x33 which is the entry point of the program in each ganglion node. This is followed by an encoded path, the number of words expected for a reply, and the number of words in the payload to follow. This is the total payload minus 1 expected to be streamed to this ganglion through the port shared with the snorkel. The snorkel controls exactly how much data is streamed and where in memory it comes from.
-You can familiarize yourself with the snorkel and ganglia by reading AN010 "The Snorkel Mark 1: A Programmable DMA Channel" and AN011 "Ganglia Mark 1: A Dynamic Message Routing Surface", both available on the Green Arrays Website.
+You can familiarize yourself with the snorkel and ganglia by reading AN010 “The Snorkel Mark 1: A Programmable DMA Channel” and AN011 “Ganglia Mark 1: A Dynamic Message Routing Surface”, both available on the Green Arrays Website.
 6.1 Initiating the MD5 Hash
-Block 132 in the listing below contains the polyFORTH code to initiate an MD5 hash. A snorkel program begins on line 10 with "CREATE <pgm". ":DOWN 2," compiles the 18 bit instruction to call the DOWN port, a focusing call. "o18 , 7 W, ( *) W," compiles the 18 bit output instruction for 8 18 bit words beginning at ( *) in memory. The ( *) is a comment which refers to the address of the ganglion program left on the stack in the beginning of line 8. The phrase at line 12, "i16 , 0 W, digest W," compiles a 16 bits in instruction which accepts 1 16 bit word from the port and places it at the address of the digest which was created in line 1. Finally "HERE FIN ," compiles the FIN instruction and remembers the address of the end of the program by leaving it on the stack.
-The last step in making a snorkel/ganglia program operable from polyFORTH is to write a word to be executed from polyFORTH that tells the snorkel what to do. In line 13 the word <MD5 compiles the address of <pgm followed by the address of the end of the program where FIN was compiled. +SNORK tells the snorkel to run this program and sDONE waits until the snorkel says it's finished.
+Block 132 in the listing below contains the polyFORTH code to initiate an MD5 hash. A snorkel program begins on line 10 with “CREATE <pgm”. “:DOWN 2,” compiles the 18 bit instruction to call the DOWN port, a focusing call. “o18 , 7 W, ( *) W,” compiles the 18 bit output instruction for 8 18 bit words beginning at ( *) in memory. The ( *) is a comment which refers to the address of the ganglion program left on the stack in the beginning of line 8. The phrase at line 12, “i16 , 0 W, digest W,” compiles a 16 bits in instruction which accepts 1 16 bit word from the port and places it at the address of the digest which was created in line 1. Finally “HERE FIN ,” compiles the FIN instruction and remembers the address of the end of the program by leaving it on the stack.
+The last step in making a snorkel/ganglia program operable from polyFORTH is to write a word to be executed from polyFORTH that tells the snorkel what to do. In line 13 the word <MD5 compiles the address of <pgm followed by the address of the end of the program where FIN was compiled. +SNORK tells the snorkel to run this program and sDONE waits until the snorkel says it’s finished.
 Blocks 133 and 134 have similar constructs for the middle and end parts of an MD5 hash. Notice that in block 133 the addresses for some of the parameters are remembered as constants so that they can be patched later, making this versatile enough for any reasonable length sequence of octets.
-In order to determine how much time it takes to run an MD5 hash with this module we use the polyFORTH words COUNTER and TIMER. COUNTER reads a millisecond counter and leaves a double number on the stack. TIMER reads the counter again, computes the difference and displays the number of milliseconds that have elapsed. We have attempted to measure the TARE, the amount of time wasted getting the timer value out of the way to let the MD5 word run. See the word TARE in block 134, line 10. Inside the TEST word, line 11, we need to subtract the calculated TARE using D+, push it onto the return stack with 2>r and finally pop it off the return stack with 2R>. We don't want to include this time in the measurement so we use the word TARE to measure the time it takes to execute D+, 2>R, and 2R> and negate that. In TEST we can add the negated tare and push it out of the way, run MD5, pop it back to the stack and display the result with TIMER. The REPORT then shows the MD5 hash in standard hex format.
+In order to determine how much time it takes to run an MD5 hash with this module we use the polyFORTH words COUNTER and TIMER. COUNTER reads a millisecond counter and leaves a double number on the stack. TIMER reads the counter again, computes the difference and displays the number of milliseconds that have elapsed. We have attempted to measure the TARE, the amount of time wasted getting the timer value out of the way to let the MD5 word run. See the word TARE in block 134, line 10. Inside the TEST word, line 11, we need to subtract the calculated TARE using D+, push it onto the return stack with 2>r and finally pop it off the return stack with 2R>. We don’t want to include this time in the measurement so we use the word TARE to measure the time it takes to execute D+, 2>R, and 2R> and negate that. In TEST we can add the negated tare and push it out of the way, run MD5, pop it back to the stack and display the result with TIMER. The REPORT then shows the MD5 hash in standard hex format.
 
 16
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 AN001 MD5
 
@@ -531,17 +531,17 @@ Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
 135 0 ( test vectors) 1 : VECTOR CREATE 34 STRING DOES R> COUNT ; 2 VECTOR a a" 3 VECTOR abc abc" 4 VECTOR md message digest" 5 VECTOR abc.. abcdefghijklmnopqrstuvwxyz" 6 7 : BIGTEST ( n) 1- >R COUNTER SUSPEND <MD5 8 R> FOR 0 25000 >MD5 NEXT 9 MD5> TIMER REPORT ;
 10 : MILLION 40 BIGTEST ; 11 : SECONDS ( n) FOR MILLION NEXT ; 12 13 14 15
 
-Block 135 shows some test vectors taken from the official MD5 RFC document (RFC 1321). The word VECTOR creates a named string. That string can be fed to the TEST word from block 134 and the MD5 hash for that string will be printed along with the time it took for it to be computed. Finally the word BIGTEST runs a hash of 250,000 octets in SRAM repeated "n" times to make it last long enough to be interesting for timing and power measurement purposes. The word MILLION runs BIGTEST 40 times and tells us how long it takes to hash a million octets. In one test run an MD5 hash of a million octets took about 900,000 microseconds, just under a second.
+Block 135 shows some test vectors taken from the official MD5 RFC document (RFC 1321). The word VECTOR creates a named string. That string can be fed to the TEST word from block 134 and the MD5 hash for that string will be printed along with the time it took for it to be computed. Finally the word BIGTEST runs a hash of 250,000 octets in SRAM repeated “n” times to make it last long enough to be interesting for timing and power measurement purposes. The word MILLION runs BIGTEST 40 times and tells us how long it takes to hash a million octets. In one test run an MD5 hash of a million octets took about 900,000 microseconds, just under a second.
 This benchmark can be compared with the same sort of thing run on other systems.
 
-Copyright� 2010-2013 GreenArrays, Inc. 10/23/14
+Copyright© 2010-2013 GreenArrays, Inc. 10/23/14
 
 17
 
-GreenArrays�
+GreenArrays®
 Application Note AN001 Revised 10/23/14
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -553,6 +553,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright � 2010-2013, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2013, GreenArrays, Incorporated
 
 

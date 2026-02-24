@@ -1,4 +1,4 @@
-[Derived from: ../../reference/greenarrays/PCBCOM-190527.compact.html]
+[Derived from: ../../reference/greenarrays/pdfs/PCBCOM-190527.pdf]
 PCBCOM - Commissioning GA PCBs
 
 PROPRIETARY
@@ -12,16 +12,16 @@ Instructions to Staff for Inspection, Configuration, Testing & Packing our Produ
 Rev 0h applies to all layers on the fabricated boards. 0ha is the final revision of paste layer for assembly. Serial 201-300 built in Apr-May 2019 at Advanced Assembly. Perform the steps called out on the Traveler form, as follows:
 1.1 Pre-Shipment Steps
 These actions are taken en masse to prepare boards for same-day shipment. Materials to have on hand are:
-· These instructions and a copy of AN021, Getting Started with Eval Board EVB002, for parts bag list & default jumpers.
-· Anti-static work area. Wear wrist strap throughout these procedures.
-· Voltmeter.
-· Serialized quarter-page Traveler forms in forms/shipping: EVB002 Inspection Tags.docx.
-· Serialized bag labels in forms/shipping: avery5160x30-EVB002-p.doc.
-· P-touch adhesive serial numbers.
-· Untested / unopened eval boards.
-· Bag of jumpers (each board will use 32 of these.)
-· Computer with current release arrayForth-3, and three USB cables.
-· Optional Wall-Wart set for 5v. If using a Wall Wart to power this board using ethernet drivers powered from J41, the wall wart should not be supplying more than 5v after the diode drop, as measured at J41.
+â€¢ These instructions and a copy of AN021, Getting Started with Eval Board EVB002, for parts bag list & default jumpers.
+â€¢ Anti-static work area. Wear wrist strap throughout these procedures.
+â€¢ Voltmeter.
+â€¢ Serialized quarter-page Traveler forms in forms/shipping: EVB002 Inspection Tags.docx.
+â€¢ Serialized bag labels in forms/shipping: avery5160x30-EVB002-p.doc.
+â€¢ P-touch adhesive serial numbers.
+â€¢ Untested / unopened eval boards.
+â€¢ Bag of jumpers (each board will use 32 of these.)
+â€¢ Computer with current release arrayForth-3, and three USB cables.
+â€¢ Optional Wall-Wart set for 5v. If using a Wall Wart to power this board using ethernet drivers powered from J41, the wall wart should not be supplying more than 5v after the diode drop, as measured at J41.
 As the following steps are taken, initial the completion of each on the traveler form.
 1.1.1 Serialize Board & Bag
 Select the next pre-serialized Traveler form. Using label from P-touch printer, put same serial number in lower left corner of board. Select an antistatic bubble envelope bag and apply a bag label with the same serial number.
@@ -30,7 +30,7 @@ Plug in USB port A, noting the assigned COM port number, and use voltmeter to me
 1.1.3 Install Default Jumpers.
 Refer to 1.2.1 in AN021 and install jumpers as specified. Watch out for jumpers with missing metal contacts inside; we have found more than a few of these. If you don't feel resistance when inserting the jumper, double check. Include the long yellow jumper wire between J41 & J76 temporarily.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -60,7 +60,7 @@ Perform the following steps for each of the three Eval Board USB ports in the or
 7. Unplug the USB cable from this port.
 When you have completed the above steps for each of the three ports, use three USB cables to plug ports A, B and C in, waiting to see the COM port numbers assigned them in Device Manager. These will be three new COM port numbers, not the same as those you saw above; when Windows is correctly configured, our Serial Numbers are used to identify the devices so that the
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -84,20 +84,20 @@ After both chips are done, type <a> AUTOTEST in sF. Initial the box when the sta
 Using sF, edit block CONFIG so that A-COM has the correct port number for USB port A and edit block SERIAL to use the correct port number for USB port B. If you already have AFORTH loaded, reload it by saying RELOAD then HI AFORTH .
 Ensure no-boot jumper J26 and the USB reset enable J20:1-3 are installed on the EVB002.
 In sF, type:
-· If this system has been used for general chip development, STOCK LOAD for standard object.
-· 2205 LOAD to reset the EVB002 and send a serial boot stream for polyFORTH. ?CLK and ?ETH don't matter here.
-· Type SERIAL LOAD PLUG .
+â€¢ If this system has been used for general chip development, STOCK LOAD for standard object.
+â€¢ 2205 LOAD to reset the EVB002 and send a serial boot stream for polyFORTH. ?CLK and ?ETH don't matter here.
+â€¢ Type SERIAL LOAD PLUG .
 In terminal emulator, type:
-· Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
-· 20 DRIVE HI
+â€¢ Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
+â€¢ 20 DRIVE HI
 Type 261 LOAD to compile the extended memory tests and then run each of these tests by typing its name:
-· HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open high order address lines.
-· ?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
-· !ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
-· ?ALL simply replies ok if the pattern checks out.
+â€¢ HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open high order address lines.
+â€¢ ?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
+â€¢ !ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
+â€¢ ?ALL simply replies ok if the pattern checks out.
 Initial the box if and only if all the above occurs as expected. Leave aF-3 sitting as is for use in the next step.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -111,22 +111,22 @@ PROPRIETARY
 
 1.1.9 Install polyFORTH in flash with arrayForth-3
 If polyFORTH is not already running on the EVB002 under test, repeat the above steps through 20 DRIVE HI . Otherwise just pick up below: In terminal emulator, type:
-· AFORTH
-· If this is not a vanilla system, you may need STOCK LOAD for standard object.
-· Check block 2211 for ?CLK = 2 and ?ETH = 1. 2211 LOAD WRITE-FLASH
-· AT MINIMUM, WRITE polyFORTH NUCLEUS TO FLASH: BULK LOAD 0 DRIVE 24000 0 9 BLOCKS 0 24000 9 MATCHES
-· OPTIONALLY, WRITE ONE OR MORE UNITS OF SOURCE: BULK LOAD 0 DRIVE 24000 0 4800 BLOCKS 0 24000 4800 MATCHES
+â€¢ AFORTH
+â€¢ If this is not a vanilla system, you may need STOCK LOAD for standard object.
+â€¢ Check block 2211 for ?CLK = 2 and ?ETH = 1. 2211 LOAD WRITE-FLASH
+â€¢ AT MINIMUM, WRITE polyFORTH NUCLEUS TO FLASH: BULK LOAD 0 DRIVE 24000 0 9 BLOCKS 0 24000 9 MATCHES
+â€¢ OPTIONALLY, WRITE ONE OR MORE UNITS OF SOURCE: BULK LOAD 0 DRIVE 24000 0 4800 BLOCKS 0 24000 4800 MATCHES
 Remove EVB002 no-boot jumper J26 and hit the reset button nearest front edge of the board.
-· Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
-· 20 DRIVE HI (or simply HI if 4800 blocks copied to flash above) You are now running from flash boot; initial the box.
+â€¢ Hit space bar to autobaud the EVB002, expect to see pF/G144 ID line, followed by hi .
+â€¢ 20 DRIVE HI (or simply HI if â‰¥4800 blocks copied to flash above) You are now running from flash boot; initial the box.
 1.1.10 Configure Ethernet
 Connect the board to a switch capable of negotiating 10baseT full duplex (our software defined NIC requires this). After a short while the link should come up, reflected usually by LEDs on the switch. If the link does not come up, something is very wrong and until it's been debugged you will not be able to complete this step. Edit block 559 as follows (instructions for use in GreenArrays Cheyenne office):
-· Connect the board to a switch capable of negotiating 10baseT full duplex (our software defined NIC requires this). After a short while the link should come up, reflected usually by LEDs on the switch. If the link does not come up, something is very wrong and until it's been debugged you will not be able to complete this step.
-· Set S/N to the board's serial number, important so this board has an unique MAC address.
-· Verify the IP address in the INET line is the one reserved for testing evaluation boards. In Cheyenne, this address is 192.88.236.76 (uut.owl-fort.com).
+â€¢ Connect the board to a switch capable of negotiating 10baseT full duplex (our software defined NIC requires this). After a short while the link should come up, reflected usually by LEDs on the switch. If the link does not come up, something is very wrong and until it's been debugged you will not be able to complete this step.
+â€¢ Set S/N to the board's serial number, important so this board has an unique MAC address.
+â€¢ Verify the IP address in the INET line is the one reserved for testing evaluation boards. In Cheyenne, this address is 192.88.236.76 (uut.owl-fort.com).
 Check block 540 for time server address of 192.88.236.6 Edit block 9 to select Ethernet crystal as clock source (Change 1 to 0 at start of line 8, 0 to 1 at start of line 9.)
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -139,13 +139,13 @@ PROPRIETARY
 5/27/19
 
 1.1.11 Test/Exercise Ethernet
-· Connect the board to a switch as above if not already done.
+â€¢ Connect the board to a switch as above if not already done.
 
-· RELOAD or reset, boot and say HI (on whichever drive you edited when configuring).
+â€¢ RELOAD or reset, boot and say HI (on whichever drive you edited when configuring).
 
-· ETHER LOAD which takes a while. Ideally you will see a line indicating that the clock has been set.
+â€¢ ETHER LOAD which takes a while. Ideally you will see a line indicating that the clock has been set.
 
-· .SUMM to display counts. There should be both incoming and outgoing traffic with no Ethernet layer errors.
+â€¢ .SUMM to display counts. There should be both incoming and outgoing traffic with no Ethernet layer errors.
 
 .SUMM
 
@@ -253,7 +253,7 @@ Errs -Forwd>
 
 0
 
-· Try a PING or two:
+â€¢ Try a PING or two:
 
 PING 192.88.236.1 PING Redefined Pinging [192.88.236.1] with 32 bytes of data: Reply from [192.88.236.1]: bytes=32 time=6883.2 us TTL=255 Reply from [192.88.236.1]: bytes=32 time=6816.1 us TTL=255 Reply from [192.88.236.1]: bytes=32 time=6816.5 us TTL=255 Reply from [192.88.236.1]: bytes=32 time=6816.9 us TTL=255
 If you have something else to do for a while, leave the board running and check .SUMM again later. Watch for errors in .SUMM or "flapping" of link status. If you see either, don't initial this box but refer the board to Greg.
@@ -263,7 +263,7 @@ Re-insert J26 so that flash will not boot on reset. Remove the temporary long ye
 
 The board is now ready to await shipment. Insert the board and the traveler into the antistatic bubble envelope bag, ensuring that the same serial number is on all three items, leave the bag unsealed, and place it in the carton of boards ready to ship.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -277,8 +277,8 @@ PROPRIETARY
 
 1.2 Shipping Day Steps
 Materials to have on hand are:
-· As many boards, with travelers in unsealed bags, as you plan to ship. · One bagged USB cable for each board. · One parts bag for each board. See AN021 section 3.1 for a list of what should be in the bag. · Anti-static work area. Wear wrist strap throughout these procedures. · Tape gun for sealing boxes. · For each single board going to US, the following:
-o One small flat rate box o One 3M plastic parts list envelope o One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc. o One printed copy of AN021. · For multiple-board US shipments substitute a medium flat rate box. · For each foreign shipment, the following: o One medium flat rate box o One 3M plastic parts list envelope o One USPS plastic external shipping label envelope o One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc. o One printed copy of AN021. o Bubblepack or other material as needed so it will not rattle.
+â€¢ As many boards, with travelers in unsealed bags, as you plan to ship. â€¢ One bagged USB cable for each board. â€¢ One parts bag for each board. See AN021 section 3.1 for a list of what should be in the bag. â€¢ Anti-static work area. Wear wrist strap throughout these procedures. â€¢ Tape gun for sealing boxes. â€¢ For each single board going to US, the following:
+o One small flat rate box o One 3M plastic parts list envelope o One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc. o One printed copy of AN021. â€¢ For multiple-board US shipments substitute a medium flat rate box. â€¢ For each foreign shipment, the following: o One medium flat rate box o One 3M plastic parts list envelope o One USPS plastic external shipping label envelope o One serialized box label in forms/shipping: avery5162x14-EVB002-p.doc. o One printed copy of AN021. o Bubblepack or other material as needed so it will not rattle.
 As the following steps are taken, initial the completion of each on the traveler form. This will require cheating on the last couple of steps :)
 1.2.1 Visual Inspection & Bag
 Remove board and traveler from bag. Make sure serial numbers match on all three items. Check that traveler shows finished down to this step. Then examine the board visually, particularly giving attention to correct settings of all jumpers. When satisfied, insert board (but not traveler) in bag and seal; initial the box on traveler form.
@@ -286,15 +286,15 @@ Remove board and traveler from bag. Make sure serial numbers match on all three 
 Stack a USB cable in its own bag, other parts in their own bag, and a copy of AN021 with the bagged board and initial.
 1.2.3 Pack For Shipment
 Assemble and tape box as appropriate, then stuff contents:
-· For small boxes, insert all three bagged items with no packing material. Slide quarter folded AN021 in.
-· For medium boxes, pack the three bagged items with packing material so the box won't rattle. Insert half folded AN021.
+â€¢ For small boxes, insert all three bagged items with no packing material. Slide quarter folded AN021 in.
+â€¢ For medium boxes, pack the three bagged items with packing material so the box won't rattle. Insert half folded AN021.
 Apply serialized box label(s) as appropriate; on end of small box, on side of medium. Initial traveler.
 1.2.4 Print & Apply Commercial Invoice
 Fold commercial invoices and insert in 3M bag (1 copy if domestic, 3 copies if foreign.) Stick bag to bottom of small box, side of medium. Initial traveler. Also initial the next step, put traveler in box, and seal the box.
 1.2.5 Print & Apply Shipping Label
-For domestic shipment the ½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four copies of the ½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
+For domestic shipment the Â½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four copies of the Â½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -310,15 +310,15 @@ PROPRIETARY
 Serial 0-100 did not have the GP LEDs D12-15 populated. Serial 101-200 added amber LEDs that may be driven high by pins. In either case, follow the steps called out on the Traveler form, as follows
 2.1 Pre-Shipment Steps
 These actions are taken en masse to prepare boards for same-day shipment. Materials to have on hand are:
-· These instructions and a copy of AN004, Getting Started with Eval Board.
-· Anti-static work area. Wear wrist strap throughout these procedures.
-· Voltmeter.
-· Serialized quarter-page Traveler forms in forms/shipping: EVB001 Inspection Tags.docx.
-· Serialized bag labels in forms/shipping: avery5160x30-EVB001-p.doc.
-· P-touch adhesive serial numbers.
-· Untested / unopened eval boards.
-· Bag of jumpers (each board will use 28 of these.)
-· Computer with current release arrayForth and three USB cables.
+â€¢ These instructions and a copy of AN004, Getting Started with Eval Board.
+â€¢ Anti-static work area. Wear wrist strap throughout these procedures.
+â€¢ Voltmeter.
+â€¢ Serialized quarter-page Traveler forms in forms/shipping: EVB001 Inspection Tags.docx.
+â€¢ Serialized bag labels in forms/shipping: avery5160x30-EVB001-p.doc.
+â€¢ P-touch adhesive serial numbers.
+â€¢ Untested / unopened eval boards.
+â€¢ Bag of jumpers (each board will use 28 of these.)
+â€¢ Computer with current release arrayForth and three USB cables.
 As the following steps are taken, initial the completion of each on the traveler form.
 2.1.1 Serialize Board & Bag
 Select the next pre-serialized Traveler form. Using label from P-touch printer, put same serial number in lower left corner of board. Select an antistatic bubble envelope bag and apply a bag label with the same serial number.
@@ -333,7 +333,7 @@ On windows boxes, you will gain six more COM ports for each board you test, and 
 Your machine should have the FTDI VCP drivers installed for general COM port use by arrayForth and by sF-NT. At the time of this writing, the latest version was 2.08.30 for windows, released 7/12/13 or 8/01/13.
 You will also need to install the ft_prog utility which is available in the GA SupSW (supported software) repository. It may be obtained from http://www.ftdichip.com website; as of the time of this writing, it could be found in the FTDI menu structure at support / utlities. We have used versions 2.2 and 2.6.8 in the past. The latest version at the time of this writing is 2.8.2.0. This
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -361,7 +361,7 @@ You still aren't done yet. Now you will need to set advanced port settings for e
 2.1.5 Host Chip Self-Test
 In arrayForth, type <a> selftest where <a> is the COM port number for port A. Initial the box when the selftest status is ok!
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -383,10 +383,10 @@ Run the "Terminal Emulator" (sF-NT), say HI and then edit the block SERIAL to us
 Once the program is in flash, type PLUG and hit the reset button on the eval board. Hit the space bar on the terminal emulator to allow polyFORTH to autobaud, and expect to see a pf/G144 version ID line followed by hi . Respond to this with HI . After a while expect to see a G144A12 polyFORTH development system ID screen and ok as the last thing displayed. Initial the box when this has happened.
 2.1.9 Extended SRAM tests
 Type 261 LOAD to compile the extended memory tests and then run each of these tests by typing its name:
-· HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open high order address lines.
-· ?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
-· !ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
-· ?ALL simply replies ok if the pattern checks out.
+â€¢ HEX .PAGES shows 8 words starting at each consecutive 64k words of external SRAM. Scan down this list looking for any lines that seem identical. There should be none. If any exist that is a probable failure implying shorted or open high order address lines.
+â€¢ ?LOW will simply reply ok if the X@ function is working correctly for the low order 64k words of SRAM.
+â€¢ !ALL simply replies ok after writing a pattern into all of the 2 MB RAM above the first 64k words.
+â€¢ ?ALL simply replies ok if the pattern checks out.
 Initial the box if and only if all the above occurs as expected. Leave sF-NT sitting as is for use in the next step.
 2.1.10 Install eForth in Flash
 On the same instance of arrayForth as you employed in 1.1.8 above (or a new one with the correct a-com value if you had closed the instance), type 1190 load and follow instructions. Initial the box after "checking nucleus successful."
@@ -396,7 +396,7 @@ Once it has fully installed, hit reset on the eval board and type a space on the
 Re-insert J26 so that flash will not boot on reset. Initial the box.
 The board is now ready to await shipment. Insert the board and the traveler into the antistatic bubble envelope bag, ensuring that the same serial number is on all three items, leave the bag unsealed, and place it in the carton of boards ready to ship.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -409,7 +409,7 @@ PROPRIETARY
 5/27/19
 
 2.2 Shipping Day Steps
-Materials to have on hand are: · As many boards, with travelers in unsealed bags, as you plan to ship. · One bagged USB cable for each board. · One parts bag for each board. See AN004 section 3.1 for a list of what should be in the bag. · Anti-static work area. Wear wrist strap throughout these procedures. · Tape gun for sealing boxes. · For each single board going to US, the following: o One small flat rate box o One 3M plastic parts list envelope o One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc. o One printed copy of AN004. · For multiple-board US shipments substitute a medium flat rate box. · For each foreign shipment, the following: o One medium flat rate box o One 3M plastic parts list envelope o One USPS plastic external shipping label envelope o One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc. o One printed copy of AN004. o Bubblepack or other material as needed so it will not rattle.
+Materials to have on hand are: â€¢ As many boards, with travelers in unsealed bags, as you plan to ship. â€¢ One bagged USB cable for each board. â€¢ One parts bag for each board. See AN004 section 3.1 for a list of what should be in the bag. â€¢ Anti-static work area. Wear wrist strap throughout these procedures. â€¢ Tape gun for sealing boxes. â€¢ For each single board going to US, the following: o One small flat rate box o One 3M plastic parts list envelope o One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc. o One printed copy of AN004. â€¢ For multiple-board US shipments substitute a medium flat rate box. â€¢ For each foreign shipment, the following: o One medium flat rate box o One 3M plastic parts list envelope o One USPS plastic external shipping label envelope o One serialized box label in forms/shipping: avery5162x14-EVB001-p.doc. o One printed copy of AN004. o Bubblepack or other material as needed so it will not rattle.
 As the following steps are taken, initial the completion of each on the traveler form. This will require cheating on the last couple of steps :)
 2.2.1 Visual Inspection & Bag
 Remove board and traveler from bag. Make sure serial numbers match on all three items. Check that traveler shows finished down to this step. Then examine the board visually, particularly giving attention to correct settings of all jumpers. When satisfied, insert board (but not traveler) in bag and seal; initial the box on traveler form.
@@ -418,7 +418,7 @@ Stack a USB cable and parts bag with the bagged board and initial.
 2.2.3 Pack For Shipment
 Assemble and tape box as appropriate, then stuff contents: For small boxes, insert all three bagged items with no packing material. Slide quarter folded AN004 in. For medium boxes, pack the three bagged items with packing material so the box won't rattle. Insert half folded AN004. Apply serialized box label(s) as appropriate; on end of small box, on side of medium. Initial traveler.
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 
@@ -433,11 +433,11 @@ PROPRIETARY
 2.2.4 Print & Apply Commercial Invoice
 Fold commercial invoices and insert in 3M bag (1 copy if domestic, 3 copies if foreign.) Stick bag to bottom of small box, side of medium. Initial traveler. Also initial the next step, put traveler in box, and seal the box.
 2.2.5 Print & Apply Shipping Label
-For domestic shipment the ½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four copies of the ½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
+For domestic shipment the Â½ page self-adhesive label goes directly on the top of the box, either size. For foreign shipment four copies of the Â½ page foreign papers go into a USPS plastic envelope that is then attached to top of box.
 3. Ethernet Boards for EVB001
 xxx
 
-© GreenArrays, Inc.
+Â© GreenArrays, Inc.
 
 Printed 5/27/19 06:12
 

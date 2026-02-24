@@ -1,11 +1,11 @@
-[Derived from: ../../reference/greenarrays/AN016-141111-DCMOTOR.compact.html]
-GreenArraysÆ
+[Derived from: ../../reference/greenarrays/pdfs/AN016-141111-DCMOTOR.pdf]
+GreenArrays¬Æ
 AN016 Incremental PID Controller for a Brushed DC Motor
 Application Note AN016 Revised 11/11/14
 Incremental PID Controller for a Brushed DC Motor
-This paper describes how to control speed of a brushed DC motor equipped with an optical encoder using a PID controller in a closed loop system. The theory of regulation is well described in literature. Here we demonstrate suitability of GA144 chip for such a task in a practical application. The text also gives different examples of programming techniques and problem solutions such as double-precision and fractional arithmetic, custom Ganglion messaging and digital signal filtering. The work described herein is that of Daniel Kaln˝.
+This paper describes how to control speed of a brushed DC motor equipped with an optical encoder using a PID controller in a closed loop system. The theory of regulation is well described in literature. Here we demonstrate suitability of GA144 chip for such a task in a practical application. The text also gives different examples of programming techniques and problem solutions such as double-precision and fractional arithmetic, custom Ganglion messaging and digital signal filtering. The work described herein is that of Daniel Kaln√Ω.
 Related Documents
-AN011: Ganglia Mark 1 AN010: Snorkel Mark 1 DB004: arrayForthÆ User's Manual DB006: polyFORTHÆ Supplement for G144A12
+AN011: Ganglia Mark 1 AN010: Snorkel Mark 1 DB004: arrayForth¬Æ User's Manual DB006: polyFORTH¬Æ Supplement for G144A12
 Contents
 1. Introduction ............................................................................................ 2 2. arrayForth Implementation ..................................................................... 3
 2.1 Edge Detection and Exponential Moving Average Filter ................................................... 3 2.2 PWM Generator, Timer and Data Relay ........................................................................... 4 2.3 PID Controller and Interface to polyFORTH....................................................................... 5 2.4 Odometer ......................................................................................................................... 6
@@ -27,22 +27,22 @@ e(t) at time t as a difference between the desired setpoint w(t) of the controll
 
 P
 
- ()
+Ì†µÌ∞æÌ†µÌ±É Ì†µÌ±í(Ì†µÌ±°)
 
 and the measured process variable y(t) according to the expression:
-() = () - ()
+Ì†µÌ±í(Ì†µÌ±°) = Ì†µÌ±§(Ì†µÌ±°) ‚àí Ì†µÌ±¶(Ì†µÌ±°)
 
--  e(t)
+- ÔÅì e(t)
 +
 
-I 
+I Ì†µÌ∞æÌ†µÌ∞º
 
- 0
+Ì†µÌ±° 0
 
-()
+Ì†µÌ±í(Ì†µÌºè)Ì†µÌ±ëÌ†µÌºè
 
 +
-+  u(t)
++ ÔÅì u(t)
 +
 
 process
@@ -53,49 +53,49 @@ w(t)
 
 The PID controller then calculates the control function u(t) by summing up the proportional, integral and derivative terms:
 
-D 
+D Ì†µÌ∞æÌ†µÌ∞∑
 
- 
+Ì†µÌ±ë Ì†µÌ±ëÌ†µÌ±°
 
-()
+Ì†µÌ±í(Ì†µÌ±°)
 
-
- () = P() + I  () + D  ()
+Ì†µÌ±°
+Ì†µÌ±ë Ì†µÌ±¢(Ì†µÌ±°) = Ì†µÌ∞æPÌ†µÌ±í(Ì†µÌ±°) + Ì†µÌ∞æI ‚à´ Ì†µÌ±í(Ì†µÌºè)Ì†µÌ±ëÌ†µÌºè + Ì†µÌ∞æD Ì†µÌ±ëÌ†µÌ±° Ì†µÌ±í(Ì†µÌ±°)
 0
 
 where KP, KI and KD are adjustable parameters corresponding to proportional, integral and derivative terms, respectively.
 
 For a discrete system, where measurement of the process variable is taken at evenly spaced time intervals T, the PID equation can be replaced by an equation:
 
-
-() = P() + I  () + D(() - ( - 1))
-=0
+Ì†µÌ±ò
+Ì†µÌ±¢(Ì†µÌ±ò) = Ì†µÌ∞æPÌ†µÌ±í(Ì†µÌ±ò) + Ì†µÌ∞æI ‚àë Ì†µÌ±í(Ì†µÌ±ñ) + Ì†µÌ∞æD(Ì†µÌ±í(Ì†µÌ±ò) ‚àí Ì†µÌ±í(Ì†µÌ±ò ‚àí 1))
+Ì†µÌ±ñ=0
 
 where k is the k-th interval T. In this equation the integral term is replaced by a summation and the derivative term is replaced by a difference between the e(k), the error at interval k and e(k-1), the error at the preceding interval k-1.
 
-The PID controller described above is a positional type of controller. For motor control an incremental (or velocity) PID controller is more suitable. The incremental controller does not calculate the current value of u(k); instead its increment u(k) with respect to the last value is calculated. Thus, the incremental PID controller is defined as:
+The PID controller described above is a positional type of controller. For motor control an incremental (or velocity) PID controller is more suitable. The incremental controller does not calculate the current value of u(k); instead its increment ÔÅÑu(k) with respect to the last value is calculated. Thus, the incremental PID controller is defined as:
 
-() = () - ( - 1) = 0() + 1( - 1) + 2( - 2)
+‚àÜÌ†µÌ±¢(Ì†µÌ±ò) = Ì†µÌ±¢(Ì†µÌ±ò) ‚àí Ì†µÌ±¢(Ì†µÌ±ò ‚àí 1) = Ì†µÌ±û0Ì†µÌ±í(Ì†µÌ±ò) + Ì†µÌ±û1Ì†µÌ±í(Ì†µÌ±ò ‚àí 1) + Ì†µÌ±û2Ì†µÌ±í(Ì†µÌ±ò ‚àí 2)
 
 The parameters q0, q1, and q2 are given according to the following expressions:
 
-0 = P + I + D
+Ì†µÌ±û0 = Ì†µÌ∞æP + Ì†µÌ∞æI + Ì†µÌ∞æD
 
-1 = - - 2D
+Ì†µÌ±û1 = ‚àíÌ†µÌ∞æÌ†µÌ±É ‚àí 2Ì†µÌ∞æD
 
-2 = D
+Ì†µÌ±û2 = Ì†µÌ∞æD
 
-In order to implement the incremental PID controller, it is sufficient to keep in memory the three most recent errors and the accumulated control variable u. The calculation of the increment u(k) is achieved with three multiplications and summation of the results.
+In order to implement the incremental PID controller, it is sufficient to keep in memory the three most recent errors and the accumulated control variable u. The calculation of the increment ÔÅÑu(k) is achieved with three multiplications and summation of the results.
 
 2
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
 AN016 Incremental PID Controller for a Brushed DC Motor
 
 For the purpose of this application note, the discrete incremental PID algorithm has been modified. First, the error is not calculated at evenly spaced time intervals. Instead, the distance between encoder wheel slits is constant and the time component is provided by a free running counter. As a consequence, the error is calculated according to the expression:
-() = () - ()
-where y(k) is the number of cycles the timer has counted from the last encoder pulse to the current pulse and w(k) is the desired timer count set by a high level control program. The terms are in the inverse order so the error e(k) is positive when the motor speed is lower than desired (timer count is higher than required) and therefore the increment of the control variable u(k) is also positive (meaning that the PWM duty cycle should be higher and the motor should accelerate). Similarly, the error is negative if the speed of the motor is higher than desired. This allows us to have the controller parameters KP, KI and KD positive. Consequently, the parameters q0 and q2 are positive and q1 negative. In order to avoid having q1 negative, which complicates multiplications in F18 code, the algorithm is modified in such a way as to negate e(k-1) before multiplying it with positive q1.
+Ì†µÌ±í(Ì†µÌ±ò) = Ì†µÌ±¶(Ì†µÌ±ò) ‚àí Ì†µÌ±§(Ì†µÌ±ò)
+where y(k) is the number of cycles the timer has counted from the last encoder pulse to the current pulse and w(k) is the desired timer count set by a high level control program. The terms are in the inverse order so the error e(k) is positive when the motor speed is lower than desired (timer count is higher than required) and therefore the increment of the control variable ÔÅÑu(k) is also positive (meaning that the PWM duty cycle should be higher and the motor should accelerate). Similarly, the error is negative if the speed of the motor is higher than desired. This allows us to have the controller parameters KP, KI and KD positive. Consequently, the parameters q0 and q2 are positive and q1 negative. In order to avoid having q1 negative, which complicates multiplications in F18 code, the algorithm is modified in such a way as to negate e(k-1) before multiplying it with positive q1.
 
 2. arrayForth Implementation
 
@@ -130,10 +130,10 @@ The code is stored in blocks 856 to 862 of the arrayForth system. The main load 
 852 list boot descriptors, ema 217 +node 217 /ram 1CCCD 1FFFF 2 /stack, ..down /a 21 /p, pwm 317 +node 317 /ram 0 0 2 /stack io /b, ..10 /p, pid 316 +node 316 /ram 0 0 2 /stack 2E /p, odo 216 +node 216 /ram 1F5 /a io /b 7 /p,
 
 2.1 Edge Detection and Exponential Moving Average Filter
-The output of the optical encoder is connected to the pin 217.17 which is configured as a high impedance input. Out of reset the code starts at go. The WD bit of the IO register is set high in edge and the node is suspended until there is a high to low transition on pin 17. Following the falling edge ema is called. There are always two numbers on the stack; the last output from the filter s on top and a weighing coefficient w below it. The coefficient w is represented as a 17-bit fractional number in a range from 0 to 1 exclusive. The MSB is effectively a sign bit and should always be zero (the coefficient is always a positive number). Out of reset these values are set to x1FFFF (corresponding to zero speed) and x1CCCD (corresponding to 0.9), respectively. The filter first calculates the contribution from the last output as s ◊ w . Then the down port is read (the current count from timer in node 317). The value read is multiplied by (1 - w) and the sum of the two values makes the new output value s which is duplicated and written back to the down port.
+The output of the optical encoder is connected to the pin 217.17 which is configured as a high impedance input. Out of reset the code starts at go. The WD bit of the IO register is set high in edge and the node is suspended until there is a high to low transition on pin 17. Following the falling edge ema is called. There are always two numbers on the stack; the last output from the filter s on top and a weighing coefficient w below it. The coefficient w is represented as a 17-bit fractional number in a range from 0 to 1 exclusive. The MSB is effectively a sign bit and should always be zero (the coefficient is always a positive number). Out of reset these values are set to x1FFFF (corresponding to zero speed) and x1CCCD (corresponding to 0.9), respectively. The filter first calculates the contribution from the last output as s √ó w . Then the down port is read (the current count from timer in node 317). The value read is multiplied by (1 - w) and the sum of the two values makes the new output value s which is duplicated and written back to the down port.
 If the odometer is implemented then odo is called to send a signal to 216. The signal is a dummy word which has no meaning and node 216 ignores it altogether. In case no odometer is implemented the highlighted code in block 856 should be removed.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/11/14
 
 3
 
@@ -155,7 +155,7 @@ The second reason for using buf comes from situations when the motor stalls, due
 
 4
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
 AN016 Incremental PID Controller for a Brushed DC Motor
 
@@ -171,7 +171,7 @@ As the last step before repeating the cycle the left port is tested for write an
 
 1 In order to simplify calculations the setpoint is decremented by one; x1FFFE is the default value.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/11/14
 
 5
 
@@ -197,7 +197,7 @@ Blocks 301 and 302 contain definitions of custom Ganglion messages and Snorkel p
 
 6
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
 AN016 Incremental PID Controller for a Brushed DC Motor
 
@@ -251,7 +251,7 @@ Read all PID values, leave the address of data block.
 307
 0 ( Odometer) 1 142 LOAD 2 :LEFT ~RW 2! :LEFT ~rw 2! 3 ND n216 7 rr 0 0 ,path 4 : ODO@ ( - d) n216 2 ( odo counter) R@ ; 5 : ODO0 n216 0. 2 R! ; 6 7 8 9 10 11 12 13 14 15
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/11/14
 
 7
 
@@ -259,14 +259,14 @@ Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
 4. Application
 In order to demonstrate functionality of the PID controller described in the preceding sections we have constructed a simple driver for a brushed DC motor, one-channel optical encoder, and an electromechanical brake. We used this setup to measure performance of the PID controller under different conditions. The following part describes the hardware in more detail and presents results of our measurements.
 4.1 Experimental Setup
-The motor driver is based on Texas Instruments DRV8838 chip. [2] This device can drive a DC motor supplying up to 1.8 A of output current. The logic power supply voltage range starts at 1.8 V which allows it to be driven directly from the GreenArrays' evaluation board. It operates on a motor power supply voltage up to 11 V. The driver has a phase/enable interface and a low-power sleep input active low. Enable input is connected directly to pin 17 of node 317 only for the purpose of testing; the phase and sleep inputs are tied to VCC. The motor voltage is provided with a 9 V power supply. The motor used is a brushed DC motor equivalent to Mitsumi M28N-2 series.
+The motor driver is based on Texas Instruments DRV8838 chip. [2] This device can drive a DC motor supplying up to 1.8 A of output current. The logic power supply voltage range starts at 1.8 V which allows it to be driven directly from the GreenArrays‚Äô evaluation board. It operates on a motor power supply voltage up to 11 V. The driver has a phase/enable interface and a low-power sleep input active low. Enable input is connected directly to pin 17 of node 317 only for the purpose of testing; the phase and sleep inputs are tied to VCC. The motor voltage is provided with a 9 V power supply. The motor used is a brushed DC motor equivalent to Mitsumi M28N-2 series.
 An optical encoder uses Vishay Telefunken TCST1103 transmissive optical sensor [3] with phototransistor output and a 32slit encoder wheel mounted on the motor shaft. The LED emitter is driven directly from 1.8 V provided by the evaluation board using a current-limiting series resistor. The output signal from the phototransistor is adjusted with a resistor to provide a voltage swing between 0.2 V and 1.5 V. This is well within the GA144 specification for GPIO Schmitt triggers threshold voltages. The signal can therefore be fed into pin 17 of node 217 directly. In order to suppress noise, which might be detected as signal by the fast GPIO pin, a filter capacitor is connected between the pin and ground.
 An electromechanical brake uses a solenoid actuated lever controlled from GA144. The output signal from pin 17 of node 517 is amplified with a simple N-FET driver. The lever is pushed against a sheave mounted on the motor shaft when on. Both sheave and lever have rubber surfaces creating friction and increasing load on the motor when in contact.
 The schematics of the driver and encoder, and the experimental setup are shown in the figures below.
 
 8
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
 AN016 Incremental PID Controller for a Brushed DC Motor
 4.2 PID Controller Performance
@@ -311,7 +311,7 @@ The effect of a single step setpoint increase is shown in the following two figu
 
 2 The modified arrayForth code for nodes 217 and 316 allowing bypassing the PID controller and/or switch off the EMA filter is available upon request.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/11/14
 
 9
 
@@ -424,7 +424,7 @@ As can be expected the unregulated driver runs at much lower speed than desired.
 
 10
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
 AN016 Incremental PID Controller for a Brushed DC Motor
 
@@ -515,7 +515,7 @@ revolutions
 It should be noted that such abrupt changes in setpoint as shown until now are rarely found in real applications. It is more common to change the setpoint gradually, either in small steps or even using a linear ramp. The reason is that the stress put on the mechanical parts of the equipment can be enormous for bigger jumps and may even lead to damage of the equipment.
 It is however quite a common situation when the load on the motor is changing while the speed of the motor is required to stay constant. Examples of such cases are material being dumped on a conveyor belt or an electric vehicle starting to climb a hill. In order to demonstrate the capability of our PID regulator to cope with this kind of task we set the setpoint to a constant value, initiated measurement and after eight full revolutions of the motor shaft the electromechanical brake was set on. Then after next eight full revolutions the brake was released. The recorded traces for unregulated and regulated drivers are shown in the following two figures.
 
-Copyright© 2010-2011 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2011 GreenArrays, Inc. 11/11/14
 
 11
 
@@ -567,21 +567,21 @@ The effect of regulation is evident. While the unregulated motor slows down sign
 
 5. Conclusion
 We have demonstrated suitability of GA144 chip for regulation applications. We have shown how an incremental PID controller can be easily implemented with just three nodes. The performance of such a controller was demonstrated in a practical application.
-The layout of the PID controller is such that there can be two identical controller clusters implemented in one GA144 chip. The second would be a mirror image of the first one and would occupy nodes 517, 417 and 416. An optional odometer would be implemented in node 516. The two clusters can be used together for example to drive two motors of a mobile robot using a differential drive ≠ one of the most used in small mobile robots.
-The author wishes to express his thanks for being given the opportunity to work with the GreenArrays' evaluation board during preparation of this application note. Special thanks are due to Charley Shattuck for his invaluable help and fruitful discussions over Skype about the code, programming, and life in general.
+The layout of the PID controller is such that there can be two identical controller clusters implemented in one GA144 chip. The second would be a mirror image of the first one and would occupy nodes 517, 417 and 416. An optional odometer would be implemented in node 516. The two clusters can be used together for example to drive two motors of a mobile robot using a differential drive ‚Äì one of the most used in small mobile robots.
+The author wishes to express his thanks for being given the opportunity to work with the GreenArrays‚Äô evaluation board during preparation of this application note. Special thanks are due to Charley Shattuck for his invaluable help and fruitful discussions over Skype about the code, programming, and life in general.
 
 6. References
 
-[1] K. J. ≈strˆm and R. M. Murray, Feedback Systems, Princeton, NJ: Princeton University Press, 2008. [2] Texas Instruments, [Online]. Available: http://www.ti.com/lit/gpn/drv8838. [3] Vishay Telefunken, [Online]. Available: http://www.vishay.com/doc?83764.
+[1] K. J. √Östr√∂m and R. M. Murray, Feedback Systems, Princeton, NJ: Princeton University Press, 2008. [2] Texas Instruments, [Online]. Available: http://www.ti.com/lit/gpn/drv8838. [3] Vishay Telefunken, [Online]. Available: http://www.vishay.com/doc?83764.
 
 12
 
-Copyright© 2010-2013 GreenArrays, Inc. 11/11/14
+Copyright¬© 2010-2013 GreenArrays, Inc. 11/11/14
 
-GreenArraysÆ
+GreenArrays¬Æ
 Application Note AN016 Revised 11/11/14
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI‚Äôs terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -593,6 +593,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2013, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright ¬© 2010-2013, GreenArrays, Incorporated
 
 

@@ -1,12 +1,12 @@
-[Derived from: ../../reference/greenarrays/DB004-131030-aFUSER.compact.html]
-GreenArraysÆ DB004 arrayForth User's Manual
+[Derived from: ../../reference/greenarrays/pdfs/DB004-131030-aFUSER.pdf]
+GreenArrays¬Æ DB004 arrayForth User's Manual
 Product Data Book DB004 Revised 10/30/13
-arrayForthÆ
+arrayForth¬Æ
 User's Manual
 for G144A12 and EVB001
-Rev 02b with polyFORTHÆ
+Rev 02b with polyFORTH¬Æ
 Includes eForth 22a Requires colorForth Kernel 4.2c
-This manual is designed to prepare you for using arrayForth in designing, implementing and testing applications of our chips. arrayForth is a complete, interactive software development and debugging environment for GreenArrays Chips. It includes assembler/compiler, example source code including all ROM on each chip, a full software-level simulator for each chip, an Interactive Development Environment for use with real chips, and utilities for creating boot streams and burning them into flash memory. arrayForth runs on WindowsÆ, MacÆ/Parallels, and Linux/WINE platforms as well as selected native PC hardware. Although it is configured to support the GreenArrays EVB001 Evaluation Board, it may easily be used to program and debug our chips in your own designs. Along with the above tools, including complete source code for the Virtual Machine environments, this release incorporates the source code for our Automated Testing systems as well as that which has been used in taking the characterization measurements reflected in the G144A12 Data Book. Your satisfaction is very important to us! Please familiarize yourself with our Customer Support web page at http://www.greenarraychips.com/home/support. This will lead you to the latest software and documentation as well as resources for solving problems and contact information for obtaining help or information in real time.
+This manual is designed to prepare you for using arrayForth in designing, implementing and testing applications of our chips. arrayForth is a complete, interactive software development and debugging environment for GreenArrays Chips. It includes assembler/compiler, example source code including all ROM on each chip, a full software-level simulator for each chip, an Interactive Development Environment for use with real chips, and utilities for creating boot streams and burning them into flash memory. arrayForth runs on Windows¬Æ, Mac¬Æ/Parallels, and Linux/WINE platforms as well as selected native PC hardware. Although it is configured to support the GreenArrays EVB001 Evaluation Board, it may easily be used to program and debug our chips in your own designs. Along with the above tools, including complete source code for the Virtual Machine environments, this release incorporates the source code for our Automated Testing systems as well as that which has been used in taking the characterization measurements reflected in the G144A12 Data Book. Your satisfaction is very important to us! Please familiarize yourself with our Customer Support web page at http://www.greenarraychips.com/home/support. This will lead you to the latest software and documentation as well as resources for solving problems and contact information for obtaining help or information in real time.
 
 DB004 arrayForth User's Manual
 
@@ -35,7 +35,7 @@ Source and Object Code .........................................................
 
 2
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 5.3.4 5.4 5.4.1 5.4.2 5.4.3 5.4.4 5.5 5.5.1
 6.
@@ -60,7 +60,7 @@ Practical Example ..............................................................
 Selecting resources ........................................................................................42 Wiring ............................................................................................................ 42 Writing the code ............................................................................................43 The IDE script .................................................................................................45 Output Observations......................................................................................46 Further Study .................................................................................................47
 Appendix: Reference Material ................................................ 48
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 3
 
@@ -78,9 +78,9 @@ Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
 15.
 
 Glossary of Terms ..........................................................................................48 colorForth Tag Reference...............................................................................49 colorForth Characters and Binary Representation .........................................49 Memory Map.................................................................................................50 Index Listing for Rev 02a................................................................................51 Bin Assignments for Rev 02a..........................................................................57
-Appendix: Microsoft WindowsÆ Platform................................58
+Appendix: Microsoft Windows¬Æ Platform................................58
 Windows arrayForth Requirements ...............................................................58 Installation ....................................................................................................58 Identifying and Configuring COM Ports ............................................................. 60 Windows 8 Installation ...................................................................................... 62 Running arrayForth ....................................................................................... 62
-Appendix: Apple MacÆ Platform with Windows ......................63
+Appendix: Apple Mac¬Æ Platform with Windows ......................63
 Mac Requirements.........................................................................................63 Installation ....................................................................................................63 Running arrayForth ....................................................................................... 63
 Appendix: unix Platform including Mac OS X ........................... 63
 Installation ....................................................................................................63 Identifying and Configuring COM Ports ............................................................. 64 Running arrayForth ....................................................................................... 65
@@ -90,7 +90,7 @@ Data Book Revision History......................................................
 
 4
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -104,7 +104,7 @@ Supplemental information is available on our website at http://www.greenarraychi
 Much of the material in this manual has been compiled from contributions made by Chuck Moore and the late Jeff Fox. Originally in the form of HTML documents, many of which were linked on our website, experience has taught us that the material was difficult to access and study in that form. Therefore GreenArrays has replaced the HTML hierarchy with a single, comprehensive Guide.
 1.3 Documentation Conventions
 1.3.1 Numbers
-Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing "hex" or by preceding the number with the lowercase letter "x". In colorForth coding examples, hexadecimal values are italicized and darkened.
+Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing ‚Äúhex‚Äù or by preceding the number with the lowercase letter ‚Äúx‚Äù. In colorForth coding examples, hexadecimal values are italicized and darkened.
 1.3.2 Node coordinates
 Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays are represented as seen from the top of the silicon die, which is normally the top of the chip package, oriented such that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as node 000. This convention is expanded to cyyxx on the EVB001, in which case c is chip number (0 for host, 1 for target). All functions herein accepting yxx notation also recognize cyyxx appropriately.
 1.3.3 Register names
@@ -112,7 +112,7 @@ Register names in prose may be used with or without the word "register" and are 
 1.3.4 Bit Numbering
 Binary numbers are represented as a horizontal row of bits, numbered consecutively right to left in ascending significance with the least significant bit numbered zero. Thus bit n has the binary value 2n. The notation P9 means bit 9 of register P, whose binary value is x200, and T17 means the sign (high order) bit of 18-bit register T.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 5
 
@@ -135,7 +135,7 @@ The word you type might be a simple definition such as + which replaces the top 
 
 6
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 The word may do a great deal more. It might compile and run an extensive utility or application, which might put up a customized graphic or text screen, and might give you a completely different keyboard interaction while it is running. The colorForth editor is such a program.
@@ -147,7 +147,7 @@ Most people find that once they have mastered this new skill it works well for t
 We'll start with the Interpreter interface since it's the first thing you encounter and contains good examples of the common display elements. Here is what you see on booting arrayForth. The display is composed of two major elements: The logo, with the arrayforth label, and the interpreter's feedback which is shown in the black areas at the bottom of the screen. The annunciator reading qwer is part of this feedback. The feedback is comprised of several components, discussed below.
 The first of the two major elements, the logo, may be replaced during use of the system by other things such as the listing of a block. The interpreter simply displays this element, whatever it is, with the interpreter's feedback superimposed over it. The entire screen is refreshed, from whatever raw data each part is based on, each time you strike a key; thus, the effects of interpreter interaction may be seen right away when they occur.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 7
 
@@ -169,7 +169,7 @@ The question mark is also inserted if an abort condition occurs while executing 
 
 8
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 2.2.2.2 Keyboard / Control Panel Hint Area
@@ -180,30 +180,30 @@ When you begin text entry mode, the hinting area displays the annunciator qwer a
 After typing a word or number you may enter it using the space bar, or alternatively the enter key (some may know it as carriage return) . The keyboard normally continues in text entry mode, expecting you to enter another word or number. However, when in the Interpreter, the word you just entered may run another application which can redefine keyboard operation until you return to the Interpreter, as we'll see later.
 To erase a word or number before you have entered it, use the backspace key. To exit text entry mode, use the escape key. This doesn't do anything in the Interpreter, but some applications, such as the Editor, can "call" the text entry mode and in those cases you need to indicate when you are through by using escape. Note that at present escape will not erase current input, and backspace will not exit the text entry word. This is easy to forget.
 When you begin typing a word or number, the keyboard software needs to determine which you are entering. Like classical Forth, colorForth allows you to define words that start with numeric digits, or even words that consist entirely of numeric digits. The keyboard software makes its decision with the first key you strike:
- if the key is a decimal digit 0..9 then you are entering a number; the key is interpreted as a digit, that digit is displayed on top of the stack, and a num annunciator is displayed in the hint area. Subsequent keystrokes must be digits and will be "shifted" into the displayed number using the current radix. The - key negates the number being entered and may be used repeatedly to toggle its sign. All numeric input is restricted to 32-bit values. As you type more digits, the result will be clipped modulo 232.
- If the key is any of the other 37 colorForth characters a..z !'*+ ,-./ ;?@ then you are entering a word; the character is displayed to the left of the hint area, a Shannon-coded value consisting of that character is displayed on the top of the stack, and a text annunciator is displayed in the hint area. Subsequent keystrokes may be any colorForth character and will be appended to the displayed word to the left of the hint area as well as being added to the Shannon-coded representation on the stack. If another number appears on the stack while you are typing, this informs you that the last character you typed caused the Shannon-coded value to exceed one 32-bit number. That's all right, but is important to know about when creating Forth definitions to keep them unique; see 3.3.1, Syntax of colorForth, below.
+ÔÇ∑ if the key is a decimal digit 0..9 then you are entering a number; the key is interpreted as a digit, that digit is displayed on top of the stack, and a num annunciator is displayed in the hint area. Subsequent keystrokes must be digits and will be "shifted" into the displayed number using the current radix. The - key negates the number being entered and may be used repeatedly to toggle its sign. All numeric input is restricted to 32-bit values. As you type more digits, the result will be clipped modulo 232.
+ÔÇ∑ If the key is any of the other 37 colorForth characters a..z !'*+ ,-./ ;?@ then you are entering a word; the character is displayed to the left of the hint area, a Shannon-coded value consisting of that character is displayed on the top of the stack, and a text annunciator is displayed in the hint area. Subsequent keystrokes may be any colorForth character and will be appended to the displayed word to the left of the hint area as well as being added to the Shannon-coded representation on the stack. If another number appears on the stack while you are typing, this informs you that the last character you typed caused the Shannon-coded value to exceed one 32-bit number. That's all right, but is important to know about when creating Forth definitions to keep them unique; see 3.3.1, Syntax of colorForth, below.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 9
 
 DB004 arrayForth User's Manual
 The behavior above allows you to just type words and numbers naturally in the great majority of cases. There are only two situations that require you to do anything more:
- Negative Numbers: The keyboard software considers the minus sign - to be an alphabetic character when it's the first keystroke seen. Thus, simply typing -123 results in a word, not a number. To enter a negative number, the minus sign has to be entered sometime after the first digit. So you can enter the value that was desired above as 123- .
+ÔÇ∑ Negative Numbers: The keyboard software considers the minus sign - to be an alphabetic character when it's the first keystroke seen. Thus, simply typing -123 results in a word, not a number. To enter a negative number, the minus sign has to be entered sometime after the first digit. So you can enter the value that was desired above as 123- .
 We could have made it go the other way, but there are too many Forth words that start with a minus, such as the one's complement operator - , to justify this.
- Words that start with a digit: You can force the keyboard software into text mode by using the grave accent ` key. This is typically on a button immediately to the left of 1 . After pressing it, the text annunciator turns on in the hint area, and the next character entered will be taken to be the first character of a word.
+ÔÇ∑ Words that start with a digit: You can force the keyboard software into text mode by using the grave accent ` key. This is typically on a button immediately to the left of 1 . After pressing it, the text annunciator turns on in the hint area, and the next character entered will be taken to be the first character of a word.
 Decimal and Hexadecimal
 There is a persistent flag indicating whether the human interface is in decimal or hexadecimal mode.
- Decimal Mode By default the human interface is in decimal mode. The stack is displayed in decimal, each digit you key into a number is shifted into it using base 10, and the only keys accepted during number entry are 0 through 9 and the minus sign - .
- Switching Modes You may place the human interface in hexadecimal mode by pressing the F1 key. Actually this key toggles between decimal and hexadecimal mode. The F1 key is recognized any time the hint area shows just the qwer annunciator, or both qwer and num . It instantly sets the other mode, affecting the stack display and subsequent digit entry. When taking text input in hexadecimal mode, the hint area shows hex .
- Hexadecimal Mode When in hexadecimal mode, the stack is displayed in unsigned hex. Each digit you key into a number is shifted into it using base 16. The first digit of a hex number must be one of the decimal digits 0..9 , but once number entry has begun any of the hex digits 0..9 a..f or the minus sign may be entered. Thus, to enter the hex equivalent of 255, type 0ff.
+ÔÇ∑ Decimal Mode By default the human interface is in decimal mode. The stack is displayed in decimal, each digit you key into a number is shifted into it using base 10, and the only keys accepted during number entry are 0 through 9 and the minus sign - .
+ÔÇ∑ Switching Modes You may place the human interface in hexadecimal mode by pressing the F1 key. Actually this key toggles between decimal and hexadecimal mode. The F1 key is recognized any time the hint area shows just the qwer annunciator, or both qwer and num . It instantly sets the other mode, affecting the stack display and subsequent digit entry. When taking text input in hexadecimal mode, the hint area shows hex .
+ÔÇ∑ Hexadecimal Mode When in hexadecimal mode, the stack is displayed in unsigned hex. Each digit you key into a number is shifted into it using base 16. The first digit of a hex number must be one of the decimal digits 0..9 , but once number entry has begun any of the hex digits 0..9 a..f or the minus sign may be entered. Thus, to enter the hex equivalent of 255, type 0ff.
 2.2.4 Message Area
 A program may display a message informing you of an error or prompting some action of you. Such messages may be displayed on the left side of the line on which the words you type are shown, as in this example:
 Transitory messages disappear after you have typed a few keystrokes. Other messages may be more persistent, as desired by the software generating them. To manually kill a message being displayed, type -msg .
 
 10
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 2.3 arrayForth User Vocabulary
@@ -253,7 +253,7 @@ orgn (-a) a variable used to register utilities that should be reloaded after re
 Editor - See 3 below
 Mass Storage - See 4.2
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 11
 
@@ -311,7 +311,7 @@ n-nn (n-nn) convert linear node number to yyxx notation.
 
 12
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 3. The Editor
@@ -358,7 +358,7 @@ g Green text
 * Show src or shadow
 (P) r Right cursor (;) + Forward 2 blocks (/)
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 13
 
@@ -382,7 +382,7 @@ To copy an entire source block and its shadow, first display the source block th
 
 14
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 3.3 Text Entry Modes
@@ -399,7 +399,7 @@ Text entry keys, highlighted in yellow in the keyboard table, select a color and
 As stated in section 2.1 above, colorForth source is pre-parsed by cooperation between you and the editor. Your contribution to this process is selection of the appropriate color for each word and number you type, using the above text entry modes. In this way you will control what the Interpreter, Compilers, and Editor will do with each word when it is encountered.
 When a block is loaded, red words are the names of new defined words, like the names that follow : (colon) in traditional Forth. Green words are words being compiled, like the traditional code between colon and semicolon. Yellow words are interpreted like code outside colon definitions and code within square brackets inside definitions. Magenta words are variables, and cyan words are like "postponed" words in ANS Forth (calls to macros).
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 15
 
@@ -419,7 +419,7 @@ You may wish to change the color of a word without having to retype it, such as 
 
 16
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 3.5 Search Utility
@@ -438,11 +438,11 @@ f continues the most recently started search immediately after the point at whic
 3.5.2 Editor Search Keys
 "f" control panel key continues the most recently begun search, at the current editor cursor position. If the current block is source, only source will be searched; if it is a shadow, only shadows.
 "d" control panel key starts a new search based on the word immediately preceding the cursor, as follows:
- If the word is a definition (red or magenta) then the new search will be for references (green, yellow, blue, or cyan) to that word.
- If the word is a reference or a white comment, then the new search will be for definitions of that word.
- If the word is a literal number, then we do not search as such but simply edit the block by that number. Handy for use in load blocks!
+ÔÇ∑ If the word is a definition (red or magenta) then the new search will be for references (green, yellow, blue, or cyan) to that word.
+ÔÇ∑ If the word is a reference or a white comment, then the new search will be for definitions of that word.
+ÔÇ∑ If the word is a literal number, then we do not search as such but simply edit the block by that number. Handy for use in load blocks!
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 17
 
@@ -482,7 +482,7 @@ Block 18 This load block defines the configuration of the colorForth system and 
 
 18
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 Block 144 This load block extends colorForth to support the arrayForth tools with global variables, extra functions, names of further utilities, resident capability to generate png files of screen graphics, and the principal chip configuration parameters from the three blocks 190, 192, and 194.
@@ -505,7 +505,7 @@ save writes 1440 blocks from host RAM to the working source file in compressed f
 !back (n) writes 1440 blocks from host RAM block n to the backup source file with no compression. On native system, writes to an uncompressed floppy.
 wrtboot writes 18 blocks of kernel and icons to the start of a floppy (Native only). erase (bn) stores all zeroes into n consecutive blocks starting at block b .
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 19
 
@@ -521,7 +521,7 @@ You can set up a small range of blocks to run across with the audit's g word by 
 
 20
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 4.2.2 HTML Listings
@@ -540,7 +540,7 @@ autotest (n) Again if the ATS materials are intact, this will cause the Host chi
 1140 load Host eForth IDE boot procedure. Install no-boot jumper before loading this.
 1190 load Burns eForth into flash, for example when updating eForth.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 21
 
@@ -562,7 +562,7 @@ reclaim empties the compiler's dictionary of F18 red word definitions. Used to k
 
 22
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -579,7 +579,7 @@ When literals are compiled, a @p opcode is compiled and then the literal value i
 Jumping, calling, and memory operations address a word, not an opcode. When encountering a red word, or any other compiler directive defining a place that may be addressed in memory, any code under construction is padded with . (nop) opcodes if necessary to align the location counter on a word boundary. This means that in absence of explicit control transfer opcodes, execution continues across alignment boundaries including the start of a red definition, a technique we have learned to use often.
 Location counters are incremented in the same way the hardware increments them: The low order seven bits increment without changing the remaining bits of P . If you are generating code in RAM you will stay in RAM, wrapping its address space at x80 in terms of the value of P and also at x40 in the sense that the hardware ignores bit 6 of the address. The compiler will also generate code for ROM, in which case the wrapping points are at x100 and xC0. The P9 bit (x200) may be set as you wish to specify addressable destinations which will run in Extended Arithmetic Mode.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 23
 
@@ -608,12 +608,12 @@ The F18 hardware supports looping under control of a count in R . The number in 
 
 24
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 for (-a) (n) pushes n onto the return stack, forces word alignment and saves here to be used as a transfer destination by the directive that ends the loop. There are times when it is useful to decompose this directive's actions so that the pushing of the loop count and the start of the loop itself may be separated by such things as initialization code or a red word. In this case you may write push <other things> begin .
 next (a) ends a loop with conditional transfer to the address a . If R is zero when next is executed, the return stack is popped and program flow continues. Otherwise R is decremented by one and control is transferred to a .
-unext (a) ends a micronext loop. Since the loop occurs entirely within a single instruction word, the address is superfluous; it is present only so that the form <n> for ... unext may be written. The micronext opcode may be compiled into any of the four slots.
+unext (a) ends a micronext loop. Since the loop occurs entirely within a single instruction word, the address is superfluous; it is present only so that the form <n> for ‚Ä¶ unext may be written. The micronext opcode may be compiled into any of the four slots.
 5.3.2.3 Arbitrary Control Structures
 As with ANS Forth, any desired control structure may be generated based on a few simple directives and flexible semantics; see the ANS Forth standard, or more to the point see the F18 code supplied with arrayForth, for many examples of composite control structures. The following directives are provided; the same stack notation ( a for destinations and r for handles to forward references) is employed here. If necessary you may code swap in yellow to affect the compiler's stack.
 begin (-a) forces word alignment and saves here to be used as a transfer destination.
@@ -633,7 +633,7 @@ io right down left up data ldata register names, equivalent to writing address i
 await generates a call to the default multiport execute for a node based on its position in the array.
 ' (-a) (tick) places the address of an F18 red word on the compiler's stack.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 25
 
@@ -654,7 +654,7 @@ The appropriate structure for a larger program depends on its size and intended 
 
 26
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 5.5 Methods of Loading Code
@@ -675,7 +675,7 @@ Automated IDE and stream loading touch all nodes in a defined path starting at t
 /stack (<n values> n) Specifies up to ten values to be pushed onto the data stack, with the rightmost value on top. For example 30 20 10 3 /stack produces the same effect as though a program had executed code 30 20 10 .
 /p (a) Specifies an initial value for register P . Default value is xA9 which is the routine warm in every node's ROM. When the node is started, warm jumps to the appropriate multiport execute for the node's position in the array. If you wish to leave the boot routine enabled in a boot node that is touched by an automated loading procedure, specify its P value as xAA as is done by reset for such nodes.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 27
 
@@ -694,13 +694,13 @@ The inner load block for the asynchronous IDE is serial but this is intended to 
 5. Say talk to find and open the port, reset the chip, and download root node talker code into the chip.
 6. Display the indicator panel (say panel ) if you wish to view it (recommended!)
 7. As the indicator panel will show, you should at this point have three defined paths, one to each of the nodes immediately adjacent to the root node.
-8. Define, tear down, and select paths as you wish, and operate on the nodes in question using the words described below. Note: If you wish to ensure that all other bootable nodes are completely idle, begin your activities by saying 2 <root> hook and then 2 ≠hook to tear that path down. The default path 2 can reach all 143 nodes accessible to the IDE.
+8. Define, tear down, and select paths as you wish, and operate on the nodes in question using the words described below. Note: If you wish to ensure that all other bootable nodes are completely idle, begin your activities by saying 2 <root> hook and then 2 ‚Äìhook to tear that path down. The default path 2 can reach all 143 nodes accessible to the IDE.
 9. If you wish to change the code you are downloading into any node(s), change the F18 source and say compile which recompiles that source to binary and then re-enters the interactive environment, displaying the block you have most recently displayed. Any paths you had wired up, and whichever you had most recently selected, will still be in effect as you can see by displaying panel again. Recompilation does not communicate with the chip under test.
 When you are finished, you can say empty and do other things; as long as you do not say bye to your arrayForth session, you may later load the IDE again and resume communicating with whichever paths you had left connected.
 
 28
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 6.3 Vocabulary
@@ -712,10 +712,10 @@ node (nn) Selects whichever path presently has node n as its target, if any. Not
 hook (i nn) Wires path i to target node n after ripping out any existing wiring for that path, leaving path i selected. If the node in question is not accessible in the route list for that path, leaves the path set for the appropriate adjacent node as target.
 -hook (i) Forces ripping out of any wiring for path i . Each node that had previously been part of this path is left in its default warm state (multiport execute); the target node is not affected.
 6.3.2 Target Operations
-Each of these operations applies to the target node of the currently selected path. To help in orientation, it is good to display the panel unless there's something better for you to be looking at while working.
+Each of these operations applies to the target node of the currently selected path. To help in orientation, it is good to display the panel unless there‚Äôs something better for you to be looking at while working.
 compile Recompiles both the F18 source and the arrayForth IDE source, allowing changes in the binary images that may be loaded into nodes, or aspects of the IDE such as automated test functions (see below). Connection to the chip is maintained, and any wiring context presently in place is preserved.
 panel displays the indicator panel block.
-upd retrieves all ten words of the data stack into the local array stak which is indexed (T, S, and the eight elements in the F18 stack, first element being the one that would next be popped into S). panel displays the contents of stak in two rows. First row is the deepest four elements of the F18 stack, followed by the shallower four elements, then S and T. The shallowest element is immediately left of S; "deeper" moves to the left on that row, then to the right on the row above, with the deepest element on the right side of the top row. This is isomorphic with the stack array and makes its behavior clearer.
+upd retrieves all ten words of the data stack into the local array stak which is indexed (T, S, and the eight elements in the F18 stack, first element being the one that would next be popped into S). panel displays the contents of stak in two rows. First row is the deepest four elements of the F18 stack, followed by the shallower four elements, then S and T. The shallowest element is immediately left of S; ‚Äúdeeper‚Äù moves to the left on that row, then to the right on the row above, with the deepest element on the right side of the top row. This is isomorphic with the stack array and makes its behavior clearer.
 ?ram retrieves all of RAM from the selected node, updating the panel display.
 ?rom retrieves all of ROM from the selected node, updating the panel display.
 lit (n) removes a number from the host computer's colorForth stack, pushing it onto the data stack of the target node and updating the stack display on the panel .
@@ -723,7 +723,7 @@ r@ (a-n) reads RAM, ROM, register or port a in the target node, pushing the data
 r! (n a) writes a number from colorForth data stack of the host computer into target memory (RAM, register, port) address a . Not to be confused with the F18 !/!a function. In this release, uses and does not restore register a in the target node.
 call (a) calls, from the port, the code at address a in the target. If that code returns to the port or reestablishes the normal rest state of the target node, interactive use may continue once the code completes. No interlocking is done so this method may also be used to start application processing which will not admit to further port execution access. Interaction with a node actively running an application may also be arranged but at the cost of periodically polling, as described below.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 29
 
@@ -747,7 +747,7 @@ The default paths after span , shown below, facilitate full access to the Target
 
 30
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -1797,7 +1797,7 @@ Path 1 is available for general use after host load or bridge load .
 After span path 0 is generally used for target chip...
 ... and path 2 is generally used for the host chip. Path 1 is available for general use. The port bridge only requires special code in nodes 300 and 10300.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 31
 
@@ -1821,7 +1821,7 @@ The async boot stream can also span both host and target. Block 424 is an exampl
 
 32
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 7. Simulation Testing with Softsim
@@ -1833,7 +1833,7 @@ Immediately below the full chip view there is a detailed view of a single node, 
 In addition to the focus node, a second node, called the other node, may be selected as well. Its detailed view may replace the full chip view using the w key on the control panel, and the focus and other node numbers may be exchanged with the o key on the control panel. The other node, if visible on the chip, is marked with a yellow "X" in the full chip display, and with yellow node numbers in the overview and detailed view.
 All sections of the display are animated during simulation. In the full chip view, each node is green when active and grey when suspended.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 33
 
@@ -1854,7 +1854,7 @@ When you're done with softsim or need to use the interpreter, press the . key (s
 
 34
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -1906,7 +1906,7 @@ Red, top of return stack. Green, top of data stack. Carry latch shown as high or
 7.6 Getting your Code to Run
 By default when softsim is loaded each node's memory (RAM and ROM) is initialized with the code most recently compiled into the bin whose number is the same as that of the node. Again by default, register B is initialized with the address of io and register P is initialized the same as the hardware does after reset (see chip data book.) Thus, without any further arrangements on your part (and without the SMTM demonstration program that's started in block 1234 as delivered), the simulated chip will only run boot nodes' initialization code and soon all nodes will be suspended. There are several general ways in which to get the chip started.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 35
 
@@ -1922,7 +1922,7 @@ The breakpoint may be removed via the command <node> -break . Breakpoints may be
 
 36
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -1934,10 +1934,10 @@ It's simple to do this. Use the arrayForth word assign to store the address of t
 /wave softbed assign time @ 10 / 1 and ?v p17v ! ;
 600 !node /wave
 Add this code to block 216 where testbeds are compiled. Run softsim and watch the pin in node 600 toggle every 10 steps. The first line defines the testbed. The second line attaches that testbed to node 600 interpretively. 600 !node makes node 600 the current node with regard to node variables. When /wave is executed in that interpretive phrase, the address of the code following assign is stored into softbed. When softsim is initialized (by /softsim ) that address is copied from softbed to 'bed for node 600. Then for each step of softsim that code is executed for node 600.
-The assigned code begins with a yellow time . time is a global variable which starts at 0 and is incremented for every step of softsim. time is literally the very rough timebase for softsim (note that it does not correspond directly to any particular unit of time but is a necessary evil in order to simulate the chip's operations in an orderly way. Each step is on the order of TSLOT (1300 to 1650 nS at 1.8v and 22∞C, see G144A12 Chip Reference "Typical Instruction Timings.") The softsim engine allocates more than one step for longer instructions but only in integer multiples. Coupled with the fact that each node may have a different TSLOT than its neighbors due to variations in silicon process, temperature due to its duty cycle of operation, and accumulated aging of each node which varies by lifespan duty cycles, timing in steps must be taken with a grain of salt. In future versions of softsim we might make a wall-clock time base for testbeds to use and allow the step time to be specified for a given run, allowing for boundary condition testing; if you wish to do this yourself now, do arithmetic on time before using it in the testbed. For node 600 at each step the value of time is fetched and divided by 10. If the result is odd the pin goes high; if even the pin goes low. The word ?v is part of softsim and turns a truth value into a voltage. If the input is 0 it remains 0; If it's non-zero (true), the value of the global variable vdd is returned. This is 1800 by default, in units of millivolts. p17v is a node variable. It contains the voltage on pin 17 for the current node. Since /wave is only executed for node 600 this code will set the voltage on 600.17 as a function of time; nominally a square wave whose period is roughly 28 nanoseconds. Node variables p1v p3v and p5v also exist for nodes with two or four pins.
+The assigned code begins with a yellow time . time is a global variable which starts at 0 and is incremented for every step of softsim. time is literally the very rough timebase for softsim (note that it does not correspond directly to any particular unit of time but is a necessary evil in order to simulate the chip's operations in an orderly way. Each step is on the order of TSLOT (1300 to 1650 nS at 1.8v and 22¬∞C, see G144A12 Chip Reference "Typical Instruction Timings.") The softsim engine allocates more than one step for longer instructions but only in integer multiples. Coupled with the fact that each node may have a different TSLOT than its neighbors due to variations in silicon process, temperature due to its duty cycle of operation, and accumulated aging of each node which varies by lifespan duty cycles, timing in steps must be taken with a grain of salt. In future versions of softsim we might make a wall-clock time base for testbeds to use and allow the step time to be specified for a given run, allowing for boundary condition testing; if you wish to do this yourself now, do arithmetic on time before using it in the testbed. For node 600 at each step the value of time is fetched and divided by 10. If the result is odd the pin goes high; if even the pin goes low. The word ?v is part of softsim and turns a truth value into a voltage. If the input is 0 it remains 0; If it's non-zero (true), the value of the global variable vdd is returned. This is 1800 by default, in units of millivolts. p17v is a node variable. It contains the voltage on pin 17 for the current node. Since /wave is only executed for node 600 this code will set the voltage on 600.17 as a function of time; nominally a square wave whose period is roughly 28 nanoseconds. Node variables p1v p3v and p5v also exist for nodes with two or four pins.
 In the Sync boot testbed on block 1230 time is not used as the timebase. Instead a global variable named dly was created to keep time. Also note that instead of using ?v to get a voltage value vdd @ is used in yellow. Global variables in x86 colorForth need to be yellow but are usually followed by a green @ or ! . In this case we use a yellow @ to fetch the value from vdd at compile time. The constant value is then compiled as a literal by the yellow to green color transition. This is a feature of the x86 colorForth which doesn't apply to F18A code.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 37
 
@@ -1959,7 +1959,7 @@ With these simple building blocks more complicated devices can be simulated by c
 
 38
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -2035,7 +2035,7 @@ Convenient Constants
 io (-a) pushes address of io register onto host stack.
 data (-a) up data register. ldata (-a) left data register. right (-a) right port. down (-a) down port. left (-a) left port. up (-a) up port.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 39
 
@@ -2061,7 +2061,7 @@ stream 0 swap 18burn
 
 40
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 This phrase burns the generated stream into flash starting at byte address zero so that it may be booted automatically by node 705 on chip reset.
@@ -2083,7 +2083,7 @@ Example: stream 0 swap 18burn
 8.3 Serial Boot Streams
 By specifying a different path, rooted at a different boot node such as 708 for async serial or 300 for synchronous serial, the framer can build streams suitable for presentation to those nodes. See the discussion of the word frame above to create such frames; see the discussion at the end of the Interactive Testing section, above, for examples of one way to use such streams.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 41
 
@@ -2103,7 +2103,7 @@ See the adjacent image for a wiring example. We twisted the clip leads together 
 
 42
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -2114,7 +2114,7 @@ We can verify our wiring and check our assumptions by simple interactive use of 
 4. Switch to hex input (see 2.2.3 above) and type 20000 io r! to place the pin in strong pull down and the LED should illuminate. A glance at the scope should show the pin to be near 0.5v due to maximum current draw through the LED.
 Try typing the following in succession and observe the voltage on your scope:
 
- 10000 io r! (weak pull-down)  30000 io r! (drive pin high)  0 io r! (high impedance)
+ÔÇ∑ 10000 io r! (weak pull-down) ÔÇ∑ 30000 io r! (drive pin high) ÔÇ∑ 0 io r! (high impedance)
 
 9.3 Writing the code
 The sample code we will show you has been placed in block 842. This is part of an open range of blocks that you may use freely. To make sure that our work is automatically run through the F18 compiler we have also placed a load for it into block 200. (You should follow the same pattern when you begin your own projects. If your project spans many blocks it's a good practice to use the first block to load all the others and load only this first block from 200.) Blocks 200 and 842 in the arrayForth distribution contain these things to facilitate your walking through this exercise.
@@ -2131,7 +2131,7 @@ upd 012 xex- drop push drop 100 ... 014 pop pop iex- rtn ; 016
 
 The core function is the three lines beginning with the comment "cyc". This code expects two stack items: an increment value and an error accumulator. It implements the inner loop of the PWM algorithm by calculating and sending a new value to the output pin. The hex number 20000 sets the output to strong pull down which will turn on the LED. All other output values will not cause significant current flow. A hex value of 30000 would select strong pull up and is not useful for this application. The hex value 10000 sets weak pull down and turns the LED off. The commented 0 would select tristate output which also turns off the LED but permits the pad to float higher. By toggling which of these values is commented one can rapidly compare the consequences. We will discuss how this is done in the next section.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 43
 
@@ -2146,7 +2146,7 @@ The final requirement that must be met for this demonstration code is to help th
 
 44
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -2155,7 +2155,7 @@ As soon as the code is written we add the phrase 842 load into block 200 so that
 
 9.4 The IDE script
 We believe that interactive development is not merely the responsibility of some esoteric, third-party, software development platform. We believe it is primarily a mindset. The choices and tools presented by the development platform must simply not conflict with the proper mindset. The mindset cannot be enforced by the tools. The following precepts can be considered to be part of the mindset.
- Make small changes.  Save often.  Test every change.  Make sure all steps are repeatable (such as rebuilding everything before each test).  Choose development paths that do not preclude testing for significant intervals.  Shun tools which delay your feedback because they serve to distract you.
+ÔÇ∑ Make small changes. ÔÇ∑ Save often. ÔÇ∑ Test every change. ÔÇ∑ Make sure all steps are repeatable (such as rebuilding everything before each test). ÔÇ∑ Choose development paths that do not preclude testing for significant intervals. ÔÇ∑ Shun tools which delay your feedback because they serve to distract you.
 The reason colorForth keeps all source code memory-resident and compiles all code from pre-parsed tokens is to encourage recompiling often. The use of scripts encourages repeatability and in colorForth you cannot even make a definition without first committing it into a block. The arrayForth word compile supports these precepts by quickly rebuilding all F18 object code and also by reloading whatever test environment you have configured for the current stage in your development. To support the latter function, whenever you load testing tools they should begin with the phrase 0 fh orgn ! which directs compile to reload that test environment as part of its job.
 In block 844 you will find the test script we have built for exercising the PWM demo. The template for this script was copied from the host block that you loaded earlier when we typed host load as part of assumption checking for node 600 and our wiring. We encourage you to read the shadow for the host block. In our present case we have deleted the sample definition and the canon load and added two script definitions on top the standard serial IDE functions. We could also, if we had wanted, defined here a custom wiring path to replace the standard one but the defaults will be adequate for such a simple program.
 
@@ -2170,7 +2170,7 @@ run talk 0 600 hook 0 64 600 boot upd ?ram panel 0 lit 18000 seed ;
 
 The word seed uses IDE remote commands to place its argument on top of the template literal in node 600 upd and to restart the PWM at the upd entry point. The panel stack display is also updated so that, if you are viewing the panel, you will see your new argument there. It is helpful when outputting a sequence to see what you put out last. On the other hand outputting a new seed does not force panel display as this would be presumptuous and could easily be considered a distraction.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 45
 
@@ -2186,7 +2186,7 @@ The second image zooms in on the one bit at the perimeter of the frame. We see a
 
 46
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 The third image is of a frame of 63 one bit cells and a single zero bit cell. You can see how the frame begins with a strong low going pulse that quickly stabilizes to a firm value and ends with a short ring as it is released for one bit cell.
 
@@ -2198,7 +2198,7 @@ The last image is of the value 33/64. It contains two complete frames. In each f
 9.6 Further Study
 Please see the hybrid DAC function -dac described in the G144A12 Chip Reference. That algorithm, present in ROM of the Analog nodes, uses duty cycle variation to enhance the resolution of the 9-bit current sourcing DACs.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 47
 
@@ -2244,7 +2244,7 @@ When referring to memory, a word is either 32 bits (on the PC platforms) or 18 b
 
 48
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -2307,7 +2307,7 @@ Shannon chr cF
 1111 000 ; 40 1111 001 ' 41 1111 010 ! 42 1111 011 + 43
 1111 100 @ 44 1111 101 * 45 1111 110 . 46 1111 111 ? 47
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 49
 
@@ -2333,7 +2333,7 @@ Object code area, two blocks per bin. 144 bins (0000..0717) for host chip; 144 b
 
 50
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 10.5 Index Listing for Rev 02a
 18 ns 625 nblk 1440 nc 18 144a12 02b 42c/22a 20 macros macro 22 - macros 24 - compiled macros 26 28 colors etc 30 decompress empt 32 load 32 - more macro uses ebx 34 native system dependencies macro 36 windows system dependencies 38 - clock 40 native clock macro pentium timer 42 44 logo and watermark 46 miscellaneous 48 dump empty x 75751424 y -79635296 50 timing tmt 286630312 tmn -162350156 tmp 642452 52 floppy utility empty hd 1 ad 152338 54 icons empty macro 56 - control panel 58 60 serial 3f8 2e8 1050 macro 62 word search macro 64 - more fmask -16 fnn -1794220780 66 editor recolor 8 display = < 13 display = ! 68 blue words >blu 255 0 >blu ! 70 - blue and grey 72 convert cf character to/from ascii 74 pathname input -nat 72 load set1 76 index empty -nat 78 - more 80 qx >qxc 271547945 qb 120 82 load 82 - formatting ws 271547561 84 resident compress 86 load 86 - more macro uses ebx 88 display text macro 90 disk audit utility empty 30 load bias 0 92 - compare cvec 271556556 94 improved stack display nr 6 96 98 100 show bin occupancy empty compile 102 104 106 108 ide native async 0 fh orgn ! macro 110 - umbilical 3F8 serial 60 load 112 ide windows async 0 fh orgn ! macro 114 - umbilical sport 3 1 sport ! 116 - com port management 118 - node 708 boot frames
@@ -2341,7 +2341,7 @@ Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
 DB004 arrayForth User's Manual
 120 - node 708 paths 122 - boot target adjacent "wall 271582744 124 - stream components "pth 67896348 126 - umbilical plumbing "foc 271580178 128 - routing control 130 - target anywhere 132 - remote instructions 134 indicator panel 135 load node stack / upd 136 - tester 138 - canonical words 140 - ide ats support 142 - all-nodes tester 144 arrayforth tm and okad tools and designs 146 f18 compiler empty c 148 f18 software simulator empty compile 150 test code for chip reclaim 152 redact okad disk audit load 154 c-a-c - ascii for gds only! macro 156 big letters macro 158 big clock empty 40 load 156 load 160 compare empty 30 load 162 164 166 168 png empty -nat w 1024 hh 768 d 1 170 - pallettes 172 - crc ad1 14840 ad2 50699 macro 174 - lz77 macro 176 cf-html empty -nat 178 - generate html details 180 - translate text and numbers pos 0 --bs 1 182 - translate cf token details 184 - translate cf tokens 186 - stylesheet details and file output 188 - internal stylesheet 190 chip configuration g144a12 192 - pads, ports and resets 194 - node types 196 198 200 user f18 code reclaim 202 ga application tools 204 - user application tools 206 evb001 host chip ide empty compile 208 evb001 target chip ide empty compile 210 ide based loader pth 2 root 708 talk 212 - configuration tables com 116 214 - routing "rte 67896840 216 softsim configuration 218 evb001 bridge 2-chip ide empty compile 220 - paths 222 - build port bridge 224 226 228 230 232 234 236 238
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 51
 
@@ -2352,14 +2352,14 @@ Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
 
 52
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 480 g144a12 ats test components 482 2000 port tests 484 2001 port tests with 2 486 2002 extensive ram test jeff 488 2003 testing t and s 490 2004 testing t and r 492 2005 testing stack registers 494 2006 testing return stack registers 496 2007 mark ram test 200 node 498 2008 mark r d stack test 500 2009 = a shift test 502 2010 t s a and r data path tests 504 2011 gpio pin test 506 2012 mark d stack test 508 2013 io data path tests 510 2014 set/clear carry test 512 2015 mark <p test 514 2016 test i-ad and r-ad data paths 516 2017 rom checksum 518 2100 parallel port pin test 520 2101 mark <b !b test 522 2102 mark t to b reg test 524 2103 mark port to i-reg test 526 2104 mark port to i-reg-bit-short test 528 2105 mark port to i-reg-bit-short test 530 2106 mark port to i-reg-bit-short test 532 2107 mark port to i-reg-bit-short test 534 2108 mark port to i-reg-bit-short test 536 2109 mark port to i-reg-bit-short test 538 2110 mark prp-call test 540 2111 mark prp-ex test 542 2112 serdes 001 slave test 544 2113 serdes 701 master test 546 2114 basic analog checks 548 2115 mark 2 test 550 2116 mark 2/ test 552 2117 mark 2/ test 554 2200 tst= mark testing = 556 2201 mark r d stack test v2 558 2202 mark d stack test v2 560 2203 mark test = v2 562 2204 mark testing and 564 2205 mark test and 566 2206 mark testing or 568 2207 mark test or v2 570 2208 mark test 572 574 576 578 580 582 584 586 588 590 592 594 596 598
 
 DB004 arrayForth User's Manual
 600 res for more ats test pkgs --602 604 606 608 610 612 614 616 618 620 622 624 626 628 630 1900 ats analog 632 1901 ats sync boot master 634 1902 boot frame for master testing 636 1903 boot frame for master testing 638 1904 ats sync bridge 640 1905 uut bridge debug 642 1906 tester bridge debug 644 bridge loader 646 648 1400 ats cs master0 n108 650 1401 ats cs wire 652 1402 ats cs digital 654 1403 ats cs analog 656 658 xxxx smtm mem-random converted 660 tb001 ide pretest empty compile serial load 662 - pre powerup tests 662 list 664 - power opens and shorts 666 - results 668 - port bridge 670 tb001 ide creepers empty serial load 672 - all tests 674 - multichip ide 676 -- paths 0,1 678 -- paths 1 680 -- paths 1a 682 - control lines 684 - all-nodes runner 686 - incremental runner 688 - build table of valid io w/r bits 690 - build table of rom checksums 692 - results 694 - runner for 911 pin test 696 - runner for 917 rom checksum 698 - runner for 2113 serdes test 700 - runner for 2114 analog test 702 704 706 708 selftest a chip, port on stack empty stp ! 710 - paths 712 ats target test given host port empty stp ! 714 - paths 716 - build port bridge 718 - runner for 2113 serdes test
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 53
 
@@ -2371,14 +2371,14 @@ Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
 
 54
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 960 an012 ti sensortag reclaim 962 - load descriptors 964 -- code 966 968 970 an012 ide boot bridge load loader load 972 - custom ide paths 974 install pf in flash 976 - generate pf stream 978 -- load polyforth nucleus 980 715 xtal osc reclaim 10715 node 0 org 982 717 hub timing reclaim 10717 node 0 org 984 713 light sensor reclaim 10713 node 0 org 986 988 709 i2c timing reclaim 10709 node 0 org 990 708 slow i2c reclaim 10708 node 0 org 992 994 996 998 1000 705 spi boot reclaim 10705 node 0 org 1002 617 fake hub reclaim 10617 node 0 org 1004 1006 1008 1010 1012 1014 1016 1018 1020 1022 1024 1026 1028 1030 1032 1034 1036 1038 1040 1042 1044 1046 1048 1050 1052 1054 1056 1058 1060 more tests 1062 1064 1066 1068 1070 1072 1074 1076 1078
 
 DB004 arrayForth User's Manual
 1080 compile 16-bit eforth virtual machine 1082 - e4vm16 stack 8xxx-9xxx 1084 --- more stack 1086 -- stack up bud axxx 206 node 20 org 1088 1090 -- stack down bud bxxx 6 node 20 org 1092 1094 - e4vm16 bitsy cxxx 105 node 0 org 1096 --- more bitsy 1098 -- bitsy right bud dxxx 104 node host 1100 1102 -- bitsy up bud exxx 205 node 20 org 1104 1106 -- bitsy down bud fxxx 5 node 20 org 1108 1110 - flash to sram pipe host 1112 -- head/pipe nodes take two parameters! 1114 -- tail / starter node takes three parameters! 1116 -- eforth flash interface 0 org 1118 1120 - siobus16 wire nodes host 1122 -- generic siobus wire 30 org 1124 -- tx plug node host 1126 -- rx plug node 0 org 1128 --- more rx 1130 -- 1-pin plug node 20 org 1132 -- dummy flash controller plug 0 org 1134 1136 1138 1140 eforth ide host load 1142 - ide build paths 1144 - read 16-bit eforth.bin file 1146 - ide access sram16 from nodes 108 and 207 1148 - ide access term16 from 104 , flash from 706 1150 1152 install eforth via async bootstream 1154 - generate eforth stream 1156 -- read eforth kernel ft 0 1158 -- load eforth kernel 1160 eforth chip builder 1162 - build sram16 using srampath 1164 - build siobus wires and plugs using e4path 1166 - build e4vm16 nodes using e4path 1168 1170 - sram loader nodes 1172 - spi flash 8 bits 705 node 0 org host 1174 load eforth kernel 1176 1178 1180 build eforth bootstream 1182 - build siobus and virtual machine bootstream 1184 - build flash-sram pipe bootstream 1186 1188 1190 burn 18-bit eforth bootstream into flash 1192 1194 burn 16-bit eforth.bin file into flash 1196 1198 eforth index and listing
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 55
 
@@ -2389,7 +2389,7 @@ Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
 
 56
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 
@@ -2429,14 +2429,14 @@ Creeper test modules 2 (full)
 
 <reserved creeper tests 4>
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 57
 
 DB004 arrayForth User's Manual
-11. Appendix: Microsoft WindowsÆ Platform
+11. Appendix: Microsoft Windows¬Æ Platform
 11.1 Windows arrayForth Requirements
-The host system requirements are as follow:  Microsoft Windows with Win32 environment. We have tested this system on Windows 2000 Professional, Windows XP Professional, Windows Vista and Windows 7 and 8. See below for Windows 8 issues.  Sufficient physical memory and swap file to run at least one instance of a program that is capable of requiring commitment of 768 megabytes of virtual memory. Actual requirements depend on how much memory you actually access, which should be considerably less than this.  Display capable of at least 1024x768x24 bit graphics. The display may be resized after the program is started.  Standard PC keyboard.  At least one RS232 interface with COM port drivers if you wish to use the Interactive Development Environment to communicate with GreenArrays chips. For the EVB001 Evaluation Board, this is done with direct USB cables to the FTDI chips on the board, allowing much faster communications than are reliable with RS232 electrical interfaces.
+The host system requirements are as follow: ÔÇ∑ Microsoft Windows with Win32 environment. We have tested this system on Windows 2000 Professional, Windows XP Professional, Windows Vista and Windows 7 and 8. See below for Windows 8 issues. ÔÇ∑ Sufficient physical memory and swap file to run at least one instance of a program that is capable of requiring commitment of 768 megabytes of virtual memory. Actual requirements depend on how much memory you actually access, which should be considerably less than this. ÔÇ∑ Display capable of at least 1024x768x24 bit graphics. The display may be resized after the program is started. ÔÇ∑ Standard PC keyboard. ÔÇ∑ At least one RS232 interface with COM port drivers if you wish to use the Interactive Development Environment to communicate with GreenArrays chips. For the EVB001 Evaluation Board, this is done with direct USB cables to the FTDI chips on the board, allowing much faster communications than are reliable with RS232 electrical interfaces.
 11.2 Installation
 Starting with release 01b, arrayForth is distributed as a conventional, executable Windows installer. Use it as follows:
 1. Download and run the installer, or run it directly from your browser if the browser supports that operation. You will see a greeting diaglog that looks like this. Click the "next" button.
@@ -2447,7 +2447,7 @@ Starting with release 01b, arrayForth is distributed as a conventional, executab
 
 58
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 4. Next, the installer asks where it should place the program's shortcuts. By default there will be a new Start menu group called GreenArrays with a subgroup EVB001 in which shortcuts will be generated for this instance of arrayForth and for a file explorer view of the entire GreenArrays directory structure, facilitating your finding of your files. You will need to get at them later. Specify where you want them and hit next.
 
@@ -2456,11 +2456,11 @@ DB004 arrayForth User's Manual
 5. The next dialog is important. It begins with a check box which, if checked, will instruct the installer to save backups of your existing source files (.cf for arrayForth and .blk for polyFORTH) in a \backup folder. This will be a subdirectory inside the arrayForth directory structure. It is advisable that you check this box if you are installing an update on top of an existing installation; you may then, later on, use a copy of your previous working .cf file as the backup source file in order to merge your work with the updated system. The second area asks you to select one of a set of buttons to indicate which supported platform you are using. This will affect mainly what shortcuts the Installer will generate. For Windows and Mac Parallels platforms, the shortcuts will be in the Start menu and will assume a Windows compatible environment. For Wine environments, the shortcuts will be on the desktop and will use different scripting files to start the arrayForth program. Select the appropriate items and hit next.
 6. The next dialog is the familiar "Ready to Install" summary of what the Installer proposes to do based on your input in the preceding dialogs. If there are unpleasant surprises, use the back button and correct your input as needed. When you are satisfied with what you see here, hit Install. You will then see a progress meter dialog that should complete very quickly.
 
-7. You will then see a dialog which purports to convey Important Information... and indeed it might. Should any given release require that you take any special actions or be aware of any changes in procedure or usage that might be at odds with the current editions of manuals like this one, this may be your only chance to learn of such before encountering it. Please take the time to read what is written here so you will not later regret having failed to do so!
+7. You will then see a dialog which purports to convey Important Information‚Ä¶ and indeed it might. Should any given release require that you take any special actions or be aware of any changes in procedure or usage that might be at odds with the current editions of manuals like this one, this may be your only chance to learn of such before encountering it. Please take the time to read what is written here so you will not later regret having failed to do so!
 8. Finally you will see a dialog about Completing the Setup Wizard, which will by default offer you the opportunity to read our standard text file that documents changes in this version. Again this is highly recommended reading; if you must forego it at this time, the file is present in the arrayForth directory structure for future reading.
 This concludes the initial phase of installing arrayForth. You should be able to run arrayForth using the installed shortcut and will only need to take further steps if you intend to communicate with real GA144 chips, such as those on the Evaluation Board.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 59
 
@@ -2475,7 +2475,7 @@ c. Find the Windows Device Manager. The exact procedure varies between versions 
 
 60
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 disappeared. Now plug it back in and record its COM port number and which of your interfaces (such as Eval Board port A/B/C) it represents.
@@ -2488,12 +2488,12 @@ iii. Please see "Miscellaneous Options." We get the best results from setting th
 
 2. Decide what baud rate(s) you will employ (but do not enter it in the above property sheets). What is feasible depends on the electrical characteristics of the PC serial interface in use. Our default baud rate, 921600, is correct for the EVB001 USB ports (all factory testing of each Eval Board is done at this speed.) If you are using an actual RS232 interface then the maximum usable rate will depend on the quality of its
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 61
 
 DB004 arrayForth User's Manual
-chipset including its line transceivers. We have on rare occasion found RS232 interfaces that we could use at 460,800 baud, but more commonly the limit will be 115,200 or if you are lucky 230,400. Don't go any lower than 19,200 baud because our async nodes only have 18 bit time delay counters...
+chipset including its line transceivers. We have on rare occasion found RS232 interfaces that we could use at 460,800 baud, but more commonly the limit will be 115,200 or if you are lucky 230,400. Don't go any lower than 19,200 baud because our async nodes only have 18 bit time delay counters‚Ä¶
 3. Start arrayForth using the shortcut made by the installer, or by double-clicking Okad.bat. Say 202 edit and edit the port number for a-com (IDE for host or only chip) or c-com (target chip on Eval Board) as appropriate to reflect the ports(s) you have identified. Make sure the new port number is in yellow. Similarly, edit desired baud rates for these ports a-bps and c-bps if necessary; see above regarding appropriate baud rates to be used. Say save .
 4. Shut down arrayForth by saying bye and restart the program.
 5. Check the command window (see below) which should give feedback of success in configuring the serial port(s). You are now ready to begin IDE operations.
@@ -2510,13 +2510,13 @@ You may run multiple copies of arrayForth so long as you don't exceed the virtua
 
 62
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
-12. Appendix: Apple MacÆ Platform with Windows
+12. Appendix: Apple Mac¬Æ Platform with Windows
 12.1 Mac Requirements
-arrayForth can be run on Apple computers that are built from Intel x86 processors, by using Parallels, a product of Elements5, hosting a Microsoft WindowsÆ operating system (XP or later). The following procedures have been tested on a MacBook running OS X version 10.6, Parallels 5.09, and Windows XP Professional. We also believe they should work using Windows installed on a Mac system using VirtualBox; if you install our software on this configuration, please let us know how it went.
-Note: If you are new to Windows, be aware that you will need to change some of the default settings in Windows before it is practical to do some of these things. For example, by default the Windows file explorer hides file extensions lilke .bat and .exe ... and even hides whole files. If you are in this situation and have no idea how to do those things, contact our support hotline and we may be able to supply a "script" describing how to do it on the version of Windows you have installed.
+arrayForth can be run on Apple computers that are built from Intel x86 processors, by using Parallels, a product of Elements5, hosting a Microsoft Windows¬Æ operating system (XP or later). The following procedures have been tested on a MacBook running OS X version 10.6, Parallels 5.09, and Windows XP Professional. We also believe they should work using Windows installed on a Mac system using VirtualBox; if you install our software on this configuration, please let us know how it went.
+Note: If you are new to Windows, be aware that you will need to change some of the default settings in Windows before it is practical to do some of these things. For example, by default the Windows file explorer hides file extensions lilke .bat and .exe ‚Ä¶ and even hides whole files. If you are in this situation and have no idea how to do those things, contact our support hotline and we may be able to supply a "script" describing how to do it on the version of Windows you have installed.
 12.2 Installation
 Because Parallels (and VirtualBox) are Virtual Machine environments running actual Windows software, the procedures are almost identical with those on a Windows system. The differences we know of are as follow:
 1. You should download the installer executable into some path actually rooted in C: in the windows environment's file system. Working directories are not correct when Windows programs are executed from places that are not, such as \\.psf\Home\Documents as one example.
@@ -2532,7 +2532,7 @@ Although Wine is not a Virtual Machine environment, most steps are the same as w
 dialog, and check the box to "Allow executing file as program." (equivalent to chmod u+x ) 4. Right click again and choose the menu item "Open with Wine Windows Program Loader." The installer should
 run as described above.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 63
 
@@ -2552,7 +2552,7 @@ The linuxwine.bat file may need editing for other configurations. In addition yo
 
 64
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 DB004 arrayForth User's Manual
 13.2 Running arrayForth
@@ -2562,18 +2562,18 @@ Preferably you will use the desktop shortcuts. You may choose to create scripts 
 14.1 Native arrayForth Requirements
 For Native systems, arrayForth normally boots from a 3.5" floppy. Actually, it can boot from any BIOS compatible boot medium that looks like a straight disk with 512 byte sectors, so the same image should boot if copied to absolute zero (no partitions) on ATA hard disks, USB floppies or flash, or SATA disks.
 Other requirements are:
- 3.5" Floppy with ISA compatible Floppy Disk Controller (no USB) is necessary in order to read or write blocks for any other purpose than booting.
- Standard PC (XT or AT) keyboard with ISA compatible keyboard processor, or with USB keyboard using System Management Mode "legacy keyboard" emulation.
- One of a relatively limited set of ATI or NVidia PCI/AGP graphic interfaces. We cannot tell you which ones, because ATI and NVidia have refused to inform us of which boards support which BIOS mode codes for what display configurations.
- One gigabyte of RAM for the standard system as distributed. This is not all needed simply to develop code for our chips, but the system comes configured that way because we do need the space for CAD operations.
- At least one 16450 compatible UART and RS232 interface (real, not USB) if you wish to use the Interactive Development Environment to communicate with GreenArrays chips.
+ÔÇ∑ 3.5" Floppy with ISA compatible Floppy Disk Controller (no USB) is necessary in order to read or write blocks for any other purpose than booting.
+ÔÇ∑ Standard PC (XT or AT) keyboard with ISA compatible keyboard processor, or with USB keyboard using System Management Mode "legacy keyboard" emulation.
+ÔÇ∑ One of a relatively limited set of ATI or NVidia PCI/AGP graphic interfaces. We cannot tell you which ones, because ATI and NVidia have refused to inform us of which boards support which BIOS mode codes for what display configurations.
+ÔÇ∑ One gigabyte of RAM for the standard system as distributed. This is not all needed simply to develop code for our chips, but the system comes configured that way because we do need the space for CAD operations.
+ÔÇ∑ At least one 16450 compatible UART and RS232 interface (real, not USB) if you wish to use the Interactive Development Environment to communicate with GreenArrays chips.
 14.2 Running arrayForth Natively
 Assuming that you have a compatible hardware platform, and have made any needed BIOS settings (to boot first from floppy, to enable emulation of keyboard processor on USB systems, and so on), it is very simple to start arrayForth running:
 1. Insert arrayForth floppy in drive. 2. Power up or reset the PC. 3. Wait for the floppy to be read in its entirety. 4. When the arrayForth logo screen appears, the system is ready to use. 5. Plug serial cable into COM1 if you intend to communicate with GreenArrays chips.
 You can use the floppy drive to save your work as a bootable system. You can also read other floppies for comparison and reconciliation using the audit utility.
 To access an Evaluation Board from a native PC, you will need to configure the board for true RS232 interfaces. Please refer to the relevant Application Note on our website.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 65
 
@@ -2590,14 +2590,14 @@ REVISION 110912 110915 110918
 DESCRIPTION
 Preliminary Release for Rev 01a software Correct order of images in Practical Example. Reorganize and clarify Editor description. Update index listing. Fix numerous typographical errors. Add 2.3 arrayForth User Vocabulary. Expand upon 5.3 F18 Compiler Syntax. Update installation instructions to reflect 01b installer. Add new disk management words. Fix typos. Remove inaccurate statements from Practical Example. Fix typos. Deprecate obsolete colorForth comment types in 01c editor. Clarify functions of talk in the IDE. Clarify softsim section and document new interactive vocabulary. Emphasize use of recaim to control identifier scope. Add a-com and c-com used by internal baud rate setting functions. Document new onamed and bnamed functions to rename the working and backup source files. Show the new installation instructions which no longer require editing of .bat files, and include screenshots for readers unfamiliar with the Windows Device Manager. Update to correspond with software release 01d. Add sections for memory map and bin assignment tables. Describe new blue words. Remove mention of watermarked block number in editor and replace with image and prose describing the block number over hint area with color annunciating editor status. Update audit utility backup image area. Fix typos and make minor improvements in clarity. Update to correspond with software release 01e. Document preliminary module structure. Add description of new common load descriptor syntax and describe its use with automated IDE loading and boot stream generation. Update to correspond with software release 01g. Document improvements in keyboard feedback area, new grey word behavior, and refinements in the interactions between node and org in the F18 compiler. Document improvements in softsim (testbed mechanism, human interface, boot descriptor processing, breakpoint mechanism). Updated to correspond with software release 02a. More F18 code released including fully supported polyFORTH Virtual Machine.. thru is now available to make load blocks more readable. IDE and SPI loading paths made as complete as possible. Interval timer nodes added for polyFORTH. arrayForth and polyFORTH version numbers will now be identical in each release. Updated to correspond with software release 02b. IDE and framer support programming both chips on an EVB. A new booting option loads one or both chips using a minimal boot stream through serial port, considerably faster than the IDE method, without altering flash. polyFORTH F18 code now supports Ethernet daughter board.
 
-Copyright© 2010-2011 GreenArrays, Inc. 10/30/13
+Copyright¬© 2010-2011 GreenArrays, Inc. 10/30/13
 
 67
 
-GreenArraysÆ
+GreenArrays¬Æ
 Product Data Book DB004 Revised 10/30/13
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI‚Äôs terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -2609,6 +2609,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright ¬© 2010-2011, GreenArrays, Incorporated
 
 

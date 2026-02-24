@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN011-130608-GANGLIA1.compact.html]
-GreenArrays® AN011 Ganglia Mark 1
+[Derived from: ../../reference/greenarrays/pdfs/AN011-130608-GANGLIA1.pdf]
+GreenArraysÂ® AN011 Ganglia Mark 1
 Application Note AN011 Revised 6/08/13
 Ganglia Mark 1: A Dynamic Message Routing Surface
 This paper describes a means for exchanging message transactions between nodes that do not share a common COM port using message frames whose headers hold source routing information that is updated incrementally as the frame moves between contiguous nodes that have been programmed to serve as part of a surface, or fabric, for this purpose. In the polyFORTH system, for example, all otherwise fallow nodes are programmed in this way and are utilized for most communications between the polyFORTH virtual machine and other interfaces elsewhere on the chip. Each transaction with a target node consists of delivering to one of its ports a focusing call instruction word followed by one or more words of arbitrary payload, and receiving one or more words of arbitrary reply. Transactions begin by feeding a Ganglion frame from a source node outside the surface into the first Ganglion node from which it propagates along a path defined in that frame's header. In this paper the Snorkel is used as an example of a source node. The Mark 1 protocol is simple, brief, and requires only 32 words of resident code in each node that is used to route messages. Its routing description is sufficient for straightforward traffic in a chip that has a large, uncongested routing surface. The Mark 2 protocol should be used when the simple, three-legged routing is insufficient.
@@ -35,7 +35,7 @@ The path segments are interpreted right to left, as taking n steps in cardinal d
 
 2
 
-Copyright© 2010-2013 GreenArrays, Inc. 6/08/13
+CopyrightÂ© 2010-2013 GreenArrays, Inc. 6/08/13
 
 AN011 Ganglia Mark 1
 
@@ -51,7 +51,7 @@ The path is interpreted in each Ganglion, selecting a port based on cardinal dir
 Each Ganglion is completely devoted to the processing of a message from the time it receives the focusing call at the start of a message until it has successfully written the last word of reply through the port from which it received the frame. The chain of Ganglia actively processing a transaction is an impenetrable wall while this is going on. Although it is possible for multiple paths such as ganglion messages and/or IDE wires to be active in a chip concurrently, only one of them may pass through a given node at a given time and the normal mechanism in a Ganglion cannot resolve multiple incoming focusing calls that are capable of occurring within an instruction time of each other. When multiple paths cross only once and this timing constraint is observed, traffic control is automatic. When such paths cross more than once, deadlock becomes possible so system design must ensure that does not happen.
 Nothing precludes building special "plumbing fixtures" to facilitate traffic control. A node may be programmed to resolve effectively simultaneous arrival of focusing calls by polling io and selecting which port to process. It's also possible to program a node for acting as a transparent bridge with predefined output port for each input port, thus permitting two active paths of any sort to cross. The cost of such polling, in the F18A, is the power bill for a node running at 100% duty cycle.
 
-Copyright© 2010-2011 GreenArrays, Inc. 6/08/13
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 6/08/13
 
 3
 
@@ -154,7 +154,7 @@ eight nodes to node 515, after which payload is delivered rightward to target no
 
 4
 
-Copyright© 2010-2013 GreenArrays, Inc. 6/08/13
+CopyrightÂ© 2010-2013 GreenArrays, Inc. 6/08/13
 
 AN011 Ganglia Mark 1
 
@@ -551,14 +551,14 @@ In the block diagram above, all white nodes have been loaded with Ganglion code 
 0 rr 0 0 ,path When the first segment is of zero length, it simply causes the first (and last) Ganglion to deliver in the given direction. This is the only case in which a zero length rightwards path may be used.
 5 ll 1 uu 0 rr ,path This path will not work. 0 rr is equivalent to zero and will not be processed because it is not the first segment. In this case, delivery would be made to node 502 instead of 403. (Delivery to the left, using 0 ll , would work as expected.)
 
-Copyright© 2010-2011 GreenArrays, Inc. 6/08/13
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 6/08/13
 
 5
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN011 Revised 6/08/13
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -570,6 +570,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2013, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2013, GreenArrays, Incorporated
 
 

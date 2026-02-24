@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN004-111008-GS-EVB001.compact.html]
-GreenArraysTM
+[Derived from: ../../reference/greenarrays/pdfs/AN004-111008-GS-EVB001.pdf]
+GreenArrays™
 AN004 Getting Started with Eval Board EVB001
 Application Note AN004 Revised 10/08/11
 
@@ -8,7 +8,7 @@ Evaluation Board EVB001
 
 The GreenArrays EVB001 Evaluation Board is a versatile and powerful application development platform for the GA144-1.20 chips. As such it has many configuration options. The current Printed Circuit Board (PCB) revision shown on the silkscreen is 0.1.1, and it is currently shipped with a starter eForth that may be booted from flash and with configuration settings as shown herein.
 Please familiarize yourself with this information before connecting anything to your new board. It will walk you through initial connection, check-out and use of the board.
-In addition, please download and read the other relevant documentation such as the Programmers' Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), the Evaluation Board Data Book (DB003), and the Programmers' References for arrayForthTM, eForth, polyFORTH�, and other software as appropriate. The current editions of all GreenArrays documents, including this one, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
+In addition, please download and read the other relevant documentation such as the Programmers' Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), the Evaluation Board Data Book (DB003), and the Programmers' References for arrayForth™, eForth, polyFORTH®, and other software as appropriate. The current editions of all GreenArrays documents, including this one, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
 Your satisfaction is very important to us! Please contact Hotline@greenarraychips.com if you have questions or need help with using your board.
 In this edition, the photographs have been improved for greater clarity.
 
@@ -73,7 +73,7 @@ Begin by setting all jumpers to the default settings as we shipped the board to 
 
 2
 
-Copyright� 2010-2011 GreenArrays, Inc. 10/08/11
+Copyright© 2010-2011 GreenArrays, Inc. 10/08/11
 
 1.2.1 Table of Jumpers
 Host and Target Power Select
@@ -156,7 +156,7 @@ In the factory, we check the power supply before applying DC power to most of th
 After setting the board up in this way, provide input power to the regulator, using either a "wall-wart" in J2 or any of the three USB connections J3, J9 or J18. Your voltmeter should indicate very nearly 1.8 volts. We do not recommend checking resistance between VDD and ground on this board, because many meters apply high voltages exceeding many chips' limits. When the checks are complete, re-insert the power select jumpers.
 If you use a "wall-wart" power source, it needs to provide 3.6 to 19.5 volts (a lower limit of 4v is more practical) on a type "N" connector, positive voltage on center pin. If the supply can produce 4.5 to 5 watts then it should be able to power the 80% efficient switching regulator at its maximum rated output of 2A at 1.8v.
 
-Copyright� 2010-2011 GreenArrays, Inc. 10/08/11
+Copyright© 2010-2011 GreenArrays, Inc. 10/08/11
 
 3
 
@@ -187,22 +187,22 @@ Please contact us right away if you do not see the expected results or if you ha
 
 4
 
-Copyright� 2010-2011 GreenArrays, Inc. 10/08/11
+Copyright© 2010-2011 GreenArrays, Inc. 10/08/11
 
 AN004 Getting Started with Eval Board EVB001
 
 2. Move On to Programming
 Now that you've verified the integrity of your board and its connections with a host machine, it's time to take a closer look at the three main development tools used in programming our chips.
- arrayForth is currently the main tool for working with F18 code: Editing its source in colorForth representation, compiling it, making HTML listings, debugging it interactively using the IDE, generating boot streams, and writing flash. This system is written in the Intel IA32 instruction set (x86) and runs on Microsoft Windows systems (including Windows hosted by Mac Parallels), as well as unix systems using WINE.
- eForth is a very simple and portable implementation of ANS Forth. This particular implementation runs on a 16-bit Virtual Machine that runs on our chips. eForth requires only a terminal emulator on USB port B, although the supplied emulator provides additional useful capabilities.
- polyFORTH is a full blown, self -reproducing professional application development operating system that also runs on a Virtual Machine programmed for our chips. Mass storage is provided by the evaluation board and terminal services by an external system. Eventually all the F18 programming tools will be implemented by this polyFORTH system.
+ arrayForth is currently the main tool for working with F18 code: Editing its source in colorForth representation, compiling it, making HTML listings, debugging it interactively using the IDE, generating boot streams, and writing flash. This system is written in the Intel IA32 instruction set (x86) and runs on Microsoft Windows systems (including Windows hosted by Mac Parallels), as well as unix systems using WINE.
+ eForth is a very simple and portable implementation of ANS Forth. This particular implementation runs on a 16-bit Virtual Machine that runs on our chips. eForth requires only a terminal emulator on USB port B, although the supplied emulator provides additional useful capabilities.
+ polyFORTH is a full blown, self -reproducing professional application development operating system that also runs on a Virtual Machine programmed for our chips. Mass storage is provided by the evaluation board and terminal services by an external system. Eventually all the F18 programming tools will be implemented by this polyFORTH system.
 Please see our website for to download these tools, their documentation, and other relevant code, documentation and application notes.
 
 3. Resources and Details
 
 3.1 What's in the Box
 
-In addition to the Eval Board itself, there is an antistatic bag containing parts you may find useful. The exact composition of this bag is subject to change, but as of the time of this writing it contains the following items: One Dual voltage, 2 GB MMC card intended for use as primary mass storage by polyFORTH when that system is released. One USB cable. Two Clip-leads. One each DB9, RJ48, and USB-B sockets. Three TRS audio jacks. Long single and double row male headers that may be cut up and soldered where needed. Five LEDs and five 47 resistors for diagnostic and general use.
+In addition to the Eval Board itself, there is an antistatic bag containing parts you may find useful. The exact composition of this bag is subject to change, but as of the time of this writing it contains the following items: One Dual voltage, 2 GB MMC card intended for use as primary mass storage by polyFORTH when that system is released. One USB cable. Two Clip-leads. One each DB9, RJ48, and USB-B sockets. Three TRS audio jacks. Long single and double row male headers that may be cut up and soldered where needed. Five LEDs and five 47Ω resistors for diagnostic and general use.
 
 3.2 Getting Help
 
@@ -222,14 +222,14 @@ The general purpose LEDs (see J57) are not populated due to an error in circuit 
 FIX OR WORK-AROUND Do not use J70. The pattern and wiring will be corrected in the next board revision. Do not use. Circuit and layout will be corrected in the next board revision.
 Do not use. Circuit and connectors will be changed in the next board revision.
 
-Copyright� 2010-2011 GreenArrays, Inc. 10/08/11
+Copyright© 2010-2011 GreenArrays, Inc. 10/08/11
 
 5
 
-GreenArraysTM
+GreenArrays™
 Application Note AN004 Revised 10/08/11
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -241,6 +241,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright � 2010-2011, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
 
 

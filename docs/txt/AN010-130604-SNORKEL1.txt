@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN010-130604-SNORKEL1.compact.html]
-GreenArrays® AN010 Snorkel Mark 1
+[Derived from: ../../reference/greenarrays/pdfs/AN010-130604-SNORKEL1.pdf]
+GreenArraysÂ® AN010 Snorkel Mark 1
 Application Note AN010 Revised 6/04/13
 The Snorkel Mark 1: A Programmable DMA Channel
 This paper describes a simple SRAM master that moves arbitrary sequences of 18-bit or 16-bit data between one of its COM ports and specified areas of the external SRAM. This is done by a simple, software-defined special purpose processor that executes a stored program from SRAM to define the sequence of transfers. The problem and its solution are not new. In fact, very similar Programmable DMA Channels were part of the hardware in mainframe computers of the 1960's. In later minicomputer and microprocessor designs, the DMA channels lost the ability to execute stored programs and instead single transfers were controlled with registers and main CPU software. More recently this problem is addressed by giving DMA capability to each controller attached to a common system bus such as PCI. However, the Programmable DMA Channel remains a very useful tool, and one of the nicer things about the GreenArrays architecture is the ability to implement such devices in software. This module illustrates a number of effective techniques for minimizing the size of the F18 code; indeed, it was necessary to employ them in order to fit this functionality into only 64 words. Anyone interested in learning to program our chips well should benefit greatly from a careful study of this software.
@@ -20,7 +20,7 @@ The Snorkel is a simple, special purpose processor that executes stored Snorkel 
 
 2
 
-Copyright© 2010-2013 GreenArrays, Inc. 6/04/13
+CopyrightÂ© 2010-2013 GreenArrays, Inc. 6/04/13
 
 AN010 Snorkel Mark 1
 
@@ -67,7 +67,7 @@ hi
 
 Decoding is simple; after reading an op-code from external memory, we simply jump to that address in internal RAM using the sequence push ; at the end of idle . We use this technique in many ways. Another technique example is the calling of dma to run a loop that invokes the code following the call each time through the loop. Such techniques reduce code size and make it feasible to express programs like this one in only 64 words.
 
-Copyright© 2010-2011 GreenArrays, Inc. 6/04/13
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 6/04/13
 
 3
 
@@ -137,7 +137,7 @@ FIN is set to zero when FIN is executed.
 
 4
 
-Copyright© 2010-2013 GreenArrays, Inc. 6/04/13
+CopyrightÂ© 2010-2013 GreenArrays, Inc. 6/04/13
 
 AN010 Snorkel Mark 1
 
@@ -158,14 +158,14 @@ All these examples are in context of Ganglion transactions, but the Snorkel is n
 
 The high-order two bits of data transferred through ports on an o16 operation will be zero on the EVB001 board because D16 and D17 pins are pulled down. These bits are not masked by the Mark 1 SRAM Cluster; if you have laid out a board you must be aware that any signals on those pins are visible to SRAM masters and in the case of the Snorkel will be moved through the port on an o16 operation.
 
-Copyright© 2010-2011 GreenArrays, Inc. 6/04/13
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 6/04/13
 
 5
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN010 Revised 6/04/13
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -177,6 +177,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2013, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2013, GreenArrays, Incorporated
 
 

@@ -1,11 +1,11 @@
-[Derived from: ../../reference/greenarrays/AN003-110810-SRAM.compact.html]
-GreenArraysTM AN003 SRAM Control Cluster Mark 1
+[Derived from: ../../reference/greenarrays/pdfs/AN003-110810-SRAM.pdf]
+GreenArraysâ„¢ AN003 SRAM Control Cluster Mark 1
 Application Note AN003 Revised 8/10/11
 
 SRAM Control Cluster
 Mark 1
 
-This is an Application Module for the GA144. Four nodes and 40 pins are programmed to serve as a controller for an external SRAM chip. This module is used by GreenArrays applications and tools such as eForth and polyFORTH® (version 01k and later).
+This is an Application Module for the GA144. Four nodes and 40 pins are programmed to serve as a controller for an external SRAM chip. This module is used by GreenArrays applications and tools such as eForth and polyFORTHÂ® (version 01k and later).
 Your application may share this module with GreenArrays software, or you may customize it for dedicated use by applications requiring larger storage than is available within the chip, including your own Virtual Machines. The cluster may be customized for applications varying from a single master to three or more masters, with optional notification message passing between them.
 In this paper we describe the operation of the module and its interfaces, and suggest possible customizations. The text assumes you have familiarized yourself with our hardware and software technology by reading our other documents on those topics. The current editions of all GreenArrays documents, including this one, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
 
@@ -91,13 +91,13 @@ The seventeen low-order address lines a01..a16 from node 009 connect directly to
 
 Pins 008.5 and 008.17 must connect directly to A18 and A19, respectively, on the SRAM. This requirement, like the rule for A17, allows memories smaller than 1 Mw to be addressed contiguously starting at zero. If you never plan to support a memory smaller than 1 Mw, it is then permissible to map all 20 of these address lines in any order.
 
-Pin 008.3 connects directly with WE-, and 008.1 connects directly with CE-. Because these pins reset to weak pulldown, which would assert them and start an SRAM write operation, they should both be pulled up using a moderate resistor value such as 4.7K or 5.1K.
+Pin 008.3 connects directly with WE-, and 008.1 connects directly with CE-. Because these pins reset to weak pulldown, which would assert them and start an SRAM write operation, they should both be pulled up using a moderate resistor value such as 4.7K or 5.1KÎ©.
 
 Remaining SRAM pin CE2 should be tied to VDD and the OE-, BHE- and BLE- pins should all be grounded. For schematic and layout examples, see the Data Book on the EVB001 Evaluation Board (DB003).
 
 2
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 AN003 SRAM Control Cluster Mark 1
 
@@ -120,7 +120,7 @@ Throughout this paper, the notation -x means the 18-bit inverse of a 16-bit valu
 The memory master node is responsible for guaranteeing valid arguments. This means that p must be in [0..15], and both a and w must be in [0..65535]. Likewise the numbers may only be inverted as shown above, in their 18-bit form, to identify operations. No execution-time error checking is done, as this would cost time, space, and energy. The results of using invalid arguments are unspecified.
 The cx? primitive is useful in coordination of parallel processors using flags and data structures such as queues in shared memory. Note: We chose to implement this 80486-style instruction, rather than the classical test-and-set, because compare-and-exchange has proven to be more powerful and useful.
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 3
 
@@ -150,7 +150,7 @@ If a second master updates a memory structure after a first has examined it and 
 
 4
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 AN003 SRAM Control Cluster Mark 1
 
@@ -179,7 +179,7 @@ cmd 00A @ -if @ ' cx -until .e! - !b !b @ !b ; then 00E @ -if mixpa .mk! 00F - p
 
 poll is the idle loop of this node, polling the IO register for activity to which it must respond. On entry the stack contains a mask underneath the value x15555 with a throw-away value x on top. In the polling loop, IO is read, exclusive ORed with x15555 to convert its port read status bits to positive true, and tested for nonzero under the mask. The mask has a 1 for the port write bit(s) (Rw, Lw, and Uw) corresponding to those nodes from which commands are being accepted. It also has a 1 for the port read bits (Rr-, Lr- and Ur-) corresponding to each node for which a stimulus is pending. The polling loop ends when at least one node is offering a command or is trying to read a pending stimulus. On finding a master ready to be stimulated, we write a word through its comm port and clear its port read mask bit. Otherwise one command source is identified and control passes to cmd after setting A to point to the node offering the command.
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 5
 
@@ -217,7 +217,7 @@ start initializes B , sets the data bus to input mode, sets A to its default val
 
 6
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 AN003 SRAM Control Cluster Mark 1
 
@@ -245,7 +245,7 @@ cmd index .lit. pin17 pin05 pin03 pin01 w00 .0111 2556A a19-0 a18-0 /we-0 /ce-0 
 'start' pin control table 0-7 000 2556E r00 , 2557E r01 , 002 3556E r10 , 3557E r11 , 004 3557A w11 , 3556A w10 , 006 2557A w01 , 2556A w00 , 008 20 org
 start 020 'r-l- b! io a! cmd 024 @b stop ! a push 7 mask .. @b a16 !b @b +p/-p dup !b 2/ 2/ and i3 a! .. @ ctrl pop a! start ! cmd ; 02C
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 7
 
@@ -277,7 +277,7 @@ The coding in this version of the cluster Is appropriate if the SRAM is wired to
 
 8
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 AN003 SRAM Control Cluster Mark 1
 
@@ -304,14 +304,14 @@ cx wp- 000 over push @ dup a !b over p !b @b w pop - w1 or if ne @ w2 dup or ff 
 cmd 00A @ -if @ ' cx -until .e! - !b !b @ !b ; then 00E @ .e@ 00F a !b p !b @b w ! ;
 011 17 org start 017 down b! right a! run 01B cmd run ; 01D
 
-Copyright© 2010-2011 GreenArrays, Inc. 8/10/11
+CopyrightÂ© 2010-2011 GreenArrays, Inc. 8/10/11
 
 9
 
-GreenArraysTM
+GreenArraysâ„¢
 Application Note AN003 Revised 8/10/11
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -323,6 +323,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2011, GreenArrays, Incorporated
 
 

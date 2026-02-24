@@ -1,8 +1,8 @@
-[Derived from: ../../reference/greenarrays/AB007-220620-UPDFLASH.compact.html]
-GreenArrays® Application Brief AB007 Revised 6/20/22
+[Derived from: ../../reference/greenarrays/pdfs/AB007-220620-UPDFLASH.pdf]
+GreenArraysÂ® Application Brief AB007 Revised 6/20/22
 Updating EVB002 Flash
 This brief consolidates information published elsewhere to simplify the process of updating the flash on your EVB002.
-The EVB002 is shipped with a bootable polyFORTH® system in its flash (level 03b2 initially. To understand exactly what was done to your board before shipping it to you, read PCBCOM from the Index of Downloads). With no-boot jumper removed, this sytem will boot on reset, await a CR on FTDI USB COM-B to autobaud, after which it announces itself and says hi awaiting instructions. You can get to this point by following the instructions in AN021 through 1.5. If this fails on a board you have not used, contact us; if you suspect you've clobbered your flash, follow the instructions in section 9 of DB013.
+The EVB002 is shipped with a bootable polyFORTHÂ® system in its flash (level 03b2 initially. To understand exactly what was done to your board before shipping it to you, read PCBCOM from the Index of Downloads). With no-boot jumper removed, this sytem will boot on reset, await a CR on FTDI USB COM-B to autobaud, after which it announces itself and says hi awaiting instructions. You can get to this point by following the instructions in AN021 through 1.5. If this fails on a board you have not used, contact us; if you suspect you've clobbered your flash, follow the instructions in section 9 of DB013.
 ASSUMING that you have a bootable polyFORTH system on your flash, you may do the following:
 1. If you have not already done so, download the current version of arrayForth-3 from our website (Customer Support Central) with attention to DB013 section 2.2.1 (Installation on Win32 Platforms).
 2. Connect to your EVB with SERIAL and bring the system up (reset, space, HI). OFFSET will be 0 and disk structured thus:

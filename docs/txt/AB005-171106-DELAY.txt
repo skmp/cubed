@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AB005-171106-DELAY.compact.html]
-GreenArraysTM Application Brief AB005 Revised 11/06/17
+[Derived from: ../../reference/greenarrays/pdfs/AB005-171106-DELAY.pdf]
+GreenArrays™ Application Brief AB005 Revised 11/06/17
 Delay Lines (or buffers)
 Using one or more Nodes as 64-word Storage Elements
 Most of the examples of controlling a chain of nodes through port execution, beginning with the example of boot streams, use a nest of streams whose overall length increases linearly with the number of nodes in the chain. This follows from the idea that the instructions and data given to each node must be part of the original stream.

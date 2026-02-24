@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN017-170105-GANGLIA2.compact.html]
-GreenArrays® AN017 Ganglia Mark 2
+[Derived from: ../../reference/greenarrays/pdfs/AN017-170105-GANGLIA2.pdf]
+GreenArraysÂ® AN017 Ganglia Mark 2
 Application Note AN017 Revised 1/05/17
 Ganglia Mark 2: A Dynamic Message Routing Surface
 
@@ -51,7 +51,7 @@ Reply (Y words)
 
 Function
 First word of header, also included in payload delivery
-Remaining header (4 words), not delivered to target - Focusing call (above) and path updated at each step - Header stripped when delivering payload at destination - Direction codes (d) are 0,1,2,3 are cardinal E,W,N,S. - Distance (n) 1-relative. Nonzero means decrement (n) and take a step in direction (d). 0 means deliver in direction (d) if and only if (e) set marking this as the last segment; otherwise the segment is deleted and the next processed.
+Remaining header (â‰¥4 words), not delivered to target - Focusing call (above) and path updated at each step - Header stripped when delivering payload at destination - Direction codes (d) are 0,1,2,3 are cardinal E,W,N,S. - Distance (n) 1-relative. Nonzero means decrement (n) and take a step in direction (d). 0 means deliver in direction (d) if and only if (e) set marking this as the last segment; otherwise the segment is deleted and the next processed.
 Sent with outbound frame and delivered after focusing call at destination
 Transferred from destination back to originator
 
@@ -60,7 +60,7 @@ The path segments are interpreted sequentially, as taking n steps in cardinal di
 
 2
 
-Copyright© 2010-2015 GreenArrays, Inc. 1/05/17
+CopyrightÂ© 2010-2015 GreenArrays, Inc. 1/05/17
 
 AN017 Ganglia Mark 2
 
@@ -148,7 +148,7 @@ improved ganglia deliver exchanges of 1 or, more words out and 1 or more word re
 
 Path encoding is interpreted sequentially from the first word transmitted, with d specifying cardinal direction (0 right or East, 1 left or West, 2 up or North, 3 down or South) and n specifying a number of steps to be taken in that direction. Counting begins from the first Ganglion, not from the Snorkel. If a second segment is needed, it is encoded in the next word and so on. Unused segments are not included in the message, and the final segment is marked with its sign bit.
 
-Copyright© 2010-2015 GreenArrays, Inc. 1/05/17
+CopyrightÂ© 2010-2015 GreenArrays, Inc. 1/05/17
 
 3
 
@@ -159,7 +159,7 @@ Nothing precludes building special "plumbing fixtures" to facilitate traffic con
 
 4
 
-Copyright© 2010-2015 GreenArrays, Inc. 1/05/17
+CopyrightÂ© 2010-2015 GreenArrays, Inc. 1/05/17
 
 AN017 Ganglia Mark 2
 
@@ -257,7 +257,7 @@ The example in block 31 compiles a 14-word structure in polyFORTH memory that wi
 :DOWN 2, Compiles a focusing call for the down port of the first Ganglion, node 307, next to the snorkel. 1 , 2034 , Compiles a call instruction to pump in the Ganglion. 1 W, Compiles reply count, meaning a 2-word reply is expected. 0 W, Compiles payload count, meaning a 1-word payload follows. 2 +N 8 +E deliv Compiles a path that goes upward 2 nodes from 307, to 507, then goes rightward eight
 nodes to node 515, after which payload is delivered rightward to target node 516 (see next page for more information on path definitions.) 1 , 2200 , Compiles the payload: A call to location 0 in the target node with P9 set for Extended Arithmetic Mode. Thus the target node receives two words, the appropriate focusing call followed by this call to zero, and will return two words of reply through the same port.
 
-Copyright© 2010-2015 GreenArrays, Inc. 1/05/17
+CopyrightÂ© 2010-2015 GreenArrays, Inc. 1/05/17
 
 5
 
@@ -659,12 +659,12 @@ In the block diagram above, all white nodes have been loaded with Ganglion code 
 
 6
 
-Copyright© 2010-2015 GreenArrays, Inc. 1/05/17
+CopyrightÂ© 2010-2015 GreenArrays, Inc. 1/05/17
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN011 Revised 1/05/17
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -676,6 +676,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2017, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2017, GreenArrays, Incorporated
 
 

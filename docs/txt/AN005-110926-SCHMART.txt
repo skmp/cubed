@@ -1,10 +1,10 @@
-[Derived from: ../../reference/greenarrays/AN005-110926-SCHMART.compact.html]
-GreenArraysTM
+[Derived from: ../../reference/greenarrays/pdfs/AN005-110926-SCHMART.pdf]
+GreenArrays™
 AN005 Using SchmartBoard with G144A12 Chips
 Application Note AN005 Revised 9/26/11
 
-Using SchmartBoardTM
-SchmartBoard|ezTM P/N 202-0048-01
+Using SchmartBoard™
+SchmartBoard|ez™ P/N 202-0048-01
 with G144A12 Chips
 
 If you don't want to prototype your project on an Evaluation Board, you will generally need to design and fabricate a Printed Circuit Board (PCB) and then assemble the GA144 onto it using reflow solder techniques. This is what we recommend you do since it allows you to employ best practices in heat dissipation, power distribution and decoupling, and signal impedance control as well as producing prototypes that are very near the production article.
@@ -70,12 +70,12 @@ Since Mark was determined to mount the SchmartBoard directly to our prototyping 
 
 2
 
-Copyright� 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 
 AN005 Using SchmartBoard with G144A12 Chips
 2.2 Power and decoupling
 The SchmartBoard|ez is a generic design for any chip in a package like ours. Accordingly it is not optimized for any particular configuration of power and ground pins.
-Ideally, power connections are decoupled to a ground plane as near the chip as the layout permits. As you will see when you examine the Schmartboard, it is infeasible to bypass our sixteen power pins (four on each side) any nearer than 1 cm from the chip best case, or about 1.5 cm worst case, and those distances are all along traces at roughly the usual 1 nH per mm. See the SchmartBoard paper Adding a Decoupling Capacitor for recommended methods of bypassing power pins on the SchmartBoard|ez. We use high quality broadband 0.1F decoupling capacitors from American Technical Ceramics, P/N ATC530L104KT16T, on our own PCBs. Depending on your application you may be able to use something similar.
+Ideally, power connections are decoupled to a ground plane as near the chip as the layout permits. As you will see when you examine the Schmartboard, it is infeasible to bypass our sixteen power pins (four on each side) any nearer than 1 cm from the chip best case, or about 1.5 cm worst case, and those distances are all along traces at roughly the usual 1 nH per mm. See the SchmartBoard paper Adding a Decoupling Capacitor for recommended methods of bypassing power pins on the SchmartBoard|ez. We use high quality broadband 0.1μF decoupling capacitors from American Technical Ceramics, P/N ATC530L104KT16T, on our own PCBs. Depending on your application you may be able to use something similar.
 In this project, Mark chose to add no decoupling capacitors whatsoever (other than the 10 nF of extremely high quality decoupling capacitors built into the core power distribution grid inside each GA144) in order to show how well the chip will work in that limit condition. We do not recommend that you run this way; as we will see later, hard use of all 144 computers will require decoupling, and considering that the GA144 can switch on the order of 2 amps on its I/O pins when all are taken together, the heavier the loads you use the more important it will become to decouple the power on the SchmartBoard.
 2.3 Signals for Programming
 Mark decided to use simple twisted pair connections for node 708 asynchronous boot, node 300 synchronous boot, and the reset pin between the SchmartBoard and the stake pins on which the Evaluation Board could provide signals to boot and exercise the chip on the SchmartBoard.
@@ -85,7 +85,7 @@ We knew from this experiment that QFN packages were trickier than QFP, particula
 Look at your SchmartBoard. The top side has a central depression in which the die attach paddle on the bottom of the chip will rest. Knowing that after soldering all the pins he would have to solder the die attach paddle to the ground and heat dissipating metal on the bottom of the board, Mark prudently applied some flux around the top edge of the large plated through hole. Not a big smear all over the top of the board, just a coating on the lip of the hole so that solder would later flow better onto the die attach paddle. This proved to be a worthwhile step taken in advance.
 Mark then located pin 1 by the corresponding dots on chip and board, and proceeded to follow SchmartBoard's instructions for aligning the chip with the contact grooves. This is a time when magnification pays off. Mark concluded that using a thin piece of tape helped because it gave him more opportunities to double-check the alignment, which has a habit of shifting as tape is applied. You can't check this too often, and make very certain that the alignment is perfect on all four sides and that the chip is taped down stably before starting to push solder toward the pins.
 
-Copyright� 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 
 3
 
@@ -100,7 +100,7 @@ Next, because the exposed pad is not only a heat sink but is also the single poi
 
 4
 
-Copyright� 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 
 AN005 Using SchmartBoard with G144A12 Chips
 4. Assembly
@@ -112,7 +112,7 @@ For preliminary testing, Mark simply co-opted USB port A to talk to the new chip
 
 Finally, Mark arranged for five signal and ground pairs connecting to GA144 pins 708.17 and 708.1 for asynch boot and to 300.17 and 300.1 for synchronous boot, with one more pair to pin 88 for RESET-. These pairs were secured and terminated with Berg pins crimped to the ends of the stranded wires and surrounded by short pieces of heat shrinkable tubing. The resulting modified Evaluation Board is shown below.
 
-Copyright� 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 
 5
 
@@ -123,18 +123,18 @@ He then gave the chip other exercises with the IDE, and finally decided to run t
 This is quite encouraging enough for us. 80 active nodes means more than 50 billion instructions per second peak, and to be able to do that on a hand soldered board with no decoupling capacitors added yet is satisfyingly amazing.
 When we have time to work on this again, we'll give the synchronous communications some exercise, but that may turn out to be more of a test of the twisted pair at the synchronous communication speed of >7.25 Mbits/second than of the SchmartBoard. And, as indicated earlier, we will probably try the very narrow OKI soldering tip.
 5.1 Suggestions
-We can certainly recommend the SchmartBoard|ez for experimentation with our GA144 chips, particularly if decoupling capacitors are added. We'd like to see 0.1F caps on at least three of the Core Power pins, at least three I/O power pins, and the Analog Power pin. There is plenty of room for experimentation here since there will be more LC action than we usually see on a dedicated PCB; approach high power I/O in steps and be prepared to add more decoupling as you do.
+We can certainly recommend the SchmartBoard|ez for experimentation with our GA144 chips, particularly if decoupling capacitors are added. We'd like to see 0.1μF caps on at least three of the Core Power pins, at least three I/O power pins, and the Analog Power pin. There is plenty of room for experimentation here since there will be more LC action than we usually see on a dedicated PCB; approach high power I/O in steps and be prepared to add more decoupling as you do.
 For free-standing use you will need to arrange for 1.8v asynchronous serial communications; the trivial circuit on our Evaluation Board may serve you for this but make sure something on your 1.8v supply is pulling enough current to consume the extra charge being placed on the power rails by the GA144 protection diodes. This could simply be code running in the GA144 but if there is no load at all on VDD then VDD may go overvoltage unless you are using a power supply that has an onboard load. That is not unusual for linear regulators since some of those will not work at all without a minimal load. More to explore; for those who don't wish to do this, Maxim makes an RS232 to 1.8v chip that needs an external inductor and a 1.8v hex inverter, required because the Maxim chip inverts all the RS232 signals.
 As always, we strongly recommend that you check our website http://www.greenarraychips.com for the most up-todate documentation before starting work with our chips! Please contact SchmartBoard at info@schmartboard.com or by telephone at (925) 362-0799 for questions about the board.
 
 6
 
-Copyright� 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 
-GreenArraysTM
+GreenArrays™
 Application Note AN005 Revised 9/26/11
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -146,6 +146,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright � 2010-2011, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
 
 

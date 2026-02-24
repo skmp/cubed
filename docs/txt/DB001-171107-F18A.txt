@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/DB001-171107-F18A.compact.html]
-GreenArrays�
+[Derived from: ../../reference/greenarrays/pdfs/DB001-171107-F18A.pdf]
+GreenArrays®
 Product Data Book DB001 Revised 11/07/17
 F18A Technology Reference
 This manual fully documents the instruction set and the generic I/O facilities incorporated in the F18A computer and, therefore, in chips comprised of them. This manual is supplemented by lectures at the arrayForth Institute and by examples in the Application Notes and other documentation available from our company. After understanding the F18A technology, the next step is to study the Data Book for the particular chip of interest. The Chip Data Book will show the configuration of the node array, the I/O facilities and interconnections in that particular chip, and the ROM content for each node. In addition the chips are characterized physically, electrically and thermally. For people accustomed to reading hardware manuals this should be refreshingly brief, as befits an uncommonly simple architecture. We have made an effort to avoid redundancy in the interest of brevity; as a result, the information density is high, warranting a careful reading. More than one reader has glossed over sections that did not seem important only to find later that they were very important indeed! Your satisfaction is very important to us! Please familiarize yourself with our website at http://www.greenarraychips.com/. This will lead you to the latest software and documentation as well as resources for solving problems and contact information for obtaining help or information in real time.
@@ -33,7 +33,7 @@ This book will familiarize you with the architecture, internal structure, and us
 The data given herein are PRODUCTION. Electrical and timing values are illustrative only. Otherwise, the subject matter of this book is the architecture, instruction set, and programming of the F18A computers and I/O, which are fixed by design. Future revisions of this book may document upward-compatible enhancements of the F18A programming model.
 1.2 Documentation Conventions
 1.2.1 Numbers
-Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing "hex" or by preceding the number with the lowercase letter "x". In colorForth coding examples, hexadecimal values are italicized and darkened.
+Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing “hex” or by preceding the number with the lowercase letter “x”. In colorForth coding examples, hexadecimal values are italicized and darkened.
 1.2.2 Node coordinates
 Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays are visualized as seen from the top of the silicon die, which is normally the top of the chip package, oriented such that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as node 000. Thus, for a GA144 chip whose computers are configured in an array of 18 columns and 8 rows, the numbers of the nodes in the lower right, upper left, and upper right corners are 017, 700, and 717 respectively.
 1.2.3 Register names
@@ -49,24 +49,24 @@ Here is an introduction to the resources within each F18A computer. All elements
 
 Local RAM (64x18) and ROM (64x18)
 
-� RAM: 18 bits wide, 64 words in each node. � ROM: 18 bits wide, 64 words in each node.
+• RAM: 18 bits wide, 64 words in each node. • ROM: 18 bits wide, 64 words in each node.
 
 I/O logic option for edge nodes Comm Ports (2, 3, 4 or 5)
 
 Select
 
-� I/O logic may be present on any edge node of a chip.
-� Communication Ports are configured based on position within the array (four for inner; three ports array edges; two for corners.) One additional port is optional.
+• I/O logic may be present on any edge node of a chip.
+• Communication Ports are configured based on position within the array (four for inner; three ports array edges; two for corners.) One additional port is optional.
 
 IO Control & Status Register
 
-� IO control and status for communication ports and I/O logic.
+• IO control and status for communication ports and I/O logic.
 
 Return Stack (8x18) R
 
 ADDRESS
 
-� Return Stack consists of 8 registers addressed circularly (no fixed top or bottom.) Pushing a word onto this stack makes it the new "top" item, overwriting the former "bottom" item. After popping 8 items, those 8 items are repeated.
+• Return Stack consists of 8 registers addressed circularly (no fixed top or bottom.) Pushing a word onto this stack makes it the new “top” item, overwriting the former “bottom” item. After popping 8 items, those 8 items are repeated.
 
 Decrementer P (10)
 Incrementer (7) A
@@ -75,15 +75,15 @@ Figure 1 F18A Block Diagram
 
 Decode
 
-� R extends this stack to 9 entries but only 8 are circular. When used as a loop counter, R decrements toward zero.
-� P serves as a "program counter", holding the address of the next word in the instruction stream. Within RAM or ROM, it is incremented after each word is fetched, circularly within whichever storage class it currently points to. When P addresses I/O space, it is not incremented. Bit P9 enables Extended Arithmetic Mode when set.
-� A is a general purpose read/write address or data register.
-� B is a write only address register, containing on reset the address of io register.
-� I is the instruction register into which instruction words containing 1, 2, 3 or 4 opcodes are fetched for execution.
-� T is the top word of a 10-element data stack.
-� The ALU (Arithmetic/Logic unit) performs unary operations on T, binary operations on S and T, or a multiply step involving S, T, and A as directed by opcodes. A carry latch is involved in some Extended Arithmetic mode instructions.
-� S is the second word of a 10-element data stack.
-� Data Stack is 8 circularly addressed registers constituting the third through 10th elements of a 10-element stack.
+• R extends this stack to 9 entries but only 8 are circular. When used as a loop counter, R decrements toward zero.
+• P serves as a “program counter”, holding the address of the next word in the instruction stream. Within RAM or ROM, it is incremented after each word is fetched, circularly within whichever storage class it currently points to. When P addresses I/O space, it is not incremented. Bit P9 enables Extended Arithmetic Mode when set.
+• A is a general purpose read/write address or data register.
+• B is a write only address register, containing on reset the address of io register.
+• I is the instruction register into which instruction words containing 1, 2, 3 or 4 opcodes are fetched for execution.
+• T is the top word of a 10-element data stack.
+• The ALU (Arithmetic/Logic unit) performs unary operations on T, binary operations on S and T, or a multiply step involving S, T, and A as directed by opcodes. A carry latch is involved in some Extended Arithmetic mode instructions.
+• S is the second word of a 10-element data stack.
+• Data Stack is 8 circularly addressed registers constituting the third through 10th elements of a 10-element stack.
 
 4
 
@@ -113,10 +113,10 @@ Opcode
 ; ex name ; name unext next if -if @p @+ @b @ !p !+ !b !
 
 Notes
-return execute (swap P and R) jump to name call to name loop within I (decrement R) loop to address (decrement R) jump if T=0 jump if T0 literal (autoincrement P) fetch via A (autoincrement A) fetch via B fetch via A store via P (autoincrement P) store via A (autoincrement A) store via B store via A
+return execute (swap P and R) jump to name call to name loop within I (decrement R) loop to address (decrement R) jump if T=0 jump if T≥0 literal (autoincrement P) fetch via A (autoincrement A) fetch via B fetch via A store via P (autoincrement P) store via A (autoincrement A) store via B store via A
 
 Opcode
-+* 2* 2/ -- + and or drop dup pop over a . push b! a!
++* 2* 2/ — + and or drop dup pop over a . push b! a!
 
 Notes multiply step left shift right shift (signed) invert all bits add (or add with carry)
 exclusive or
@@ -210,7 +210,7 @@ x12 2/
 
 Two-Slash. Shifts T right one bit arithmetically (propagates T17 by leaving it unchanged; discards T0) thus dividing a signed value by two and discarding the positive remainder.
 
-x13 --
+x13 —
 
 Not. Inverts each bit of T, replacing T with its ones complement.
 
@@ -267,7 +267,7 @@ The F18A Computer
 7
 
 2.3.4 Memory Read and Write
-There are eight instructions in this class. Approximate execution times (see section 2.4.1) are 5.1 nanoseconds when reading or writing internal memory. The addresses used may be in memory or I/O spaces; some I/O addresses may suspend execution until the conditions necessary for their completion are met. The notation [X] should be read in the descriptions below as "the memory or I/O addressed by X".
+There are eight instructions in this class. Approximate execution times (see section 2.4.1) are 5.1 nanoseconds when reading or writing internal memory. The addresses used may be in memory or I/O spaces; some I/O addresses may suspend execution until the conditions necessary for their completion are met. The notation [X] should be read in the descriptions below as “the memory or I/O addressed by X”.
 
 Op Source Function
 
@@ -368,14 +368,14 @@ Reading or writing inappropriate I/O addresses, or writing ROM, may result in a 
 Upward compatibility to future versions of the F18 is not guaranteed. Think in terms of source, not binary compatibility. Be aware of the reset state of the io register since that will be the default setting for any bits assigned to control future I/O facilities.
 2.4.4 Compiling Instructions Yourself
 If you are writing a compiler, or wish to compose F18A instructions by hand or to read or modify instruction words in memory, you must be aware that instruction words are encoded as follows:
-Compose instruction words as shown in 2.3.1 with opcode values as shown in the "Op" columns of the instruction tables above and exclusive OR the result with the value x15555. If the word requires a destination address field, mask that field to zero and insert an un-encoded address value consistent with those shown in 2.2 and the specific I/O addresses defined in section 3. In the particular case of slot zero jumps, it is permissible to set unused bits 10, 11 and 12 to any convenient states.
+Compose instruction words as shown in 2.3.1 with opcode values as shown in the “Op” columns of the instruction tables above and exclusive OR the result with the value x15555. If the word requires a destination address field, mask that field to zero and insert an un-encoded address value consistent with those shown in 2.2 and the specific I/O addresses defined in section 3. In the particular case of slot zero jumps, it is permissible to set unused bits 10, 11 and 12 to any convenient states.
 
 The F18A Computer
 
 9
 
 3. F18A I/O Facilities
-Input-output capabilities of F18A nodes consist of internode communication ports (2, 3, 4, or 5 depending on array configuration and the node's position in the array) and, for nodes on array edges, optional GPIO pins and/or other more specialized circuitry such as parallel buses, analog I/O, or serializer-deserializer (SERDES).
+Input-output capabilities of F18A nodes consist of internode communication ports (2, 3, 4, or 5 depending on array configuration and the node’s position in the array) and, for nodes on array edges, optional GPIO pins and/or other more specialized circuitry such as parallel buses, analog I/O, or serializer-deserializer (SERDES).
 
 Name io
 data ---u ldata --l--lu -d--d-u -dl-dlu r--r--u r-lr-lu rd-rd-u rdlrdlu
@@ -407,7 +407,7 @@ Absent on side nodes unless supported by particular I/O circuitry
 Present only when documented as such for specific I/O circuitry; read, write, and handshaking facilities are defined by each class of circuitry.
 
 3.1 The io Register
-This 18-bit control and status register is each F18A computer's interface with its I/O circuitry, if any, and with handshake lines for any communication ports that are present. The bit assignments are shown for reference here. Their semantics are defined in detail in later sections. By default, io is populated with latches that read as the inverse of what was last written to them. Any io bits that are undefined for a given node because the associated I/O facilities are absent implement this behavior. A second general principle is that on reset each node's io register is set as though the value x15555 had been written to it under program control.
+This 18-bit control and status register is each F18A computer’s interface with its I/O circuitry, if any, and with handshake lines for any communication ports that are present. The bit assignments are shown for reference here. Their semantics are defined in detail in later sections. By default, io is populated with latches that read as the inverse of what was last written to them. Any io bits that are undefined for a given node because the associated I/O facilities are absent implement this behavior. A second general principle is that on reset each node’s io register is set as though the value x15555 had been written to it under program control.
 
 Bit 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
 
@@ -466,7 +466,7 @@ Figure 9 IO Register Bit Assignments
 The F18 Computer
 
 3.2 Suspension
-A node is either executing instructions at full speed or it is suspended in mid-instruction, waiting for a "wake up" condition that depends on the state of another node or of other I/O circuitry. Since an F18 has no clock, the acts of suspending and waking up consume no energy or time in and of themselves. Perception of changing conditions takes picoseconds within the chip and, typically, nanoseconds for events external to the chip. When a node is suspended the power used by its computer is nil, on the order of 100 nanowatts. When executing, an F18 computer uses power on the order of less than 6 milliwatts depending on the instructions used and the data on which they are operating.
+A node is either executing instructions at full speed or it is suspended in mid-instruction, waiting for a “wake up” condition that depends on the state of another node or of other I/O circuitry. Since an F18 has no clock, the acts of suspending and waking up consume no energy or time in and of themselves. Perception of changing conditions takes picoseconds within the chip and, typically, nanoseconds for events external to the chip. When a node is suspended the power used by its computer is nil, on the order of 100 nanowatts. When executing, an F18 computer uses power on the order of less than 6 milliwatts depending on the instructions used and the data on which they are operating.
 3.3 Communication Ports
 Communication (comm) ports provide for direct, point to point bidirectional information transfer within a chip. Each F18A node may have from two to five ports connected. Comm ports are named Right, Down, Left, Up; the fifth port is not implemented in F18A based chips.
 Each comm port is an independent, bidirectional, half duplex 18-bit channel connecting two nodes. Communication occurs when a sending node writes to a comm port address and a receiving node to which that port is connected reads the corresponding comm port address at the same time. When a node operates on a port the data transfer occurs at approximately memory speed unless the other node connected to the port is not yet performing the complementary operation; in this case the operating node suspends, waking up when the other node connected to that port is performing the complementary operation.
@@ -509,15 +509,15 @@ Value 00 01
 10 11
 
 State of pin drive circuitry
-High Impedance (2.8 pF, 250 M) Weak pulldown (38 �A in saturation). This is the reset
-state of all GPIO pins. Drive to VSS (41 mA in saturation) Drive to VDD (41 mA in saturation)
+High Impedance (≈2.8 pF, ≈250 MΩ) Weak pulldown (≈38 µA in saturation). This is the reset
+state of all GPIO pins. Drive to VSS (≈41 mA in saturation) Drive to VDD (≈41 mA in saturation)
 
 Regardless of the drive state selected for a GPIO pin, you may always read the io register to measure the actual voltage on the pin as a logic state (1=pin voltage high) using bits 17, 5, 3 or 1
 
 Input hysteresis, provided by two Schmitt triggers, protects against noise and other classical problems with signals whose rise and fall times are long relative to computer speeds. The F18A computers and I/O circuitry are fast and sensitive enough that parasitic resistance, inductance and capacitance effects may be directly observed by reading the pins as external circuits are being driven, and are fast enough that a 1 MHz sine wave is a slow-moving signal. Refer to the documentation on specific chips for electrical characteristics of their GPIO pins.
 
 3.4.1 Wakeup Pins
-When an edge node is configured with a GPIO pin 17 it may be configured and documented for wakeup on that pin. When this is the case, the pin may be "read" using a comm port address which becomes present for reading: Up for nodes on the top and bottom edges of the array, or Left for nodes on the lateral sides. The node suspends until the pin is in the state specified by the WD bit in the io register. When WD is written as zero, which is the reset state of that bit, a pin read suspends until the pin is logically high. To suspend until the pin is low, write 1 to WD. When the read completes, it is required that you must immediately drop the value that was read into T.
+When an edge node is configured with a GPIO pin 17 it may be configured and documented for wakeup on that pin. When this is the case, the pin may be “read” using a comm port address which becomes present for reading: Up for nodes on the top and bottom edges of the array, or Left for nodes on the lateral sides. The node suspends until the pin is in the state specified by the WD bit in the io register. When WD is written as zero, which is the reset state of that bit, a pin read suspends until the pin is logically high. To suspend until the pin is low, write 1 to WD. When the read completes, it is required that you must immediately drop the value that was read into T.
 
 F18A multiport read operations may include the wakeup pin as Up or Left. In this case you must still immediately drop the value read. To deduce that the pin was the source of the wakeup it is necessary to read io and check the current state of bit 17.
 
@@ -525,14 +525,14 @@ F18A multiport read operations may include the wakeup pin as Up or Left. In this
 Some nodes may be configured to observe the voltage on a GPIO pin that they do not directly control. This is typically done to provide versatility in timing analog to digital conversion. In these cases, the shared pin may be read as bit 17 of io. Wakeup may be enabled for reading, writing, or both on a shared pin, as will be documented for the type of I/O node observing the pin. Wakeup polarity is controlled by WD as with GPIO pins. See the chip Data Book for details on each node's wakeup configuration as the choice of this configuration may depend on their intended uses.
 
 3.4.3 Phantom Wakeup Signals
-A sending node may be configured to drive a "phantom" signal that a receiving node treats as a shared pin. In this configuration the receiving node operates exactly as described above in 3.4.2. The sending node controls the phantom signal by writing into bits phan 7 or phan 9; writing 1 makes the signal look high to the receiver, 0 makes it look low, and the reset state of io is equivalent to writing zeroes (low) into these bits.
+A sending node may be configured to drive a “phantom” signal that a receiving node treats as a shared pin. In this configuration the receiving node operates exactly as described above in 3.4.2. The sending node controls the phantom signal by writing into bits phan 7 or phan 9; writing 1 makes the signal look high to the receiver, 0 makes it look low, and the reset state of io is equivalent to writing zeroes (low) into these bits.
 
 12
 
 The F18 Computer
 
 3.5 Parallel Bus Support
-F18A Parallel Bus support consists of a cluster of three adjacent nodes, typically laid out on the "bottom" edge of a chip. The center node has 4 GPIO pins for control signals and each of its parallel port neighbors has I/O circuitry for an 18-bit bidirectional bus interface. The purposes of all these pins and the direction and timing of signals are defined by software.
+F18A Parallel Bus support consists of a cluster of three adjacent nodes, typically laid out on the “bottom” edge of a chip. The center node has 4 GPIO pins for control signals and each of its parallel port neighbors has I/O circuitry for an 18-bit bidirectional bus interface. The purposes of all these pins and the direction and timing of signals are defined by software.
 The center node is configured to act as sender of a phantom wakeup signal to each of the parallel bus nodes to supplement the comm ports between them to provide versatility in timing.
 In each node with an 18-bit bus, the addresses Up and Data are enabled for reading and writing. The difference between these two addresses is that operations on Up suspend when appropriate (see 3.4.3) while operations on Data do not depend upon the phantom wakeup signal.
 Each of the 18 pins of a parallel port node has a subset of the capabilities of a GPIO pin. When DB in io is set to 1 (its reset state) all 18 pins are in output mode and are driven high or low depending on the state of an 18-bit Bus Register. When DB is set to zero, all 18 pins are set to high impedance input mode. Unlike GPIO pins, parallel bus pins do not have Schmitt triggers, nor do they have weak pull-down capabilities.
@@ -559,7 +559,7 @@ Vss
 ADC pad
 Vdd
 
-The Analog to Digital converter (ADC) consists of a high speed, free running down-counter whose frequency varies as a function of input voltage between 3.6 GHz for VDD input and 5.6 GHz for VSS, as shown in the typical curve in Figure 13. The A/D Mode field in io controls the counter as follows:
+The Analog to Digital converter (ADC) consists of a high speed, free running down-counter whose frequency varies as a function of input voltage between ≈3.6 GHz for VDD input and ≈5.6 GHz for VSS, as shown in the typical curve in Figure 13. The A/D Mode field in io controls the counter as follows:
 
 run vco
 counter io
@@ -571,13 +571,13 @@ DAC pad
 
 Value 00 01 10 11
 
-Mode and input of ADC counter High Impedance ADC input pad (2.8 pF, 250 M) VDD Calibration Counter disabled to save power (the reset state) VSS Calibration
+Mode and input of ADC counter High Impedance ADC input pad (≈2.8 pF, ≈250 MΩ) VDD Calibration Counter disabled to save power (the reset state) VSS Calibration
 
-A voltage is measured within the operating range (750 mV to
+A voltage is measured within the operating range (≈750 mV to
 
 RL
 
-1.3v) by calculating the difference between two readings
+≈1.3v) by calculating the difference between two readings
 
 separated by a known time interval.
 
@@ -603,10 +603,10 @@ F18A I/O Facilities
 
 15
 
-GreenArrays�
+GreenArrays®
 Product Data Book DB001 Revised 11/07/17
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI’s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -618,6 +618,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright � 2010-2017, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2017, GreenArrays, Incorporated
 
 

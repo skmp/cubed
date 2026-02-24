@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN002-171106-OSC.compact.html]
-GreenArrays® AN002 Simple Oscillators
+[Derived from: ../../reference/greenarrays/pdfs/AN002-171106-OSC.pdf]
+GreenArraysÂ® AN002 Simple Oscillators
 Application Note AN002 Revised 11/06/17
 Simple Oscillators
 Including high-frequency crystal excitation
@@ -96,7 +96,7 @@ With the port bridges installed, the up ports of node 400 on each chip are logic
 
 2
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 
@@ -504,7 +504,7 @@ PH
 
 GA144 Host comm for Target / ADV7611
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 3
 
@@ -512,7 +512,7 @@ Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
 2. Resonant Devices at Low Frequency or with Low Q.
 Our hypothesis was that we could connect a resonant device between a single GPIO pin and ground, then excite the device under program control and afterward maintain it in stable oscillation by pumping energy into the device synchronously, using it as a time base for applications that demand one whose frequency does not depend on Process, Voltage or Temperature as do our asynchronous circuits' internal operations. Our goals were to obtain this capability without adding any special circuitry within or outside the chip, without using more than one GPIO pin, and without any external components other than the resonant device itself. This was only an hypothesis because we could not find anything in the literature to suggest anyone else had actually tried such a thing; most crystal oscillator designs are dedicated, largely analog circuits, and most require two I/O pins.
 2.1 32.758 768 kHz Watch Crystal
-In this exercise, we use a Seiko VT200F-12.5PF20PPM crystal which resonates at 32.768 kHz, with tolerance of ±20 parts per million (available down to five) and load capacitance of 12.5 pF (available down to four.) The package is a metal cylinder 6mm long and 2mm in diameter.
+In this exercise, we use a Seiko VT200F-12.5PF20PPM crystal which resonates at 32.768 kHz, with tolerance of Â±20 parts per million (available down to five) and load capacitance of 12.5 pF (available down to four.) The package is a metal cylinder 6mm long and 2mm in diameter.
 Using a GA144-1.10 (proto chip #004) in socketed test board #3 with VDD at 1.80V, we connect this crystal between pin 16 (signal 300.17) and VSS; as initially tested there are about 1.25" of wire (30 nH) between the crystal and VSS, and about 2.25" of wire and PCB trace (57 nH) between the crystal and the chip pin.
 Our motivation for using one pin rather than two, and for omitting other parts, is to prove that we can do without these things. Our view is that additional parts are only justified if they earn their keep, which includes any additional energy they may require by their mere presence.
 2.1.1 Learning Start-up Requirements
@@ -523,7 +523,7 @@ Since we may need to stimulate the crystal for a long time (many cycles) to impa
 
 4
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 This diagram and phot reflect the initial test set-up:
 
@@ -538,7 +538,7 @@ light attempts to excite a crystal by giving i t n+1 cycles of a square wave who
 For the crystal frequency of 32.768 kHz, the period is 30.518 microseconds. At roughly 2.5 ns per unext iteration, the period would be roughly 12,207 loop iterations per cycle at typical room temperature. In reality the number should be a bit smaller than this because of the time required for the other work done during each stimulation cycle.
 For each of the following tests we will manually try a range of frequencies, using sweep to search for the crystal's resonance. This range will be shifting as the temperatures of the chip and the room vary, so some patience will be required. Initially, we try 50 cycles of stimulus. The following trace shows no oscillation:
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 5
 
@@ -547,18 +547,18 @@ This is more like it! With more searching the resonance can be sensed, but the m
 
 6
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 
 Interestingly, this resonance continues for quite a long time, even though the protection diodes are extracting energy each cycle. Further interactive experimentation followed, varying the start-up method, leading to these observations:
-· We have to hit the right period ±1 count in order to hit the resonance for a crystal of even this low frequency but high Q, and the peak to peak voltage immediately drops by a factor of two or more when we are off this peak. Given that the period is on the order of 12000 counts, this means the useful resonance is on the order of 250 parts per million in period variation.
-· Square waves put much more energy into the crystal than do pulses. For example, 5000 cycles of <10 ns spikes (VDD, high-Z, VSS, high-Z) only produce +1, -0.148V signal and the resonance is narrower. So square waves will certainly give us a faster and simpler start-up.
-· Each increase in the number of driven cycles before releasing the crystal to resonate at high impedance increased the oscillation amplitude after a lengthy time delay. Over a range of 200 to 20,000 cycles this proved to be true, indicating that we are still adding energy to the piezoelectric device well after we have driven it hard enough to make our protection diodes start conducting.
+â€¢ We have to hit the right period Â±1 count in order to hit the resonance for a crystal of even this low frequency but high Q, and the peak to peak voltage immediately drops by a factor of two or more when we are off this peak. Given that the period is on the order of 12000 counts, this means the useful resonance is on the order of 250 parts per million in period variation.
+â€¢ Square waves put much more energy into the crystal than do pulses. For example, 5000 cycles of <10 ns spikes (VDD, high-Z, VSS, high-Z) only produce +1, -0.148V signal and the resonance is narrower. So square waves will certainly give us a faster and simpler start-up.
+â€¢ Each increase in the number of driven cycles before releasing the crystal to resonate at high impedance increased the oscillation amplitude after a lengthy time delay. Over a range of 200 to 20,000 cycles this proved to be true, indicating that we are still adding energy to the piezoelectric device well after we have driven it hard enough to make our protection diodes start conducting.
 o After 5000 square waves, signal peak was 1.37V after 250 ms and 0.648V after 500 ms.
 o After 10,000 square waves, signal peak increased to 0.789V after 500 ms.
 o After 20,000 square waves, signal peak was 0.882V after 500 ms of free running oscillation at high impedance! That's a long time!
-· These times are probably conservative because the scope probe in use is still loading the circuit down and doubtless extracting energy from the crystal.
+â€¢ These times are probably conservative because the scope probe in use is still loading the circuit down and doubtless extracting energy from the crystal.
 Now that we know it will be feasible to start the crystal under program control regardless of the variables affecting our timing, we need to develop and test that program and then to implement the code for replenishing the energy of the crystal so it will oscillate indefinitely. Along the way we will be seeking ways to minimize the energy consumed in both starting and sustaining the oscillation.
 
 2.2 10 MHz Ceramic Resonator for Ethernet
@@ -570,7 +570,7 @@ At about the same time as the above work was underway, Chuck Moore had attached 
 
 This code actually worked and was capable of timing 10baseT packet transmission, however was not practically usable because the resonators are not accurate enough in absolute frequency or thermal drift to meet the requirements of the receivers in typical 10baseT NICs. In fact we had to "pull" most of the resonators to produce intelligible bit streams.
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 7
 
@@ -578,17 +578,17 @@ Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
 
 2.3 Watch Crystal Mark 2 (AN012)
 We decided to use the above watch crystal in the TI SensorTag work performed in early 2013 and documented in AN012. All that was required was to automate the start-up procedure and oscillation maintenance.
-We did not need precise frequencies, particularly, but what we did need was a stable low frequency time base to measure the major polling intervals and to pace the I2C bus clock without wasting energy on timing loops. The oscillator is placed in node 715 and the signal it generates is available at minimal power to nodes 709, 713 and 717 due to low-capacitance internal connections. These nodes provide their timing functions only when needed and are suspended when not. As a result, the average current used by the GA144 including its powering of the I2C bus pull-ups between polls is very small... 14 to 15 µA of leakage, 28 or so µA to run the oscillator and another 2 µA for node 717 to count down for the next major cycle, for a total on the order of 45 µA or 95 µW average at 2.1V to run the oscillator and count oscillator periods to produce lower frequency stimuli. We felt at the time that it was still possible to find ways to reduce the current used in driving the crystal. Here is the oscillator code:
+We did not need precise frequencies, particularly, but what we did need was a stable low frequency time base to measure the major polling intervals and to pace the I2C bus clock without wasting energy on timing loops. The oscillator is placed in node 715 and the signal it generates is available at minimal power to nodes 709, 713 and 717 due to low-capacitance internal connections. These nodes provide their timing functions only when needed and are suspended when not. As a result, the average current used by the GA144 including its powering of the I2C bus pull-ups between polls is very small... 14 to 15 ÂµA of leakage, 28 or so ÂµA to run the oscillator and another 2 ÂµA for node 717 to count down for the next major cycle, for a total on the order of 45 ÂµA or 95 ÂµW average at 2.1V to run the oscillator and count oscillator periods to produce lower frequency stimuli. We felt at the time that it was still possible to find ways to reduce the current used in driving the crystal. Here is the oscillator code:
 
 32.768 khz watch crystal from 715.17 to gnd, , this code takes 27 ua at 2.1v using a seiko, vt200f-12.5pf-20ppm crystal, 42 cents unit qty from digi-key., , -osc tries exciting the crystal with n cycles of period k returning nonzero if it didn't, come back high after last cycle. clang searches for resonant frequency over a, reasonable range. initially we use 5000 cycles and may be able to shorten this. when we find resonance, falls thru into prep which sets up registers and finally we camp in run which is the low power, low duty cycle oscillator. try is test code for finding resonance., , do not connect any kind of conventional probe to the crystal; this oscillator will not work if you load it down even that much.
 
 980 list 715 xtal osc reclaim 10715 node 0 org, -osc kn-f 00 io b! for, ..02 30000 !b dup .. 2/ dup for unext 06/1, ..20000 !b .. over 1 and .. + for unext next, ..dup or !b dup 30000 for, ....drop @b - -while next ;, ......then dup or pop drop ; clang 14 14450 200 for dup 5000 -osc while, ..drop 1 . + next clang ; then pop drop ;, prep 1F 0 20000 800 30800 0 20000 800 30800, ..dup up a! drop run 2C !b !b @ drop run ; try 2E dup 5000 -osc over 1 . + ;, 34 reclaim
 
-This exercise clearly gave us what we sought: A time base for application activity that, at 1.8V, would consume less than 81 µW average, including the mechanism to divide such an oscillator down to any desired lower stimulus frequency.
+This exercise clearly gave us what we sought: A time base for application activity that, at 1.8V, would consume less than 81 ÂµW average, including the mechanism to divide such an oscillator down to any desired lower stimulus frequency.
 
 8
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 3. High Frequency or High Q Oscillators
@@ -604,7 +604,7 @@ Thus, the question became one of understanding the process and controlling it we
 Our motivation was initially to stop depending on an external Fox oscillator for Ethernet transmit timing, a motivation that became stronger when a PCB assembly house closed its doors and stole our very expensive and hard-to-get reel of those oscillators. The final push came from a design project in which we could reduce the cost per instance of the full design by several thousand dollars if we could reliably run a crystal at for example 9 MHz. Therefore by the end of 2015 it was show time for this application capability.
 Our first step was to take Stefan's code and test configuration, instrument it, and use this to study the variables while making improvements in the process and in the code based on what we learned in the study. The central purpose of the study was to yield a technique whereby we could reliably start the crystal in an automated way.
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 9
 
@@ -628,24 +628,24 @@ With this tool, we can run a sequence of trials to excite the crystal and record
 
 10
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 3.2.2 Measures
 polyFORTH code in the host chip initiates trials of different periods and, when complete, retrieves the data from the delay line into an array from which various analytics are recovered, including data across multiple runs:
-· Minimum and maximum number of "hits", or trials producing one or more cycles of ringing, in a set of runs. · Mean number of "hits" in a set of runs. · Span of hits, the number of trials in the range from the first to the last hit across multiple runs. · Lowest and highest periods of hits across multiple runs. · Minimum and maximum number of hits in multiple runs. · Maximum number of non-hits within the range of periods producing hits across multiple runs.
+â€¢ Minimum and maximum number of "hits", or trials producing one or more cycles of ringing, in a set of runs. â€¢ Mean number of "hits" in a set of runs. â€¢ Span of hits, the number of trials in the range from the first to the last hit across multiple runs. â€¢ Lowest and highest periods of hits across multiple runs. â€¢ Minimum and maximum number of hits in multiple runs. â€¢ Maximum number of non-hits within the range of periods producing hits across multiple runs.
 3.3 Study of Variables
 There are many variables that appear, or seem likely to, affect the reliability of crystal start-up. Therefore we undertook to explore each variable systematically, using the above instrumentation. The variables in question are as follow, along with such answers as the data suggest:
-· Length of energizing sequence. · Does applying Bresenham to half cycles rather than full cycles help or hinder? Appears to hinder, at least in
-the first set of cases checked. · Does one energize contaminate the next? Yes, for example we get false "hits" if we begin a new trial while the
-crystal is still ringing energetically from the preceding trial. · In light of that does the sequence of trial frequencies matter? We learned that the sequence does matter, but
-not neceassarily for this reason. · Does series resistance help or hinder? We did not actually study this variable. · Does parallel capacitance help or hinder? We did not actually study this variable. · Does weak 40k pull-down of the pin help in any way? It appeared to. · Do we have an algorithm that is guaranteed to start a crystal in one trial? No, but manageable.
+â€¢ Length of energizing sequence. â€¢ Does applying Bresenham to half cycles rather than full cycles help or hinder? Appears to hinder, at least in
+the first set of cases checked. â€¢ Does one energize contaminate the next? Yes, for example we get false "hits" if we begin a new trial while the
+crystal is still ringing energetically from the preceding trial. â€¢ In light of that does the sequence of trial frequencies matter? We learned that the sequence does matter, but
+not neceassarily for this reason. â€¢ Does series resistance help or hinder? We did not actually study this variable. â€¢ Does parallel capacitance help or hinder? We did not actually study this variable. â€¢ Does weak 40k pull-down of the pin help in any way? It appeared to. â€¢ Do we have an algorithm that is guaranteed to start a crystal in one trial? No, but manageable.
 3.3.1 Baseline Data
 The baseline conditions are: Excitation at effective periods of 9.0 thru 15.63 with 10,000 half-cycles (5,000 full) at each period, taking a maximum of 50 cycles of ringing initially. Because of the way in which Stefan's code worked, 1.1 was the first period tried and the last was 16.0. Tek P6131 probe on high side of crystal. The initial set of crystals were at 9.0, 10.0, 12.0, 15.0 and 18.0 MHz. The range, and length of delay line, were extended before including the 12, 15 and 18 crystals.
 3.3.2 Experimentation
 There ensued an exhausting, ten-day effort at the beginning of January 2016 during which all conceivable variables were explored, in the quest for a one-pass start-up procedure that could be guaranteed successful. As it turned out, we concluded that this was a futile quest in that there was a nonzero probability of failure to start the crystal in a single sweep of the excitation frequency range, regardless of variation of the parameters. Some things appeared to help, but none led to a definitive one-pass solution, so we opted for an adaptive procedure instead. In the process several things were learned; for example, that it was important to sweep stimulus frequency from low to high rather than from high to low, because it was possible to induce spurious oscillation modes at higher frequencies than true crystal resonance; for example, our 9.0 MHz crystal could be excited, and induced to oscillate stably, at 9.5 MHz! So many intriguing mysteries, so little time.
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 11
 
@@ -663,7 +663,7 @@ In each of the floorplans above, there is basically a chain of four nodes termin
 
 12
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 
@@ -680,7 +680,7 @@ sync has a loop which may be used to check the port from the start-up nodes at i
 -osc sets A to point at the start-up nodes and fills the stack with values for IO of x20000 (driving pin 17 low) and x30000 (driving it high), leaving the high state on top. It then receives a sequence of data from the start-up nodes: One word with number (-1) of half-cycles (edges) to give the crystal, followed by that many delay values (-1) to use after each edge. The first edge presented to the pin is rising, followed by the first delay value, and so on. We expect an even number of edges so that the last edge drove the pin low. After the excitation sequence of jittery square waves has been presented to the crystal, we set the pin to weak pull-down (this has empirically helped) and wait for a rising edge on the pin. If one is seen, we return 0 meaning the crystal has responded, and fall through; if it is not seen before about 4 ms have elapsed, we return a nonzero value meaning that the crystal has not responded.
 sync then, normally, is an infinite loop maintaining the oscillation of the crystal. Initially we set IO to zero, so that the pin is at high impedance and so that wakeup direction is 0 (wake on pin high) whereupon we read the pin to wait until it is in fact high. We then begin a sequence of pulsing the pin high for approximately 5 ns, returning it to high impedance and waiting for the pin to go low. We pulse the pin low for approximately 5 ns, returning it to high impedance while we wait for the pin to go high again. As noted above, commented code in sync could provide a way to interrupt the oscillation assuming it is running (if it is not, the loop would never finish.)
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 13
 
@@ -711,7 +711,7 @@ After the RAM is filled, we command the oscillator node to make a fire attempt, 
 
 14
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 
@@ -732,7 +732,7 @@ With the above code, we jump to retry if a sweep fails, as noted above. Otherwis
 
 Stefan has contributed two observations about the production code above:
 
-1. The code in trial assumes that the integer part of the half-cycle excitation period will not need to be larger than 11 bits, for 2048 unext times or about 5 s; this gives a full cycle of 10 s or 100 kHz square-wave frequency. This can be extended to be on the order of 50 kHz by masking to 17 bits after the final 2/ in trial . To use this algorithm with lower excitation frequencies it would be most effective to reduce the fractional part to 5 or 4 bits and change bres accordingly.
+1. The code in trial assumes that the integer part of the half-cycle excitation period will not need to be larger than 11 bits, for 2048 unext times or about 5 Î¼s; this gives a full cycle of 10 Î¼s or 100 kHz square-wave frequency. This can be extended to be on the order of 50 kHz by masking to 17 bits after the final 2/ in trial . To use this algorithm with lower excitation frequencies it would be most effective to reduce the fractional part to 5 or 4 bits and change bres accordingly.
 
 2. While the start-up control node is left in its warm multiport execute using await the other two start-up nodes are left executing the ports through which they are commanded during start-up. By adding more port execution functions these nodes could also be left in warm conditions.
 
@@ -740,7 +740,7 @@ Here is an example of load descriptors for the above oscillator cluster:
 
 naked 10mhz xtal exit 0 io right 517 +nd, ..ram 0 right down 516 +nd, ..pat 0 down left 416 +nd, ..strt 0 left 0 415 +nd
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 15
 
@@ -756,7 +756,7 @@ After starting an oscillator there will be a single node engaged in tracking the
 During oscillator start-up, the crystal node will have a single port that's used to control this process. That may be any of its ports except a port that will be sending timing signals in the application. If the start-up mechanism remains in place after the process has succeeded, it could be used to re-start the crystal should it ever fail. In addition it is conceivable that this could provide an avenue whereby the crystal may be stopped under program control and restarted later.
 
 4.2 Energy consumption
-The average power required to simply run a crystal is mainly a linear function of its frequency, and it is practically all core power in executing instructions at whatever duty cycle its frequency demands. I/O power used is immeasurable with test equipment limited to 1 A resolution. If anything is done with the crystal signal on chip, this implies one or more additional nodes running at the same duty cycle and will increase average power proportionally. Here are some data points for just the node that keeps the crystal running:
+The average power required to simply run a crystal is mainly a linear function of its frequency, and it is practically all core power in executing instructions at whatever duty cycle its frequency demands. I/O power used is immeasurable with test equipment limited to 1 Î¼A resolution. If anything is done with the crystal signal on chip, this implies one or more additional nodes running at the same duty cycle and will increase average power proportionally. Here are some data points for just the node that keeps the crystal running:
 
 Freq 32.768 kHz
 9.0 MHz 10.0 MHz 15.0 MHz
@@ -765,7 +765,7 @@ Current mA 0.023 1.131 1.255 1.883
 
 Avg Pwr mW 0.041 2.036 2.239 3.389
 
-In addition, there is a very small current used on the appropriate I/O bus. For node 10715 this is VDDA and what we see there is 1 A leakage, 43 A when running the 10 MHz crystal.
+In addition, there is a very small current used on the appropriate I/O bus. For node 10715 this is VDDA and what we see there is 1 Î¼A leakage, 43 Î¼A when running the 10 MHz crystal.
 
 These numbers compare favorably with the Fox F210 series 1.8V oscillators such as the one we used on some of our Ethernet interfaces. The Fox devices are rated for an IDD of 2.5 mA for 9 and 10 MHz, 3.5 mA for 15 MHz, thus using more power than do our software oscillators above. When the price of the oscillator (over $2.00 in quantity 1000) is considered, the comparison is very favorable.
 
@@ -773,7 +773,7 @@ In contrast, minimal F18 timing loops burn about 3.2 mW continuously. The watch 
 
 16
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 AN002 Simple Oscillators
 
@@ -781,31 +781,31 @@ Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
 
 For a purely capacitive load, the energy required in Joules to change its state rail to rail is
 
-
+í µí°½
 
 =
 
- 2 2
+í µí±‰í µí°·í µí°· 2 2
 
-
+í µí°¶
 
 When using an external (series) R-C network to measure time, the energy actually required depends on how it is going to be used. When driving the network from one rail to the other, its state will be seen to change by pin wakeup when it crosses approximately VDD/2 which occurs at about 0.7 TC. Thus, if the circuit is sitting at one rail or the other, it should take >0.7RC seconds to cross the switching point VIT+ and trigger pin wake-up.
 
-Assuming that we are driving the circuit in saturation, which is effectively true for the first 0.7TC from a rail, the drive transistors will look like 20 resistors. The energy required to take an RC network to this point depends on the ratio of R and C!
+Assuming that we are driving the circuit in saturation, which is effectively true for the first 0.7TC from a rail, the drive transistors will look like 20Î© resistors. The energy required to take an RC network to this point depends on the ratio of R and C!
 
 Ignoring time for the moment, the charge required to reach a given voltage on the capacitor, in Coulombs, is equivalent to the integrated current over that period of time. The RC step response is basically linear over the first 50% of the voltage swing so we may envision this as a constant current phenomenon for most of that time. The bottom line of that is that we may treat average current as being proportional to C. Bearing in mind that P=I2R this suggests that our choice of R and C to make a given time constant has considerable impact on the power dissipated in the resistance while charging or discharging the cap. Increase R by a factor of 10 and decrease C (and therefore I) by a factor of 10, the time constant is unchanged but P is now one tenth what it was due to the I2 .
 
-While this is important to understand, its practical utility is limited by the ranges of available parts values. Let us look at some examples. A microfarad is a good sized capacitor but using a 1 M resistor. which is also good sized, we get a 1 second time constant (or about 0.7 seconds to 0.9V from either rail). The above observations suggest that to achieve shorter time constants than one second we should reduce the size of the cap and leave the resistor alone. So let's look at the 1s time constant (0.7s delay) in more detail.
+While this is important to understand, its practical utility is limited by the ranges of available parts values. Let us look at some examples. A microfarad is a good sized capacitor but using a 1 MÎ© resistor. which is also good sized, we get a 1 second time constant (or about 0.7 seconds to 0.9V from either rail). The above observations suggest that to achieve shorter time constants than one second we should reduce the size of the cap and leave the resistor alone. So let's look at the 1s time constant (0.7s delay) in more detail.
 
-To charge 1F to 0.9V requires 900nC. The average current required to achieve this in 0.7s is 900e-9C / 0.7s or 1.29A. Power is then I2R or (1.29e-6)2 * 1e6 or 1.66 W. To charge 1 nF to 0.9V requires 900pC. The average current required do to this in .7 of its 1ms time constant is 900e-12 / 0.7ms or 1.29A once again, giving the same average power as above.
+To charge 1Î¼F to 0.9V requires 900nC. The average current required to achieve this in 0.7s is 900e-9C / 0.7s or 1.29Î¼A. Power is then I2R or (1.29e-6)2 * 1e6 or 1.66 Î¼W. To charge 1 nF to 0.9V requires 900pC. The average current required do to this in .7 of its 1ms time constant is 900e-12 / 0.7ms or 1.29Î¼A once again, giving the same average power as above.
 
 These numbers are theoretical and have not been verified empirically, nor have we designed an efficient strategy for running such time delays repetitively (which appears to require expending time and energy to move the network back to a rail, with no obviously efficient way to time that unless we are running two RCs alternating), but for some applications this may be worth breadboarding and exploring. Another strategy Daniel Kalny suggests is to simply run the capacitor's voltage between VIT+ and VIT- for a smaller interval without some of the problems. Another interesting aspect of this problem is that if there is enough inductance in the RC path one must delay between turning on drive transistor and checking the pin; we have observed, and triggered on, inductive kick-back with relatively short wires.
 
 4.4 Expensive Active Probe for Free
 
-In the course of this work, we needed active scope probes that minimally loaded the circuits under test. When all that is needed is a digital probe, one of our GPIO pins works very well as the "Probe tip" (2.5 pF, 250 M). The signal this probe detects may be routed and analyzed on-chip, or routed out another GPIO pin, without imposing any further load on the circuit under test. While we could theoretically use an analog node in a similar fashion, the frequency range would be much lower and the signal would need work to linearize and calibrate. For our purposes in studies like this, the active logic analyzer probe we get by employing one of our GPIO pins is very good and is far cheaper than a passive scope probe of equal quality, if there actually even exists one.
+In the course of this work, we needed active scope probes that minimally loaded the circuits under test. When all that is needed is a digital probe, one of our GPIO pins works very well as the "Probe tip" (2.5 pF, 250 MÎ©). The signal this probe detects may be routed and analyzed on-chip, or routed out another GPIO pin, without imposing any further load on the circuit under test. While we could theoretically use an analog node in a similar fashion, the frequency range would be much lower and the signal would need work to linearize and calibrate. For our purposes in studies like this, the active logic analyzer probe we get by employing one of our GPIO pins is very good and is far cheaper than a passive scope probe of equal quality, if there actually even exists one.
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 17
 
@@ -817,14 +817,14 @@ REVISION 100910 171102 171106
 
 DESCRIPTION First Draft in HTML Update to App Note format and inclusion of recent work, pre-publication draft. Release for Publication
 
-Copyright© 2010-2017 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2010-2017 GreenArrays, Inc. 11/06/17
 
 19
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN002 Revised 11/06/17
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -836,6 +836,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2017, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2017, GreenArrays, Incorporated
 
 

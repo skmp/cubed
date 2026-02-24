@@ -1,5 +1,5 @@
-[Derived from: ../../reference/greenarrays/AN020-171106-1080P.compact.html]
-GreenArrays® AN020 1080P Video Distribution
+[Derived from: ../../reference/greenarrays/pdfs/AN020-171106-1080P.pdf]
+GreenArraysÂ® AN020 1080P Video Distribution
 Application Note AN020 Revised 11/06/17
 
 Design Exercise: Distributing 1080p Video in Large Scale Sunrise Systems LED Signs
@@ -125,18 +125,18 @@ http://www.analog.com/media/en/technical-documentation/data-sheets/ADV7800.pdf h
 This section outlines our thought process in understanding and addressing this problem.
 1.1 Top Level Constraints
 The sign will be built to a specified display resolution corresponding with a standard video format.
-· The target is 1080p; no larger formats are contemplated. · A given system will be set up for a single video format and all input will be in that format. 1080p is the
-benchmark. · No video format conversion is contemplated. · The display may be built to a smaller size than full 1080p by using a smaller array of modules. When this is
-done the system must be configurable to "window" a prescribed rectangle (of the same size as the physical display in pixels) from the incoming video image onto the display. So a nonzero X,Y origin must be supported as must a rectangle size X,Y less than or equal to the full size of the incoming video frame. · Pixel data are in 24-bit RGB format. Sunrise believes that 21 bits may be enough and has stated that 18 bits is not acceptable.
+â€¢ The target is 1080p; no larger formats are contemplated. â€¢ A given system will be set up for a single video format and all input will be in that format. 1080p is the
+benchmark. â€¢ No video format conversion is contemplated. â€¢ The display may be built to a smaller size than full 1080p by using a smaller array of modules. When this is
+done the system must be configurable to "window" a prescribed rectangle (of the same size as the physical display in pixels) from the incoming video image onto the display. So a nonzero X,Y origin must be supported as must a rectangle size X,Y less than or equal to the full size of the incoming video frame. â€¢ Pixel data are in 24-bit RGB format. Sunrise believes that 21 bits may be enough and has stated that 18 bits is not acceptable.
 The sign will be built of the following components:
-· An incoming video chip. The Analog Devices ADV7800 is postulated as the candidate. · An array of Sunrise Systems LED sign modules. The communication protocol used to deliver video to these
-modules may be changed to facilitate a clean system design but no other fundamental changes are to be made in the modules unless they produce a significant architectural advantage. · A video signal processing and routing system will connect the incoming video chip with the array of modules. This study is primarily concerned with the design and implementation of this subsystem. · We will probably need to provide a processor to manage the sign as a whole, programming the incoming video chip, supporting test modes, and reporting status to an upstream system.
+â€¢ An incoming video chip. The Analog Devices ADV7800 is postulated as the candidate. â€¢ An array of Sunrise Systems LED sign modules. The communication protocol used to deliver video to these
+modules may be changed to facilitate a clean system design but no other fundamental changes are to be made in the modules unless they produce a significant architectural advantage. â€¢ A video signal processing and routing system will connect the incoming video chip with the array of modules. This study is primarily concerned with the design and implementation of this subsystem. â€¢ We will probably need to provide a processor to manage the sign as a whole, programming the incoming video chip, supporting test modes, and reporting status to an upstream system.
 1.2 Timing
 The project had an aggressive schedule for design and prototyping.
 
 2
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -156,7 +156,7 @@ http://www.analog.com/en/search.html?q=ADV7610BBCZ-P-RL Programming is done over
 
 Output pixel rate will be somewhere between 124.416 MHz (8.04 ns), the average rate of 1080p at 60 Hz, and 150 MHz (6.66 ns), the maximum rate specified by the chip. The pixel clock per VESA 12p is 148.5 MHz (6.7 ns); that video format allows for 1125 line times per frame and 2200 pixel times per line, hence the difference between average rate and the sustained rate during each horizontal line. Our calculations assume the chip's max rate of 150 MHz for TPIX and FPIX as being prudent.
 
-Output digital signal drive needs further investigation and is apparently programmable. The normal N drive appears to be on the order of 3.2 mA while the P drive seems to be only 400 µA, which might be appropriate for I2C which has external pull-up resistors but not for the parallel pixel data out which certainly should not be single ended.
+Output digital signal drive needs further investigation and is apparently programmable. The normal N drive appears to be on the order of 3.2 mA while the P drive seems to be only 400 ÂµA, which might be appropriate for I2C which has external pull-up resistors but not for the parallel pixel data out which certainly should not be single ended.
 
 1.3.2 Sunrise LED Modules
 As of 14 Sep 2015, the modules Sunrise contemplates using are in several pixel formats and pitches to achieve desired sign dimensions and pixel resolution. No module would be wider than 40 pixels (this upper limit is architecturally important.) LED control is mulltiplexed 2, 4 or 10 ways, but that is not relevant outside the module:
@@ -181,7 +181,7 @@ Modules @ 1080p MX, MY
 We are assuming that the maximum practical sign array is 60x34 (2,040) modules. The X dimension (60) is architecturally important.
 Each module has an ARM processor with three unidirectional RS422 interfaces presently doing async at 4.25 or 0.875 Mbit/s but these will be re-purposed. We may change the ARM code (written in Forth) to facilitate protocol changes that would make this system more tractable, and if necessary will arrange for bidirectional RS422. Multiple modules are presently handled by daisy chaining the high speed interface (data, one in & one out) and discretely wiring each module's lower speed control channel. We have schematics and source code listings for existing modules.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 3
 
@@ -189,17 +189,17 @@ Copyright© 2015 GreenArrays, Inc. 11/06/17
 1.3.2.1 Serial Communications
 The ARM processor has three active UARTs. All external connections are made on 8-pin connectors J6 and J7. These connections are RS422/486 driven by AM26LS31 and received by AM26LS32A, with VDD set at 5V. All modules' ARM chips use a 12.000 MHz crystal controlling internal clock of six times that frequency (to 72.000 MHz) for computer and peripheral clocks. The UARTs according to the code are set by divisors against 1/16 this frequency, or 4.500 MHz. Baud rates described in the code are NOT running at the frequencies stated but rather at the values shown below. All UARTS are set with Line Control Register (LCR) of x03 giving 8 data bits, 1SB, no parity. We do not know yet how tolerant this UART is of inaccurate baud rates.
 UART1 (control) receives signal from J7.7/8 and the modules can be configured to repeat this signal out J6.7/8 without any processing, and with or without buffering. This input is stiffened by 1k/1k/1k voltage dividers between VDD and ground, unlike the other inputs. This UART is normally configured in the code for 875 kbps, however that gives a divisor of 5.125 of which 5 is used so the actual frequency appears to be 900.0 kbps.
-UART2 can receive signal from RX-L (J7.1/2) and can transmit on TX-R (J6.1/2). UART3 can receive from RX-R (J6.3/6) and can transmit on TX-L (J7.3/6). These inputs have 100 parallel termination. The code is configured for a baud rate of 4.375 Mbps, however that gives a divisor of 1.125 so the actual frequency appears to be 4.500 Mbps.
+UART2 can receive signal from RX-L (J7.1/2) and can transmit on TX-R (J6.1/2). UART3 can receive from RX-R (J6.3/6) and can transmit on TX-L (J7.3/6). These inputs have 100â„¦ parallel termination. The code is configured for a baud rate of 4.375 Mbps, however that gives a divisor of 1.125 so the actual frequency appears to be 4.500 Mbps.
 Therefore it appears we have the resources necessary to establish bidirectional communication with the module if the module's code is altered for this application and if we wish to do so.
 1.4 Acknowledgments
 This work, as noted earlier, was funded by Sunrise Systems. In addition, Sunrise provided LED modules along with their source code and documentation, and fabricated the prototype PCBs.
-We licensed SwiftXTM from FORTH, Inc. to compile and flash changes for the Sunrise modules' code.
+We licensed SwiftXâ„¢ from FORTH, Inc. to compile and flash changes for the Sunrise modules' code.
 System design was done primarily by Greg Bailey and Mark Smeder. F18 programming was done by Greg Bailey and Charley Shattuck. Hardware design was done by Mark Smeder, Greg Bailey and Warren Sarkison, with Glenn Sanderson's assistance in solving some signal quality problems on the VCTL prototype. ARM programming was done by Dean Sanderson. FPGA design was done by James Bowman. Prototype assembly was done by Mark Smeder and Greg Bailey. PCB rework was done by Greg Bailey, Mark Smeder and Matt Williams of Sunrise. Greg Bailey did the study and analyses of the ADV7611 chip and of the JTAG programming of FPGAs. Documentation was produced by Greg Bailey. At various points in this project, all of the above team members contributed to each other's activities, and in addition Eric Harrington and Steve Budak of Sunrise contributed insights and answered questions about the problem statement, parts selection and manufacturing issues. Finally, Chuck Moore contributed ideas during the initial stages and served helped us understand wierd things as they came up.
-Existing GreenArrays software components, created by our entire team, were used in this project, as was the GA144 polyFORTH® system whose implementation was done by GreenArrays and whose architecture was kindly contributed by FORTH, Inc. This is the first project in which the work done by Stefan Mauerhofer on excitation of high frequency crystals was depended upon, both for the asynchronous communications channels and for the Ethernet interface.
+Existing GreenArrays software components, created by our entire team, were used in this project, as was the GA144 polyFORTHÂ® system whose implementation was done by GreenArrays and whose architecture was kindly contributed by FORTH, Inc. This is the first project in which the work done by Stefan Mauerhofer on excitation of high frequency crystals was depended upon, both for the asynchronous communications channels and for the Ethernet interface.
 
 4
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -239,7 +239,7 @@ The pixel clock per VESA 12p is 148.5 MHz (6.7 ns) however that video format all
 We have determined that these rates aren't feasible with 2-wire synchronous protocol. We will have to use a parallel daisy chain, probably of three data bits and a half-frequency clock (triggering on both edges.)
 However it is implemented, though, there are two significant compelling advantages to feeding columns rather than rows; first being that there is no need for large buffers, , and second that the data rate will always be lower for normal display aspect ratios whose height is less than width in pixels. Therefore we have concluded that feeding columns of modules is the best way to go.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 5
 
@@ -260,7 +260,7 @@ In terms of failure modes the FPGA becomes a single point of failure for the who
 
 6
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -329,7 +329,7 @@ Any of the light green nodes may receive a "tap" of incoming data for internal p
 
 Parallel Data Path
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 7
 
@@ -354,7 +354,7 @@ Timings in nodes 008 and 007 have an additional time on the order of 10 ns in on
 
 8
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -368,7 +368,7 @@ The trace to the right shows the delay between incoming clock signal at pin 008.
 Subtracting 7.20 ns for the stimulus from node 008 to 007, we have a transit time of (23.40/5) or 4.68 ns per F18, which is the best case behavior of punctual wire nodes.
 The system can carry a higher data rate than this delay time, of course.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 9
 
@@ -378,7 +378,7 @@ With a sustained pixel time of 319.68 ns down the column and worst timing (MX of
 
 10
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -427,7 +427,7 @@ Sun rise LED module
 
 System Block Diagram
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 11
 
@@ -478,7 +478,7 @@ The 10baseT Ethernet cicuitry is included, however using a 10 MHz crystal instea
 
 12
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -522,9 +522,9 @@ Alternate
 1-3: Disables 1 MB flash. 4-6: Enables 16 MB flash. 1-2: No boot. 1-2: Enables USB reset. 1-2: Watchdog enabled by software.
 
 2.1.2.1.1 Lessons Learned from Prototype
-Crystal footprint for Y101, still 3-pin, connects signal to center pin not end pin. Jumpered pins 2 and 3 to make this work, layout must be corrected. Also, 0 resistor R116 is not populated and must be shorted to allow the crystal to oscillate.
+Crystal footprint for Y101, still 3-pin, connects signal to center pin not end pin. Jumpered pins 2 and 3 to make this work, layout must be corrected. Also, 0â„¦ resistor R116 is not populated and must be shorted to allow the crystal to oscillate.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 13
 
@@ -533,7 +533,7 @@ Copyright© 2015 GreenArrays, Inc. 11/06/17
 For the GA144 system we have a BU4816 reset chip and an STWD100NYWY3F watchdog timer. These will be evaluated for reliability in the prototype.
 2.1.2.3 Ethernet Electrical Interface
 This circuit provides the electrical interface to allow three nodes with GPIO pins to connect to a 10baseT circuit. One pin runs the 10 MHz crystal which we are basically required to use as a transmit frequency reference. One acts as a transmitter using a dual op-amp to make the higher voltage differential swings required, and uses a standard transformer to interface with the Cat5 cable. The receive circuitry consists of the other half of this transformer and a series current limiting resistor to feed a GA144 pin.
-2.1.2.3.1 Lessons Learned from Prototype Crystal footprint for Y301, still 3-pin, connects signal to center pin not end pin. Jumpered pins 2 and 3 to make this work, layout must be corrected. Also, 0 resistor R301 is not populated and must be shorted to allow the crystal to oscillate.
+2.1.2.3.1 Lessons Learned from Prototype Crystal footprint for Y301, still 3-pin, connects signal to center pin not end pin. Jumpered pins 2 and 3 to make this work, layout must be corrected. Also, 0â„¦ resistor R301 is not populated and must be shorted to allow the crystal to oscillate.
 Our crystal oscillators will stop if disturbed with a probe on the crystal pin. They will also not start if another GA144 pin is connected to them but not set to high impedance. Evidence that a crystal is running must be obtained from a monitoring node.
 2.1.2.4 Interchip Communications
 ADV7611 configuration is done as described in AN018.
@@ -550,7 +550,7 @@ RESET- is asserted for 10 ms after which we wait 10 ms before talking to the chi
 
 14
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 When hot plug detect is low, sources are supposed to assume sink is not up and are not supposed to try talking to them. When the hot plug detect signal goes high, a valid EDID 1.3 as defined in CEA-861-D must be available along with a CEA EDID Timing Extension Version 3 that includes an HDMI Vendor Specific Data Block, all per 8.3 in the HDMI spec. We must therefore make our EDID ready to read within 1 second after resetting the chip, whether or not an HDMI cable is plugged in. If we later on change the EDID, we are required to signal the source by driving hot plug detect low for at least 100 ms.
@@ -566,14 +566,14 @@ The pixel bus (24 bits plus VS, HS, DE and clock LLC) laid out in the way we pla
 The problem statement for the FPGA is simple, but timing is critical. The substantial pin-out requirement in combination with Sunrise preference of FPGAs require that four FPGAs be used.
 Input to the FPGA is a stream of pixels supplied by the ADV7611 HDMI chip as 24-bit parallel data clocked at 150 MHz by the LLC signal, and qualified by the framing control signals.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 15
 
 AN020 1080P Video Distribution
 2.1.5.1 Framing Awareness
 Firstly the FPGA must discriminate between the horizontal and vertical sync delays and the actual delivery of 1920x1080 pixels. No pixels will be processed during those delays; i.e. the FPGA will receive only 1920x1080 LLC events as incoming pixels per frame.
-The FPGA must be configurable to isolate a rectangular window, corresponding with the physical display, from each incoming frame. The origin of this window is expressed as W0X and W0Y coordinates origined in the upper left corner, which may be zero, and the size as WNX and WNY such that WNX  (1920-W0X) and WNY  (1080-W0Y). WNX must be divisible by PX so that the window width is an integer number of module widths in pixels. Later on we added registers for origin and width of each column so that columns of differing widths could be used to build a sign.
+The FPGA must be configurable to isolate a rectangular window, corresponding with the physical display, from each incoming frame. The origin of this window is expressed as W0X and W0Y coordinates origined in the upper left corner, which may be zero, and the size as WNX and WNY such that WNX â‰¤ (1920-W0X) and WNY â‰¤ (1080-W0Y). WNX must be divisible by PX so that the window width is an integer number of module widths in pixels. Later on we added registers for origin and width of each column so that columns of differing widths could be used to build a sign.
 The first W0Y lines of each image (if W0Y nonzero) will be ignored and the following WNY lines processed in each frame. For each processed line, the first W0X pixels (if W0X nonzero) will be ignored and the following WNX pixels processed in each frame.
 2.1.5.2 Pixel Processing
 Each of the first PX pixels in the active window of each scan line will be inserted into a FIFO for transmission to column zero modules. The next PX pixels will be inserted into a FIFO for transmission to column 1, and so on for MX FIFOs. We believe that the limit for MX is 60 in any practical configuration, so there will be 15 FIFOs in each FPGA (for maximum MX of 60) and each will have a depth of 40 pixels (the maximum PX).
@@ -588,7 +588,7 @@ The clock used for transmitting 3-bit values down a column from its FIFO will be
 
 16
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -683,10 +683,10 @@ Chip 3
 
 Chip 1
 
-Top side of VCTL PCB ­ Each chip s columns same order, RJs on bottom same pattern as drivers on top
+Top side of VCTL PCB â€“ Each chip s columns same order, RJs on bottom same pattern as drivers on top
 The sequence of FPGA numbers above reflects their sequence in the TDI-TDO daisy chain. Recommend no change in the planned SPI addressing for the FPGAs; the connector grouping is rational enough as it is and 0/1 were intended to feed the leftmost columns as the layout supports. We may wish to rename the pins on the FPGA so that the numbering of connectors in each group of 15 is more rational; one simple fix would be to renumber columns 0, 1, 2, 3 so that they fit the pattern of the remaining columns 4..14. Once this has been determined we can come up with a reasonable silkscreen for the backside of the PCB.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 17
 
@@ -701,19 +701,19 @@ TDMS PLL locked YES. VS Lock YES. DE Lock YES. HDMI PLL Lock YES. STDI laced NO.
 
 18
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 2.2 Production VCTL PCB
 FTDI FT232R chips need to be configured. Do the normal sequence of actions in the PCBCOM document with differences: In place of step 5, change two string descriptors:
-· Product Description is Sunrise VCTL Port A (and B) · Serial Number is GAVCTLnnnA (and B) with first chip 001. ("Device Instance Path")
+â€¢ Product Description is Sunrise VCTL Port A (and B) â€¢ Serial Number is GAVCTLnnnA (and B) with first chip 001. ("Device Instance Path")
 2.2.1 Notes for Production Board
-· Add LEDs to show status. This board has no visible indications of its condition without hookup to serial or network.
-· The new SPI flashes (without reset lines) require that we put a 1k pull-up resistor on GA144 zero 705.3 going to CE- line on the flash, so that we can boot again after GA144 reset.
+â€¢ Add LEDs to show status. This board has no visible indications of its condition without hookup to serial or network.
+â€¢ The new SPI flashes (without reset lines) require that we put a 1k pull-up resistor on GA144 zero 705.3 going to CE- line on the flash, so that we can boot again after GA144 reset.
 2.3 VCTL Test & Commission
 To manufacture the VCTL in production, procedures and jigs for testing and commissioning will be required.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 19
 
@@ -736,7 +736,7 @@ The time required for ameliorating the shorts on node 007 outputs, the first tim
 
 20
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -775,11 +775,11 @@ Second Rx pin
 Having determined that the GA144 will need to do table lookup both for interpreting incoming data and for generating outgoing differential signals, the above arbitrary bit assignments have no effect on code design.
 2.4.3.1 Lessons Learned from Prototype
 Each transmit pair uses negligible current when both pins driven same, but on the order of 6 mA when driven differentially due to the load resistors. It looks like 25-28mA per module for this alone.
-The 10k voltage divider stepping the 3.3V outputs of the receiver chips down to 1.8V was a mistake, rolling off the incoming signals too far to be useful. Rescaling it to a 1k divider gives much more usable signals.
+The 10kâ„¦ voltage divider stepping the 3.3V outputs of the receiver chips down to 1.8V was a mistake, rolling off the incoming signals too far to be useful. Rescaling it to a 1k divider gives much more usable signals.
 The incoming signal on D0 with 90pF parallel cap is considerably cleaned up relative to the other three lines. It may be worth treating the other three lines the same way.
 A common mode observation: At one point the VCTL was powered on an old ball and tube ungrounded 110VAC circuit that shares its common with a second circuit, while the VMODs were powered by a new circuit that had a solid ground. The measured voltage between ground on the second circuit and the ground lug of the power supplies for the VCTL was on the order of 12VDC and 67VAC. Video was nevertheless working, most of the time, although periodically a horizontal band of grizzling noise would appear and "roll" down two of the columns. This would seem to imply pretty good common mode rejection on the quad line receivers we chose!
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 21
 
@@ -797,24 +797,24 @@ The RS485 line from the previous module is in input mode at reset and will be in
 
 22
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 2.4.4.1.1 Lessons Learned from Prototype
 The ISL83483 does not seem to have a normal high failsafe on open input, at least not reliably; same type of behavior as noted below for the ARM interface. This means that loss of input connection could put us in reset.
 It also means that we cannot depend on the fail-safe mode to prevent the next module from resetting while the current module does. Pull-ups should be added to both the data and direction lines (Port10.3 and 4 respectively) and the pull-down on Port10.4 removed so that we drive control to the next module high while in reset.
-Observed rise time of C413 is about 7.45ms ground to 0.9V and the time to actual RSTin assertion is about 7.85ms. These timings are consistent with the 10ms TC of the circuit. Fall time from 1.8V to ground is about 5µs so as long as a bit time is greater than that, and as long as character frame time is considerably less than 7.5ms, this set of values will work well. For a faster serpentine reset, run at a high bit rate, shorten the time constant and use precision R406 and C413 to minimize TC variability.
+Observed rise time of C413 is about 7.45ms ground to 0.9V and the time to actual RSTin assertion is about 7.85ms. These timings are consistent with the 10ms TC of the circuit. Fall time from 1.8V to ground is about 5Âµs so as long as a bit time is greater than that, and as long as character frame time is considerably less than 7.5ms, this set of values will work well. For a faster serpentine reset, run at a high bit rate, shorten the time constant and use precision R406 and C413 to minimize TC variability.
 2.4.4.2 RS485 4-wire ARM Interface
 Communications to and from the ARM on the Sunrise module use two wire pairs, connecting to J6 on the Sunrise module. Pins 1 and 2 are TX-R- and TX_R+ respectively, signals from the ARM. Pins 3 and 6 are RX_R+ and RX_Rrespectively, signals to the ARM. Polarities are as above, with the single logic lines high, and the + side of a pair higher than -, when the line is at rest (stop bit state). A weak pull-up resistor is used to maintain the single ended output line high when the GA144 is reset. Test points are provided for differential probing of the data coming from the ARM.
 2.4.4.2.1 Lessons Learned from Prototype
 The ISL83491 does not seem to have a normal high-failsafe on open inputs even though the data sheet says it does! Measuring 0.228V on pin 12 and 0.227V on pin 11 I see pin 2 , the RX pin, is low! Boards 002 and 003 both behave this way. Added a 1k pull-up to pin 2 and still it is 0.03V so it's sure enough being driven.
 2.4.5 WatchDog TImer (5)
 The main reset circuit is also on this sheet. Reset is triggered by power-up, by a reset button on the prototype board only, by the reset signal received from the upstream control/status module as above, or, during development, by the FTDI reset signal; this is done using a commercial reset IC. In addition there is a watchdog circuit in this section, using a commercial chip set at nominally 1.6 seconds.
-The reset circuit pulls RST- to ground as soon as its input signal RSTin is high enough to turn its output N transistor on, at about 0.70V. It releases RST- which rises with a TC of 110µs when the RSTin signal rises above 1.6V.
+The reset circuit pulls RST- to ground as soon as its input signal RSTin is high enough to turn its output N transistor on, at about 0.70V. It releases RST- which rises with a TC of 110Âµs when the RSTin signal rises above 1.6V.
 RSTin may be grounded by a reset button, by a signal from the FTDI serial dongle (if enabled by J108), by the watchdog circuit (if enabled by J501), or by BREAK on the incoming control channel (if enabled by J403). Each of these reset sources pulls RSTin down very quickly, and holds it down for a varying amount of time. The reset circuit does not assert RST- low while RSTin is at ground. It only does so when the RSTin line is released, at which time it rises with a TC of 10.1ms, producing assertion of RST- for about 12.5ms. This should be long enough to allow an SPI flash to complete an erase operation; if not, it can be extended to about 25.4ms by removing R409 from the circuit. However, for reasons not yet understood, the actual duration of the RST- signal is only about 2.6ms.
 Jumper J502 2-3 sets normal mode in which the watchdog circuit is enabled whenever RST- is high; 1-2 allows software to control it, but we do not plan to test this mode unless required, because it weakens the whole concept. J501 is inserted to empower the watchdog circuit to reset the PCB, and it will do so unless there is a rising or falling edge on the WDIN net within 1.6s [1.12..2.24s] of end reset, or since the last such edge, at which it asserts RSTin low for 210ms [140..280ms]. Empirically, a chip that has not been programmed will, with the default jumpers, reset itself roughly every 1.75s. During testing, either straight IDE or with serial boot stream, J502 must be moved from 2-3 (normal) to 1-2 (disable).
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 23
 
@@ -949,7 +949,7 @@ If you insert J101 to disable flash boot, you must also move J502 back to pins 1
 
 24
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 2.4.5.2 Development Procedures:
@@ -958,7 +958,7 @@ Don't enable watchdog when booting from serial stream; if the watchdog trips thi
 Insert "No Boot" jumper J101 when using straight IDE to generally access the chip. This will require disabling watchdog as noted above.
 Note that IDE talk does a reset. To use the IDE in some combinations such as with flash enabled it may be necessary to say reset after talk before anything will work.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 25
 
@@ -975,8 +975,8 @@ The first set of changes reflects differences between r7 and the prototype board
 3. Note that all the 74LVC1T45W6 parts were replaced on prototype with TI SN74LVC1T45DBVR due to availability issues. This substitution seemed to work fine. We have not changed the schematic or BOM to reflect this.
 The second set pertain to changes we have made to the prototype boards as built to yield a working sign:
 4. Add pull-up resistor R1 on VOUT of U502, 10k 1% 0402.
-5. Change R309, R316, R327, R331 from 5.11k to 453 1% 0603, to correct divider (3v across this).
-6. Change R314, R319, R332, R333 from 5.62k to 562 1% 0402, to correct divider (3v across this).
+5. Change R309, R316, R327, R331 from 5.11k to 453â„¦ 1% 0603, to correct divider (3v across this).
+6. Change R314, R319, R332, R333 from 5.62k to 562â„¦ 1% 0402, to correct divider (3v across this).
 The third set pertains to conclusions drawn during test and debug:
 7. Delete R103 and disconnect D04..D17 from it and from each other.
 8. Add R2..R15 each 10k 10% 0402 pulling each unused input pin D04..D17 to ground. Note we marked these as 10% in DipTrace but they come out as 1% on the BOM.
@@ -986,7 +986,7 @@ The third set pertains to conclusions drawn during test and debug:
 
 26
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 12. Add R16 5.1K 10% 0402 pull-up on CE- line for U101 to force de-assertion of CE- during VMOD board reset. 13. Set C302, C304, C324, C312 as 90pF 5% 0402 on triad video in. These have a small effect on signal quality but
@@ -994,36 +994,36 @@ may be necessary for noise in a full display and can be depopulated later in pro
 a. U102 pins 14(300.17), 51(217.17), 60(517.17) for 9MHz clock distribution. b. PREV-D (Port10.1) to U102 7(500.17) for PREV data c. PREV-TX (Port10.2) to U102.6(600.17) for PREV Transmit enable d. NEXT-D (Port10.3) to U102.18(200.17) for NEXT data e. NEXT-TX S(Port10.4) to U102.20(100.17) for NEXT Transmit enable f. ARM-IN(Port10.5) to U102.59(417.17) for Receive data from ARM g. ARM-OUT(Port10.6) to U102.52(317.17) for Transmit data to ARM h. T4 IDE-IN to U102.78(708.17) for Receive data from bed of nails for IDE operations i. T5 IDE-OUT to U102.79(708.1) for Transmit data to bed of nails for IDE operations j. WDIN (Port5.1) to U102.15(300.1) for toggle signal to watchdog chip. k. Add Y1 9MHz and connect between U102.71(715.17) and ground. We did not update library for this
 crystal pattern. It has the same problem as did those on the VCTL board: The crystal is a 2-pin device while the pattern is 3 pins. The actual connections should be on pins 1 and 3 of the pattern; pattern pin 2 is N/C. There is probably a better pattern for this device but we don't know what it is. If you would rather use an SMT crystal that is no problem but let's put one of your selected parts on one of the prototype VMODs to make sure we can run it. The fourth set pertains to changes that may be made now that we are satisfied with the design: 22. Delete T106, 107, 108 on triad video input. 23. Delete T104, 105 on triad video output. 24. Delete T101, 102, 103 on SPI DI, DO, SCK lines. 25. Delete T201, T202, T203, T204, T205, T206 in power section.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 27
 
 AN020 1080P Video Distribution
 26. Delete J201, J202, J203 for power measurements. 27. Replace J204, J205 with two pin headers for illustration. 28. Remove T301, T302, T303, T304 on triad video input. 29. Remove T401, T402, T403, T404 on PREV differential line; remove T405, T406, T407, T408 on ARM TX line. 30. Remove J403 and connect port10.8 directly to Q402 pin 3 so that PREV reset is always enabled. Delete R409
 as it is not used in the prototype when operating normally. 31. Remove EWD signal from PORT5 to J502. 32. Remove J501 (Enable watchdog to reset). Remove J502 Soft-Enable and connect the signals that were on
-3(RST-) and 2(Enable Watchdog circuit). 33. Remove J503 and J504. Render U409.5 and .6 inert. 34. Remove K501 reset button. 35. Remove J106, J107. Add T3 for ground. 36. Remove R410 and C417, not necessary. The fifth set goes over the BOM, reducing discrete part sizes and adjusting tolerances to reflect real needs (Note, as above, that DipTrace seems to ignore differences in tolerance when merging parts of like value and package. Beware!) 37. Set R314, R319, R332, R333 as 0402 (the 453 resistors can lie between 3.3V and ground through 20 pin
-drivers until the chip is reset, while the 562 resistors only lie between 1.8V and ground through pin drivers; accordingly less power to dissipate.) 38. R102 can be 1K 10% 0402; all the GA144 pins it protects reset as input. 39. R402, 403, 411 are changed to 1210 because they terminate true RS485 transmitters. 40. R301, 302, 305, 306, 307, 310, 311, 313, 315, 318, 320, 321, 325, 326, 328, 330 are all set to 100 1% 0402. 41. R303, 304, 308, 312, 317, 322, 323, 329 are all set to 200 1% 0402. 42. R324 is set at 1K 10% 0402. 43. R401, 404, 405, 407, 501, 502 are set at 10K 10% 0402. Note that these are still shown in the BOM as 1%. 44. Reduce R406, R504 to 10K 1% 0402 45. Reduce R412 to 1K 10% 0402 46. Reduce R503 to 20K 10% 0402 47. Reduce all capacitors to 0402 in accordance with Class 2 X7R-MLCC voltage/value limits except the following which need larger packages in that series: C201, 203, 205 10µF 10% 0805.
+3(RST-) and 2(Enable Watchdog circuit). 33. Remove J503 and J504. Render U409.5 and .6 inert. 34. Remove K501 reset button. 35. Remove J106, J107. Add T3 for ground. 36. Remove R410 and C417, not necessary. The fifth set goes over the BOM, reducing discrete part sizes and adjusting tolerances to reflect real needs (Note, as above, that DipTrace seems to ignore differences in tolerance when merging parts of like value and package. Beware!) 37. Set R314, R319, R332, R333 as 0402 (the 453â„¦ resistors can lie between 3.3V and ground through 20â„¦ pin
+drivers until the chip is reset, while the 562â„¦ resistors only lie between 1.8V and ground through pin drivers; accordingly less power to dissipate.) 38. R102 can be 1K 10% 0402; all the GA144 pins it protects reset as input. 39. R402, 403, 411 are changed to 1210 because they terminate true RS485 transmitters. 40. R301, 302, 305, 306, 307, 310, 311, 313, 315, 318, 320, 321, 325, 326, 328, 330 are all set to 100 1% 0402. 41. R303, 304, 308, 312, 317, 322, 323, 329 are all set to 200 1% 0402. 42. R324 is set at 1K 10% 0402. 43. R401, 404, 405, 407, 501, 502 are set at 10K 10% 0402. Note that these are still shown in the BOM as 1%. 44. Reduce R406, R504 to 10K 1% 0402 45. Reduce R412 to 1K 10% 0402 46. Reduce R503 to 20K 10% 0402 47. Reduce all capacitors to 0402 in accordance with Class 2 X7R-MLCC voltage/value limits except the following which need larger packages in that series: C201, 203, 205 10ÂµF 10% 0805.
 2.6 VMOD Test & Commission
 Initially this will be done using a PC running arrayFORTH talking to an FTDI chip that's part of the bed of nails. The FTDI Break-out board ought to be almost sufficient; it has at least four pins that we should be able to use as control outputs although we may have to add one or two transistors as noted below for the bed-of-nails. Three of these outputs are needed for reset, no-boot and disabling watchdog. The fourth could be used to turn power on and off. Some design is called for before this can be called complete. Meanwhile here are relevant notes:
 
 28
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 2.6.1 Notes for Bed of Nails test/program facility
-· This can be an FTDI Break-out board with a small amount of additional circuitry:
+â€¢ This can be an FTDI Break-out board with a small amount of additional circuitry:
 o Connection to IO power and ground
 o Transmit and receive lines can go directly to the T4/T5 testpoints (check transmit/receive nomenclature and make it same as was done on the VMOD prototype), as can the RTS reset line to T6.
 o We need to control NO-BOOT at T1. This must be asserted (to prevent flash boot) with a controllable current source; so long as FTDI is being used we need to pick a pin and use it to control a P transistor so that when not sourcing (boot allowed and SO not encumbered) it is high impedance.
 o We need to control DISABLEDOG- at T2. This must be asserted (watchdog disabled) with a controllable current sink; so long as FTDI is being used we need to pick a pin and use it to control an N transistor so that when not sinking (watchdog allowed to reset the chip) it is high impedance.
-· The chip itself can be given all internal self-test using the IDE capability.
-· To test the I/O it is necessary to include turn-around connections as part of the bed of nails, preferably at the connection points rather than anywhere nearer to the GA144. Video out to video in all four differential pairs; PREV to NEXT one differential pair; ARM transmit to ARM receive one differential pair. Software will need to be written to test this stuff.
-· We have specifically NOT shown the bed-of-nails test points for powering the board or for turning the communications around. We've only shown T1, T2, T4, T5 and T6 to be specific about where those signals will need to connect, and for the bed of nails these may well not be plated thru holes. (T2 is an exception; it's not necessarily the bed of nails grounding point but is provided as a probe ground and should be implemented as a plated thru hole so a pin can be soldered there. If Sunrise has a better way of doing this, great.)
+â€¢ The chip itself can be given all internal self-test using the IDE capability.
+â€¢ To test the I/O it is necessary to include turn-around connections as part of the bed of nails, preferably at the connection points rather than anywhere nearer to the GA144. Video out to video in all four differential pairs; PREV to NEXT one differential pair; ARM transmit to ARM receive one differential pair. Software will need to be written to test this stuff.
+â€¢ We have specifically NOT shown the bed-of-nails test points for powering the board or for turning the communications around. We've only shown T1, T2, T4, T5 and T6 to be specific about where those signals will need to connect, and for the bed of nails these may well not be plated thru holes. (T2 is an exception; it's not necessarily the bed of nails grounding point but is provided as a probe ground and should be implemented as a plated thru hole so a pin can be soldered there. If Sunrise has a better way of doing this, great.)
 2.7 Sign Commissioning & Maintenance
 We will need to create diagnostic procedures for use in the field after a full sign has been assembled.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 29
 
@@ -1056,7 +1056,7 @@ A command character xC0, C1, xC2, or xC3 precedes 3840 characters of pixel data 
 
 30
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -1091,19 +1091,19 @@ Because a word of all zero is what the receiver sees at the end of a BREAK, any 
 
 Every command is an exchange in which one or more words of feedback are expected. The feedback ends with a word of xFFFF. If that is the only feedback received, it is interpreted as a negative acknowledgment. (A default positive acknowledgment consists of a word of 0000 followed by a word of xFFFF.)
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 31
 
 AN020 1080P Video Distribution
-The large number of potential hops (>2000) and the long latency (100µs per hop) for a single word message to reach the far end of the daisy chain creates special problems for robust management of half duplex line management. One would ordinarily do this with time-outs, however that would require meticulous orchestration of a declining timeout at each step of the daisy chain to ensure that receivers near VCTL did not time out before those farther away did. We chose to simplify this entire issue by arranging that data are continually being sent back toward VCTL as messages propagate outward on the daisy chain. For one-word messages the back-channel is active almost continuously, while for the four-word configure message there is one word sent back for each four words transmitted. Every VMOD uses a receive time-out of 600µs on each word received, and for that matter the VCTL could do the same. When a VMOD at the end of the functional chain fails to reply within this interval, it really does not matter which NEXT receiver first notices the time-out, so long as the VCTL waits at least 600µs additional after receiving the xFFFF or timing out itself. From the VCTL's perspective, continuous incoming data are expected until someone detects a time-out, and that timeout event cannot follow the last valid reply in the stream by more than 600µs. Only a minimal wait is needed to allow the daisy chain to revert to outbound mode throughout its length under these conditions. By default this inbound traffic is generated by having each VMOD reply with its own address value as a form of acknowledgment that it's been forwarded.
+The large number of potential hops (>2000) and the long latency (100Âµs per hop) for a single word message to reach the far end of the daisy chain creates special problems for robust management of half duplex line management. One would ordinarily do this with time-outs, however that would require meticulous orchestration of a declining timeout at each step of the daisy chain to ensure that receivers near VCTL did not time out before those farther away did. We chose to simplify this entire issue by arranging that data are continually being sent back toward VCTL as messages propagate outward on the daisy chain. For one-word messages the back-channel is active almost continuously, while for the four-word configure message there is one word sent back for each four words transmitted. Every VMOD uses a receive time-out of 600Âµs on each word received, and for that matter the VCTL could do the same. When a VMOD at the end of the functional chain fails to reply within this interval, it really does not matter which NEXT receiver first notices the time-out, so long as the VCTL waits at least 600Âµs additional after receiving the xFFFF or timing out itself. From the VCTL's perspective, continuous incoming data are expected until someone detects a time-out, and that timeout event cannot follow the last valid reply in the stream by more than 600Âµs. Only a minimal wait is needed to allow the daisy chain to revert to outbound mode throughout its length under these conditions. By default this inbound traffic is generated by having each VMOD reply with its own address value as a form of acknowledgment that it's been forwarded.
 The following messages are defined:
 3.1.3.1 Enumerate (B) 00
 The purpose of this message is to make each VMOD aware of its address in the daisy chain. The address of a VMOD is its one-relative sequential position in the daisy chain; it only needs to change if the geometry of the sign is reconfigured or if a VMOD is changed (replaced or moved.) The address is used in subsequent messages to direct an interaction with a specific VMOD. Upon receipt of Enumerate each VMOD takes the following steps:
 1. Stores the address field from the message as its address in RAM for immediate use and starts in parallel an update of SPI flash variables to remember this address across resets and power cycles (this takes a long time, 75 to 100 ms, but the time is occupied in SPI nodes and does not affect control channel traffic.)
 2. Sends a reply (the incoming sequence number) out the PREV port as a single word, acknowledging receipt.
 3. Increments the sequence number and transmits Enumerate on the NEXT port.
-4. Performs PUMP: Listens on the NEXT port, passing replies until timeout of 600µs (replies xFFFF) or receiving an xFFFF which is passed. Returns to idle after transmitting xFFFF out the PREV port for either reason.
+4. Performs PUMP: Listens on the NEXT port, passing replies until timeout of 600Âµs (replies xFFFF) or receiving an xFFFF which is passed. Returns to idle after transmitting xFFFF out the PREV port for either reason.
 3.1.3.2 Muster (B) 01
 Each module sends back its four running variables (orientation, ypos, framesize, address) then passes the 1 word command along to NEXT and performs PUMP.
 3.1.3.3 Reset (U) 10
@@ -1115,7 +1115,7 @@ Otherwise, sends acknowledgment (0000, xFFFF) and starts an update of the SPI fl
 
 32
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -1853,7 +1853,7 @@ To 300.17
 
 GA144 Floorplan for VMOD
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 33
 
@@ -1879,20 +1879,20 @@ Node 715's pin 17 is distributed in silicon as phantom wake-ups for nodes 709, 7
 
 34
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 In this application, node 717 tracks the oscillator and passes its signal at a full 18 Mega-edges per second down through wire to node 517, where it is made available through a port for the ARM Receive node 417, and drives a signal through pin 517.17 to 217.17 where node 217 makes it available through a port for the ARM Transmit node 317. The external signal continues to pin 317.17.
 Node 300 uses this, and other information, to determine when the watchdog timer will be "tickled". It also prevents full operation until the 9 MHz crystal has been started successfully and is running stably.
 On reset, 300 counts edges coming in on 317.17, toggling the watchdog every 10,000 edges. We count 900 such sets of 10,000. The first 800 are enough for all of the edges produced by an unsuccessful crystal start, and the next 100 are to ensure the crystal is running well by insisting on half a million full cycles. If the start-up fails, we stop toggling the watchdog and will soon reset. If we see all nine million edges then we believe that we have a good 9 MHz clock for transmission to the ARM and for receiving data on the control/status daisy chain. Accordingly, messages are sent to node 203 enabling the pixel pipeline, and to the control/status processing nodes enabling receipt of data from the preceding module.
-Thereafter, node 300 divides the clock down by a factor of 30 (300 kHz, 600K 1.67µs edges/sec). The watchdog is toggled every 10000 of these edges (16.67 ms) and a data clock edge is sent to the PREV and NEXT daisy chain transceivers every 1.67µs for bit synchronization at 200kb/s. Once this is happening the VMOD will only reset if power is lost, if the 9MHz oscillator fails, or if the previous VMOD in the daisy chain sends a break signal as commanded by the VCTL.
+Thereafter, node 300 divides the clock down by a factor of 30 (300 kHz, 600K 1.67Âµs edges/sec). The watchdog is toggled every 10000 of these edges (16.67 ms) and a data clock edge is sent to the PREV and NEXT daisy chain transceivers every 1.67Âµs for bit synchronization at 200kb/s. Once this is happening the VMOD will only reset if power is lost, if the 9MHz oscillator fails, or if the previous VMOD in the daisy chain sends a break signal as commanded by the VCTL.
 3.2.5 Video Pipeline
 Video comes down the column on four differential lines: D2, D1, D0 and half frequency clock. All four of these lines are driven simultaneously with no intentional skew. Clock skew to achieve safe set-up time is accomplished internally on the receiver, by delaying the sampling of the data lines after seeing the clock edge. The mapping of 24-bit pixels to the sequence of triads is as follows, top row being first transmitted:
 Seq D2 D1 D0 +0 R2 R1 R0 +1 R5 R4 R3 +2 G0 R7 R6 +3 G3 G2 G1 +4 G6 G5 G4 +5 B1 B0 G7 +6 B4 B3 B2 +7 B7 B6 B5
 The critical path for column video passes through six nodes; these have no decision making to do. Timing is critical as is noise immunity. These nodes are as follow:
 008: Detects the next clock edge on 008.17 and sends a phantom wake-up to 007 that triggers its reading the parallel data port. 008 intentionally delays about 25 ns before triggering the read to give set-up time for the incoming four data lines (clock and data). It also delays for a cycle time of 30-31ns so that it cannot give stimuli to node 007 faster than the pipeline can keep up with it; this must always be the longest cycle time in the pipeline. As it turned out 3/12/16, the higher temp in the room has apparently warmed the chip enough that the initial setting of this delay was causing us to miss triad clocks, so this is going to have to be adjusted and set further. On reset, this node delays for approximately 100 ms before looking at the incoming clock. The purpose of this delay is to prevent our ramming triads into the high speed part of the pipeline until the entire chip has been booted; allowing this pipleline to become congested destabilizes the application. After the time delay, normal operation begins as above.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 35
 
@@ -1903,8 +1903,8 @@ Cycle is 28ns.
 Transit time for a triad down a module column is on the order of 61ns per VMOD with 3' cable.
 3.2.5.1 Vertical Sync Detector Tap
 Node 006 is a wiretap of node 007 that serves as a punctuality buffer. It feeds node 005, a state machine that monitors for the start and end of image frames. The end of a frame is detected by a long time with no triads. The start is indicated by the first triad after an end. Detection is done by polling io in a loop whose cycle time is typically 15.3ns. When the loop sees node 006 writing to us, we read the word and reset our counter. When the count value expires we write a negative number to the video switch, with critical timing requirements. The count value does not require great precision:
-For 1080p video, a pixel time is 6.734ns, a line is 2200 pixel times, and a frame is 1125 line times, of which 45 are blanked around vertical sync leaving 1080 for video. Thus a line time is 14.81µs and 45 of those are 666µs. A good setting for the delay loop to detect end frame would be 200µs; that gives plenty of dead-band for variations in loop timing and also gives us plenty of time, roughly 400µs, to top off a delay line (worst case if it's empty is 1920 words at 50ns each, or 96µs).
-The VS node runs at a high duty cycle because it must loop and poll for all but 400µs of each frame.
+For 1080p video, a pixel time is 6.734ns, a line is 2200 pixel times, and a frame is 1125 line times, of which 45 are blanked around vertical sync leaving 1080 for video. Thus a line time is 14.81Âµs and 45 of those are 666Âµs. A good setting for the delay loop to detect end frame would be 200Âµs; that gives plenty of dead-band for variations in loop timing and also gives us plenty of time, roughly 400Âµs, to top off a delay line (worst case if it's empty is 1920 words at 50ns each, or 96Âµs).
+The VS node runs at a high duty cycle because it must loop and poll for all but 400Âµs of each frame.
 3.2.5.2 Triad Data Tap
 Nodes 106 and 105 are slow wires tapping node 107, each with measured delay of >19ns above that of a perfect wire, and cycles on the order of 28.8ns. They feed node 104 which uses a lookup table to convert the scrambled 4-bit values from node 007 to binary values 0..7 by reversing the low order three bits and ignoring the clock, and these are fed directly into a port on the video switch node. Time delays are designed so that signals can propagate from node 007 through wire 006 and the VS node to the switch faster than they can make it from 007 through 107, 106, 105 and 104.
 3.2.5.3 Video Switch Node
@@ -1914,10 +1914,10 @@ The switch is a state machine. Initially it is waiting for a SOF (start of frame
 
 36
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
-We may want to reconsider the above behavior in concert with the VS node to make the system more robust at ignoring noise during vertical blanking, for example by looping for 100µs, during which time any incoming noise data are received and discarded, but this complication is omitted intially. In this scenario we would not get an SOF from VS but simply pass along the first triad received after the time delay contemplated here. However we'd still have to push the transit time very near the 30ns limit in order to send the SOF marker ahead of the first pixel.
+We may want to reconsider the above behavior in concert with the VS node to make the system more robust at ignoring noise during vertical blanking, for example by looping for 100Âµs, during which time any incoming noise data are received and discarded, but this complication is omitted intially. In this scenario we would not get an SOF from VS but simply pass along the first triad received after the time delay contemplated here. However we'd still have to push the transit time very near the 30ns limit in order to send the SOF marker ahead of the first pixel.
 The delay between the vertical sync detector's reading io that shows no write from 007 the last time, until we have written the value into the switch is 34.3ns. This is also as good as seeing that node 107 was not writing at that time; there is one wire delay between 007 and the port into 005 just as there is such a delay between 007 and the port into 106. Because the switch is doing a multiport read it is imperative that a triad that was coming in just as we were reading io cannot possibly make it to the switch before we do. The time delays in the triad tap path above guarantee this conservatively.
 Each slow wire is a measured delay of 19ns over a perfect wire, with a safe cycle of 28.8ns. The look-up table node delays about 12ns over a perfect wire with a cycle of 27.6ns. Thus we have a total delay of more than 51ns (plus 3 wire delays) from the wall port of 107 to the switch, while the time from last io read by VS to its switch port is on the order of 35ns. This should be more than safe.
 3.2.6 Pixel Counting and Assembly
@@ -1932,7 +1932,7 @@ On reset, this node receives and discards all incoming markers and bytes until i
 3.2.7 Frame Buffers
 The largest module frame of interest is 1280 24-bit pixels and therefore 3840 octets of data. Two buffers are implemented as separate 30-node delay lines. Each delay line node contributes 128 bytes of storage and there is no code required in either RAM or ROM.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 37
 
@@ -1940,7 +1940,7 @@ Copyright© 2015 GreenArrays, Inc. 11/06/17
 3.2.7.1 3840-byte Delay Line
 These delay lines are synchronous FIFOs, which is to say that they are always perfectly full and that a word becomes available at the output only after a word is inserted at the input. The two-pointer asynchronous FIFO model does not apply in this design. This delay line mechanism words at a sustained rate of approximately 52ns per word; this is sufficiently fast given that our incoming pixel data arrive at 213ns per word (assuming that PX is 40 and MX is 48). Special management code at the entry (Tx Helper) and exit (Rx Helper) of each delay line arranges that it may be filled and later emptied without attention from outside the 32-node assembly except for the actual insertion of data at the Tx end and its removal at the Rx end.
 3.2.7.2 Pipe Selector
-To support near simultaneous initiation of frame changes in the modules (Less than 20µs; on the order of a line time, 14.81µs, plus 45 61ns VMOD propagation delays (61ns) for another 2.8 µs), we double-buffer the frame images. At the source end, node 205 serves as a pipe selector. On boot, delay line A is selected to hold the next incoming frame. The following frame goes into delay line B, and the two alternate forever.
+To support near simultaneous initiation of frame changes in the modules (Less than 20Âµs; on the order of a line time, 14.81Âµs, plus 45 61ns VMOD propagation delays (61ns) for another 2.8 Âµs), we double-buffer the frame images. At the source end, node 205 serves as a pipe selector. On boot, delay line A is selected to hold the next incoming frame. The following frame goes into delay line B, and the two alternate forever.
 When a start of frame marker is received, we pass it to both the old and the new delay line Tx nodes. On receiving it, the old delay line begins pushing the previous frame out to the ARM (except for the first marker given to delay line which is at this time empty), and the new delay line begins absorbing the next frame. These activities are synchronized by complementary actions at the delay line Rx nodes. When an end frame marker is received, that is passed to the delay line currently being filled and we switch the roles of A and B.
 3.2.7.3 Delay Line Tx Helper
 A delay line Tx node waits for a marker (SOF), then copies in all words received until it reaches 1920 or sees a marker (EOF). If less than 1920 words were received, the buffer is padded with trailing zeroes. The Tx node then waits for another marker (SOF) that signals it to begin pushing out exactly 1920 words by inserting that many zeroes, creating "pressure". No markers are included in the delay line because this is not necessary; the counts are always exact.
@@ -1956,7 +1956,7 @@ The pixel data are counted, and after sending 3840 bytes we are presumed to be i
 
 38
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 3.2.8.2 ARM Transmit Node
@@ -1977,7 +1977,7 @@ The PREV and NEXT RS485 lines each use two nodes, one for the transmit/receive p
 As indicated earlier, data are framed as 16-bit characters, MSB first, no parity with two stop bits. Each bit time takes three of the incoming clock edges so that our data rate is 200 kbaud.
 On the PREV channel, node 600 resets with the line in receive mode but waits for a signal from 601 indicating that the 9MHz time base is stable. It then handles outbound messages far enough that only legitimate ones make it to node 601 for processing. All data for a given message are received before anything is done with them, so that timeouts are silently ignored. When a good command has been received, func in 601 is called and three words (command, address, command shifted left 2 bits) are sent through the port following this call. If the command was configure, the three parameters are first pushed onto node 601 stack with the first parameter received (orientation command) on top of stack. Thereafter node 600 expects to pass data inbound on PREV until a word of xFFFF has been sent. In 600 !w3 is actually a w2 and return; this makes the function take three clocks but each leaves the timing from 300 made happy, necessary so that we can correctly transmit the incoming words whenever they arrive.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 39
 
@@ -1987,18 +1987,18 @@ func in 601 handles the six cases: Muster, Enumerate, and unicast messages (Rese
 Node 701 handles the flash operations for 601 as noted above.
 Specialized wire carries the traffic to and from NEXT between 601 and 100. Node 100 manages the exchanges. The first word sent down the wire is n followed by n+1 words to transmit on NEXT. The line then turns around and moves data until xFFFF is passed after which a new n is expected. If n is negative then the message consists only of n with no replies and it means to reset the NEXT module. There are three versions of the wire code because node 300 must signal the PREV receiver when it's determined that the 9MHz oscillator is stable and that PREV has a stable time base available.
 3.2.13 Communications to/from NEXT
-Node 100 implements the same logic as do the specialized wires. The difference is that the break operation, or the exchange, take place on the NEXT serdes rather than being passed to the next node through a port. As noted above, each input word from NEXT times out in 600µs.
+Node 100 implements the same logic as do the specialized wires. The difference is that the break operation, or the exchange, take place on the NEXT serdes rather than being passed to the next node through a port. As noted above, each input word from NEXT times out in 600Âµs.
 3.2.14 Loose Ends
 Items to revisit sooner or later:
-· Node 600 is now safe, leaves timing tended while waiting for incoming words.
-· If room still exists to do so, have ent in node 600 wait till it can get a timed out receive to avoid starting to listen while a character is incoming.
-· Optimize ARM interrupt code for non-interference with multiplexor timing (done by Dean)
-· Close loop around crystal start-up tighter than just using the watchdog
-·
+â€¢ Node 600 is now safe, leaves timing tended while waiting for incoming words.
+â€¢ If room still exists to do so, have ent in node 600 wait till it can get a timed out receive to avoid starting to listen while a character is incoming.
+â€¢ Optimize ARM interrupt code for non-interference with multiplexor timing (done by Dean)
+â€¢ Close loop around crystal start-up tighter than just using the watchdog
+â€¢
 
 40
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -2521,7 +2521,7 @@ dejitter buffer
 
 GA144 Floorplan for VCTL chip 0
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 41
 
@@ -2932,7 +2932,7 @@ bitgen $(intstyle) -g UserID:0x09470947 -g DriveDone:yes -g StartupClk:JtagClk -
 
 42
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -2952,7 +2952,7 @@ Out: 11100000000000000000000000000000 000
 In: 00011001001000010000000000000100 100
 
 267 Instr(24) 77 BYPASS 111111 111111 111111 111111 297 Instr(24) 13 JPROGM 111111 111111 111111 110100
-Effectively equivalent to asserting PGMINIT- asserts about 100ns after entering Update-IR on this command, stays low about 287.5µs; presumably we must spin on it.
+Effectively equivalent to asserting PGMINIT- asserts about 100ns after entering Update-IR on this command, stays low about 287.5Âµs; presumably we must spin on it.
 
 327 Instr(24) 05 CFG_IN 111111 111111 111111 101000
 
@@ -2969,7 +2969,7 @@ In: 00000000000000000001110000000000 0000000000000000
 000 E0 00 30 A1 00 08 00 00 00 00 FF FF FF FF FF FF |`_0!____________| <-High Z -> but delivered without synchronization!
 010 FF FF FF FF FF FF FF FF FF FF AA 99 55 66 30 A1 |__________*_Uf0!| <---------- dummy ----------> <-- sync -> <reset
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 43
 
@@ -3061,7 +3061,7 @@ In: 00000000000000000001110000000000
 
 44
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -3077,22 +3077,22 @@ We eliminated the chaff from the above procedure and were finally able to integr
 3.3.5 FPGA Parameters (I2C)
 After the FPGAs have been programmed using JTAG, they present a register interface on the I2C bus for configuration of the overall display. For each column, its starting position in the X axis must be set in pixels relative to zero at the left side of each line; and for each column the width of that column in pixels must be set. For the FPGA as a whole, the Y axis position of its top row must be set in rows relative to the top row of the source image.
 3.3.6 Command Channel (RS485)
-A 9 MHz crystal oscillator is maintained by node 10715 after starting via 10712, 13 and 14. The signal from this crystal is monitored via a shared pin by node 709 which divides it down by 180 to 50 KHz, yielding one edge every 10 µs. This sequence of 10 µs stimuli is presented to nodes 708 and 609.
+A 9 MHz crystal oscillator is maintained by node 10715 after starting via 10712, 13 and 14. The signal from this crystal is monitored via a shared pin by node 709 which divides it down by 180 to 50 KHz, yielding one edge every 10 Âµs. This sequence of 10 Âµs stimuli is presented to nodes 708 and 609.
 Node 609 acts as a monitor for crystal operation and may be interrogated by polyFORTH using minimum Ganglion transactions as a watchdog criterion. The expected transaction consists of two outbound words (focusing call and one data), and one inbound word (data).
 Node 708 serves as a transceiver for the RS485 command channel, performing functions commanded by polyFORTH and implemented by node 608 using Ganglion transactions.
 3.3.6.1 Node 708 RS485 Transceiver
 This node transmits 8 or 16 bit values and receives 8 bit values under crystal control at 33.333 kb/s.
-Transmit bit times are three 10µs clock events long. Framing is 8 data bits, no parity, one stop bit.
-The receiver samples for start bit on clock events so we start ]0..10] µs into the start bit. We wait one clock after that so we are now at ]10..20] into the start bit, then sample eight data bits at 3-clock intervals from there. After sampling last data bit we wait two clock events which places us ]0..10] µs into the stop bit. Consecutive characters may be received if we start looking for the next well within the 20µs of remaining stop bit. Each receive operation is given a timeout value in 10µs units, limiting the amount of time we will wait for a start bit. The character value returned in the case of a timeout identifies it as such.
+Transmit bit times are three 10Âµs clock events long. Framing is 8 data bits, no parity, one stop bit.
+The receiver samples for start bit on clock events so we start ]0..10] Âµs into the start bit. We wait one clock after that so we are now at ]10..20] into the start bit, then sample eight data bits at 3-clock intervals from there. After sampling last data bit we wait two clock events which places us ]0..10] Âµs into the stop bit. Consecutive characters may be received if we start looking for the next well within the 20Âµs of remaining stop bit. Each receive operation is given a timeout value in 10Âµs units, limiting the amount of time we will wait for a start bit. The character value returned in the case of a timeout identifies it as such.
 3.3.6.2 Node 608
 Under ganglion control, this node performs high order functions on the RS485 line. polyFORTH functions are:
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 45
 
 AN020 1080P Video Distribution
-xchg performs an RS485 exchange operation. It's followed by arguments tn t0 ni no after which it expects no+1 words to send, then returns ni+1 received words. The timeout on the first receive word is (t0+1)*100µs; on the remaining words, (tn+1)*100µs. After a timeout, or a received xFFFF value, any remaining receive words are synthesized as xFFFF. For diagnostic purposes, an actual timeout detected by the VCTL itself is returned as xFFFE.
+xchg performs an RS485 exchange operation. It's followed by arguments tn t0 ni no after which it expects no+1 words to send, then returns ni+1 received words. The timeout on the first receive word is (t0+1)*100Âµs; on the remaining words, (tn+1)*100Âµs. After a timeout, or a received xFFFF value, any remaining receive words are synthesized as xFFFF. For diagnostic purposes, an actual timeout detected by the VCTL itself is returned as xFFFE.
 break transmits a break signal for 10ms on the line. Expects five words (ignored) and returns one.
 3.3.7 System Booting
 We will be using polyFORTH in auto-boot configuration. In this configuration, auto-baud is started but if it is not completed in a short while we proceed to load block 9 without waiting for it. If the auto-baud does complete in a reasonable period then we do not load block 9 but instead wait for human input.
@@ -3101,7 +3101,7 @@ The main concerns after reset are successful start-up of the 9 and 10 MHz crysta
 
 46
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 3.3.9 Sign Configuration Specification
@@ -3121,7 +3121,7 @@ MODULE (y x rot i) overrides the current settings for module index i to be popul
 !VPOS is used after the sizes and orientations of all modules have been declared using the words above, to define the vertical starting positions and sizes of each module in its column. The following may be used after !VPOS ...
 SKIP (x) indicates an FPGA column (0..59) that has been skipped over in wiring the sign. No video will be generated for that column; the video that would have been displayed in it is shifted right to the next column.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 47
 
@@ -3141,7 +3141,7 @@ Under ideal conditions with all VMODs working well, only two passes of CHECK sho
 
 48
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 4. Test Plan
@@ -3149,59 +3149,59 @@ When using a Windows PC as video source in critical testing, visual artifacts sh
 4.1 Control PCB
 The testing addresses major sections in order, and will necessarily include some software development. Before testing a board assign it a serial number if populated. Maybe send a PCB to James before starting. He can power just the FPGAs and verify good communication with them over JTAG.
 4.1.1 Power Supply Section
-· Power supply shorts: Pull all the 9xx jumpers and check for shorts to ground and between all supply buses. First on an unstuffed board and then on a stuffed one. Pins used are the center pins of each jumper. Yellow means tested OK, pink is shorted unstuffed; resistance values measured on stuffed board, orange is suspicious but not shorted in the unstuffed board.
+â€¢ Power supply shorts: Pull all the 9xx jumpers and check for shorts to ground and between all supply buses. First on an unstuffed board and then on a stuffed one. Pins used are the center pins of each jumper. Yellow means tested OK, pink is shorted unstuffed; resistance values measured on stuffed board, orange is suspicious but not shorted in the unstuffed board.
 Neg Pos-> GND J902 J903 J904 J905 J907 J908 J909 J910 J911 J912 J913 J914 GND J902 VCD_3V3 J903 VXIO_3V3 J904 VXAUX_3V3 J905 VXINT_1V8 J907 VAC_1V8 J908 VAP_1V8 J909 VAD_1V8 J910 VAT_3V3 J911 VAOP_3V3 J912 VGA_1V8 J913 VGA_3V3 J914 VGA_5V
-· Power each section up (external power off, add jumpers, then external power on; do NOT change jumpers while external power is energized) before testing it below. Check voltages and note any discrepancies.
+â€¢ Power each section up (external power off, add jumpers, then external power on; do NOT change jumpers while external power is energized) before testing it below. Check voltages and note any discrepancies.
 4.1.2 Computer Section
-· No Boot jumper in, disable both SPI flashes (J101 1-3, 2-4), Ser Boot jumper in, all power jumpers out. Insert J203 1-2 and verify low (if not ground before proceeding).
+â€¢ No Boot jumper in, disable both SPI flashes (J101 1-3, 2-4), Ser Boot jumper in, all power jumpers out. Insert J203 1-2 and verify low (if not ground before proceeding).
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 49
 
 AN020 1080P Video Distribution
 
-· Power up each of the three VGA_ sections and check voltages.
+â€¢ Power up each of the three VGA_ sections and check voltages.
 
-· Plug in USB ports A and B, configure each FTDI chip per EVB001 instructions but with different data (see the commissioning section below). Verify the 3.3V test points.
+â€¢ Plug in USB ports A and B, configure each FTDI chip per EVB001 instructions but with different data (see the commissioning section below). Verify the 3.3V test points.
 
-· Power all three VGA_ supplies and verify voltages. Verify reset button at J106 pin 1 and J203 pin 3.
+â€¢ Power all three VGA_ supplies and verify voltages. Verify reset button at J106 pin 1 and J203 pin 3.
 
-· IDE into port A and verify basic communication and ability to control the reset line (Raw, J106 (J203 pin 3).
+â€¢ IDE into port A and verify basic communication and ability to control the reset line (Raw, J106 (J203 pin 3).
 
-· Run selftest on chip 0.
+â€¢ Run selftest on chip 0.
 
-· Run autotest without SERDES to test chip 1.
+â€¢ Run autotest without SERDES to test chip 1.
 
-· Boot basic (non-Ether) polyFORTH (430 load) and verify it runs using FTDI port B.
+â€¢ Boot basic (non-Ether) polyFORTH (430 load) and verify it runs using FTDI port B.
 
-· Run SRAM tests from polyFORTH.
+â€¢ Run SRAM tests from polyFORTH.
 
-· Enable U102 (J101 3-5) and verify ability to program and boot from flash.
+â€¢ Enable U102 (J101 3-5) and verify ability to program and boot from flash.
 
-· Devise a test procedure for module control daisy chain drivers.
+â€¢ Devise a test procedure for module control daisy chain drivers.
 
-· Verify the testpoints for nodes 715, 10100, 10500, 10600, 10709.
+â€¢ Verify the testpoints for nodes 715, 10100, 10500, 10600, 10709.
 
 4.1.2.1 New hardware and code (NOT CRITICAL PATH)
-· Reconfigure for Ethernet (with crystal excitation) and test circuitry and code.
+â€¢ Reconfigure for Ethernet (with crystal excitation) and test circuitry and code.
 
-· Reconfigure polyFORTH for W25Q128 SPI Flash and verify it works.
+â€¢ Reconfigure polyFORTH for W25Q128 SPI Flash and verify it works.
 
-· Test Charley's new arrayForth code for writing boot to flash using "modern" 256-byte writes.
+â€¢ Test Charley's new arrayForth code for writing boot to flash using "modern" 256-byte writes.
 
-· Test Watchdog enable and circuit.
+â€¢ Test Watchdog enable and circuit.
 
-· Get 9 MHz crystal osc going for control channel.
+â€¢ Get 9 MHz crystal osc going for control channel.
 
-· Define, develop and test control protocol.
+â€¢ Define, develop and test control protocol.
 
 4.1.3 ADV7611 Section
-· Power all five VA_ supplies and check voltages.
+â€¢ Power all five VA_ supplies and check voltages.
 
-· Verify I2C operations as previously bread boarded (slight code change)
+â€¢ Verify I2C operations as previously bread boarded (slight code change)
 
-· Initialize the chip
+â€¢ Initialize the chip
 
 What I see for registers after +ADCHIP on first try:
 
@@ -3211,7 +3211,7 @@ What I see for registers after +ADCHIP on first try:
 
 50
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -3229,7 +3229,7 @@ Copyright© 2015 GreenArrays, Inc. 11/06/17
 
 |________________| |________________| |________________| |________________| |________________| |________________| |_\_\_\_\_\_\_\_\| |________________| |________________| |________________| |________________| |________________| |_______________ _|
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 51
 
@@ -3251,7 +3251,7 @@ Copyright© 2015 GreenArrays, Inc. 11/06/17
 
 52
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 AN020 1080P Video Distribution
 
@@ -3297,40 +3297,40 @@ Plug into bat, which recognizes us:
 
 DELTA dpll/BE 02 03 hdmi/04 20 23 hdmi/05 00 30 hdmi/06 00 94 hdmi/07 00 A7 hdmi/08 00 80 hdmi/09 00 04 hdmi/0A 00 38 hdmi/0B 00 04 hdmi/0C 00 38 hdmi/1C 00 0B hdmi/1E 00 08 hdmi/1F 01 98 hdmi/21 00 58 hdmi/23 01 2C hdmi/25 00 94 hdmi/26 00 08 hdmi/27 00 CA hdmi/28 00 08 hdmi/29 00 CA hdmi/2B 02 08 hdmi/2D 02 08 hdmi/2F 00 0A hdmi/31 00 0A hdmi/32 3F 00 hdmi/33 FE 48 hdmi/34 3F 00 hdmi/35 FE 48 hdmi/51 00 4A hdmi/52 00 3E hdmi/D2 00 02 hdmi/D6 00 09 hdmi/E0 00 4A hdmi/E1 00 3E hdmi/FF 00 11 cp/A3 00 04 cp/A4 00 64 cp/B1 3F 8D cp/B2 FF 39 cp/B3 00 28 cp/B8 00 07 cp/B9 00 48 cp/CD 00 FF cp/CE 80 8F cp/E0 00 50 cp/FA 80 00 cp/FF 78 48 io/12 81 C0 io/21 00 08 io/42 08 14 io/5B 04 0A io/6A 00 53 io/6F 00 01 io/83 00 42 io/D2 0F 9F io/D3 00 01 io/D4 F8 F1 io/D5 1F 2F ok
 
-· Plug into an HDMI source and verify understood · Verify valid video timing coming out · Send code to James with instructions to deliver good video to him in pixel bus.
+â€¢ Plug into an HDMI source and verify understood â€¢ Verify valid video timing coming out â€¢ Send code to James with instructions to deliver good video to him in pixel bus.
 4.1.4 Video Section
-· Power all the VX and VC buses from external supply (1.8 and 3.3V) · Verify JTAG lines work electrically. · Learn how to prove JTAG works logically. · Design, code and test JTAG support. · Get daisy chained JTAG streams from James and test.
+â€¢ Power all the VX and VC buses from external supply (1.8 and 3.3V) â€¢ Verify JTAG lines work electrically. â€¢ Learn how to prove JTAG works logically. â€¢ Design, code and test JTAG support. â€¢ Get daisy chained JTAG streams from James and test.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 53
 
 AN020 1080P Video Distribution
-· Verify I2C functions if implemented. · Examine pixel bus signal integrity
+â€¢ Verify I2C functions if implemented. â€¢ Examine pixel bus signal integrity
 4.2 Module PCB
 4.2.1 Power Section
-· Check unstuffed board for shorts. · Check stuffed board for shorts. · Apply external power (1.8V and 3.3V)
+â€¢ Check unstuffed board for shorts. â€¢ Check stuffed board for shorts. â€¢ Apply external power (1.8V and 3.3V)
 4.2.2 GA144 Section
-· Configure Sparkfun FTDI chip from PC using procedure like EVB. · Set jumpers J108 in, J101 in, J403 1-2, J502 1-2, J501 out. · Plug into PCB and power up (insert jumpers in J201, J202, J203 to enable). · Verify control of USB reset at J108 and J502.3. · Test basic IDE operations · Run selftest on GA144. · Verify ability to program and boot from flash with a simple piece of code. · Verify new flash with Charley code. · Test watchdog circuit. · Check the testpoints on computer section. · Get crystal osc going for module and control channels.
+â€¢ Configure Sparkfun FTDI chip from PC using procedure like EVB. â€¢ Set jumpers J108 in, J101 in, J403 1-2, J502 1-2, J501 out. â€¢ Plug into PCB and power up (insert jumpers in J201, J202, J203 to enable). â€¢ Verify control of USB reset at J108 and J502.3. â€¢ Test basic IDE operations â€¢ Run selftest on GA144. â€¢ Verify ability to program and boot from flash with a simple piece of code. â€¢ Verify new flash with Charley code. â€¢ Test watchdog circuit. â€¢ Check the testpoints on computer section. â€¢ Get crystal osc going for module and control channels.
 4.2.3 Module communications
-· Test circuitry to talk Dean's protocol · Verify clean operation with module, using test patterns
+â€¢ Test circuitry to talk Dean's protocol â€¢ Verify clean operation with module, using test patterns
 4.2.4 Control Channel
-· Connect to control PCB and verify signals · Test serpentine reset circuit · Design, code and test control protocol
+â€¢ Connect to control PCB and verify signals â€¢ Test serpentine reset circuit â€¢ Design, code and test control protocol
 4.2.5 Pixel Bus
-· Connect to working control PCB · Devise test with known video (pF on PC) · Verify video formats, indexing and so on · Check signal integrity
+â€¢ Connect to working control PCB â€¢ Devise test with known video (pF on PC) â€¢ Verify video formats, indexing and so on â€¢ Check signal integrity
 
 54
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 4.3 Production Software
-· Instrument a module PCB for power measurement · Floor planning of module PCBs · Finalize design of pixel pipeline · Work up basic path to module and test · Work up control protocols to module · Design, code and test watchdog management · Optimize for robustness · Optimize for min power
+â€¢ Instrument a module PCB for power measurement â€¢ Floor planning of module PCBs â€¢ Finalize design of pixel pipeline â€¢ Work up basic path to module and test â€¢ Work up control protocols to module â€¢ Design, code and test watchdog management â€¢ Optimize for robustness â€¢ Optimize for min power
 4.4 Production Hardware
-· Apply lessons learned · Remove needless test / evaluation circuitry · Define mods to support production test/commissioning · Apply to drawings
+â€¢ Apply lessons learned â€¢ Remove needless test / evaluation circuitry â€¢ Define mods to support production test/commissioning â€¢ Apply to drawings
 
 AN020 1080P Video Distribution
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 55
 
@@ -3345,10 +3345,10 @@ Small scale testing of pixel pipeline and sign management daisy chain were done 
 
 56
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 The VCTL boards finally arrived in March 2016, two months later than we'd hoped, allowing us to stop working with fake video from an EVB001. Here are top and bottom views of this board.
-Very little rework was required. We had to add a series RC from LLC to ground (22pF and 49.9) to terminate that line; its signal quality was poor, with much ringing and crosstalk, resulting in unreliable pixel clocking. After fixing this the parallel pixel bus was well behaved into the FPGAs.
+Very little rework was required. We had to add a series RC from LLC to ground (22pF and 49.9Î©) to terminate that line; its signal quality was poor, with much ringing and crosstalk, resulting in unreliable pixel clocking. After fixing this the parallel pixel bus was well behaved into the FPGAs.
 
 AN020 1080P Video Distribution
 
@@ -3356,7 +3356,7 @@ Here are bench set-ups used for VCTL debugging and for critical examination of t
 
 Here is the very small (4x3 module) subset of a display under construction and the first live video from a Windows notebook. Moire is an artifact of image capture, view at large size for better appearance.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 57
 
@@ -3371,7 +3371,7 @@ The next 6 pages are the VMOD PCB modified for production. Headers, test points,
 
 58
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 A B
 
@@ -3437,14 +3437,14 @@ REVISION 150908 150917
 DESCRIPTION
 First Draft. Include input from Eric and crew. Include results of 2-wire study and the working model of parallel daisy chain with pick-off capability. Update scope trace for overall parallel pass-through delay with output probe properly grounded. Add list of deferred matters. Update table of module geometries. Add initial FPGA specification and update open questions. Add preliminary system block diagram. Update block diagram. Add decision to provide control channel. Add information about module serial communications. Add partial description of control board and detailed description of the module board as of version SS-MOD1r2 Replace old descriptions with System Design section, update to describe the prototype. Add Test Plan section. Lessons Learned for the VMOD prototype. Software Description (protocols and VMOD software). Extensive description of VCTL and VMOD, lessons learned from both. Document production VMOD changes. Document final architecture and code behavior for production VMOD. Document sign configuration language and configuration management procedure. Reconfigure and sanitize as an application note. Pre-publication draft. Release for Publication.
 
-Copyright© 2015 GreenArrays, Inc. 11/06/17
+CopyrightÂ© 2015 GreenArrays, Inc. 11/06/17
 
 77
 
-GreenArrays®
+GreenArraysÂ®
 Application Note AN020 Revised 11/06/17
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAIâ€™s terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -3456,6 +3456,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2017, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright Â© 2010-2017, GreenArrays, Incorporated
 
 

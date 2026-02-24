@@ -1,10 +1,10 @@
-[Derived from: ../../reference/greenarrays/DB003-110926-EVB001.compact.html]
-GreenArraysTM
+[Derived from: ../../reference/greenarrays/pdfs/DB003-110926-EVB001.pdf]
+GreenArrays‚Ñ¢
 Product Data Book DB003 Revised 9/26/11
 Evaluation Board
 Reference Manual
 for EVB001 rev 0.1.1 with G144A12 chips
-The GreenArrays EVB001 Evaluation Board is a versatile and powerful application development platform for the GA144-1.20 chips. As such it has many configuration options. The current Printed Circuit Board (PCB) revision shown on the silkscreen is 0.1.1, and it is currently shipped with a starter eForth that may be booted from flash. Please familiarize yourself with this information before using the Eval Board so that you will be aware of the many configuration options available to you. In addition, please download and read the other relevant documentation such as the Programmers' Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), and the User's Manuals for arrayForthTM, eForth, polyFORTHÆ, and other Application Notes as appropriate. The current editions of all GreenArrays documents, including this one, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
+The GreenArrays EVB001 Evaluation Board is a versatile and powerful application development platform for the GA144-1.20 chips. As such it has many configuration options. The current Printed Circuit Board (PCB) revision shown on the silkscreen is 0.1.1, and it is currently shipped with a starter eForth that may be booted from flash. Please familiarize yourself with this information before using the Eval Board so that you will be aware of the many configuration options available to you. In addition, please download and read the other relevant documentation such as the Programmers' Reference for the F18 computers (DB001), the G144A12 Chip Data Book (DB002), and the User's Manuals for arrayForth‚Ñ¢, eForth, polyFORTH¬Æ, and other Application Notes as appropriate. The current editions of all GreenArrays documents, including this one, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -33,7 +33,7 @@ Reset Control ..................................................................
 
 2
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 6.
 6.1 6.2 6.3
@@ -52,14 +52,14 @@ Physical Documentation..........................................................
 Bill of Materials .............................................................................................17 GA144 Signal map .........................................................................................18 Host Chip.............................................................................................................18 Target Chip..........................................................................................................20 Connector Pinouts..........................................................................................22 Power Control Section ........................................................................................22 USB Serial Interfaces...........................................................................................22 Host Chip.............................................................................................................23 Target Chip..........................................................................................................23 Prototyping Area.................................................................................................24 Errata............................................................................................................. 26 Schematics and Layout ..................................................................................26
 Data Book Revision History ..................................................... 35
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 3
 
 DB003 Evaluation Board Reference for EVB001
 1. Introduction
 This is the primary reference manual for the EVB001 Evaluation Board. With two GreenArrays G144A12 chips, peripherals sufficient for a complete software and hardware development environment, and a large prototyping area, this highly configurable board is intended to serve both engineers and programmers well in evaluating our chips in all stages of application development.
-Initially shipped with eForth in flash, this board is field upgradable with additional system software, such as polyFORTHÆ. In addition, our Application Notes will use this board as their default platform so that our customers may make immediate use of the hardware and software solutions published in those exercises.
+Initially shipped with eForth in flash, this board is field upgradable with additional system software, such as polyFORTH¬Æ. In addition, our Application Notes will use this board as their default platform so that our customers may make immediate use of the hardware and software solutions published in those exercises.
 1.1 Related Documents
 This book describes an application of GreenArray chips, in particular the GA144. In the interest of avoiding needless and often confusing redundancy, it is designed to be used in combination with other documents.
 The general characteristics and programming details for the F18A computers and I/O used in the GA144 are described in a separate document; please refer to F18A Technology Reference. The boot protocols supported by the chip are detailed in Boot Protocols for GreenArrays Chips. The configuration and electrical characteristics of the chip are documented in G144A12 Chip Reference. The current editions of these, along with many other relevant documents and application notes as well as the current edition of this document, may be found on our website at http://www.greenarraychips.com . It is always advisable to ensure that you are using the latest documents before starting work.
@@ -67,7 +67,7 @@ The general characteristics and programming details for the F18A computers and I
 The data given herein are Production, reflecting board revision 0.1.1.
 1.3 Documentation Conventions
 1.3.1 Numbers
-Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing "hex" or by preceding the number with the lowercase letter "x". In colorForth coding examples, hexadecimal values are italicized and darkened.
+Numbers are written in decimal unless otherwise indicated. Hexadecimal values are indicated by explicitly writing ‚Äúhex‚Äù or by preceding the number with the lowercase letter ‚Äúx‚Äù. In colorForth coding examples, hexadecimal values are italicized and darkened.
 1.3.2 Node coordinates
 Each GreenArrays chip is a rectangular array of nodes, each of which is an F18 computer. By convention these arrays are represented as seen from the top of the silicon die, which is normally the top of the chip package, oriented such that pin 1 is in the upper left corner. Within the array, each node is identified by a three or four digit number denoting its Cartesian coordinates within the array as yxx or yyxx with the lower left corner node always being designated as node 000. Thus, for a GA144 chip whose computers are configured in an array of 18 columns and 8 rows, the numbers of the nodes in the lower right, upper left, and upper right corners are 017, 700, and 717 respectively.
 1.3.3 Register names
@@ -77,7 +77,7 @@ Binary numbers are represented as a horizontal row of bits, numbered consecutive
 
 4
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 2. Basic Architecture
@@ -92,7 +92,7 @@ The Target chip is committed to as few I/O connections as possible. The sources 
 Roughly half the board is prototyping area, mainly populated with a grid of plated through holes on 0.1 inch centers. By soldering suitable headers to this grid, you can provide for expansion using various prototyping fixtures such as those made by SchmartBoard. The grid is intentionally large enough to support an 8- or 16-bit PC-104 socket.
 The periphery of the prototyping area is provided with hole patterns for many popular connectors, and there are six 8bit bidirectional level shifters for interfacing with external circuits that may not run on 1.8v. In addition, one 1.8v 2input OR and three NANDs are available for use in external circuitry.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 5
 
@@ -108,9 +108,9 @@ USB PORT B
 SWITCHING REGULATOR
 1.8V BUS 2A MAX
 RESET 1
-10K .01 UF
+10KŒ© .01 UF
 RESET 0
-10K .01 UF
+10KŒ© .01 UF
 
 300.1/17
 
@@ -191,7 +191,7 @@ For all single-row headers or hole patterns, pin 1 is at the left as viewed from
 
 6
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 2.4 Board Floorplan
@@ -205,7 +205,7 @@ This board is supported by four major classes of software:
 4. Applications provided for this board will include source code for arrayForth and/or for specific Virtual Machines, and often hardware configuration or modification instructions, as appropriate.
 Software options for GreenArrays chips and boards are continually being developed, and may be obtained from our website.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 7
 
@@ -216,7 +216,7 @@ Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 You must ensure there is enough power for the intended use of the board. Minimal USB (80% of 440 mW) is sufficient for eForth or polyFORTH and many typical projects, but power requirements can exceed 400 mW for VDDC (core power) if enough F18A computers are busy simultaneously, and likewise VDDI (I/O power) can be greater than this depending on what you connect to the chips. Several power sources are available in the upper left corner of the board.
 
 3.1 Main 1.8v Bus
-Primary 1.8v power is supplied by an onboard fixed voltage regulator fed by an optional "wall wart" (type N plug, positive center conductor, voltage at the J2 connector 3.6 to 19.5VDC with recommended minimum of 4.0V) and up to three USB connectors. Each source is diode protected from the others so whichever one is supplying the highest voltage will be the one that is used at any given time; these diodes have an internal drop of 200 to 300 mV. Each USB connector communicates with a USB host using an FTDI chip. The power available from each USB connection varies from a minimum of 100 mA at 4.4V to the maximum of 500 mA at 5V; the FTDI chips are configured to request permission to use the maximum to improve flexibility. An efficient (78%) switching regulator produces a maximum of 2A at 1.8V for the logic circuitry on the board. If this full rated power is needed, a "wall wart" capable of delivering 4.5 to 5 watts will be required (efficiency varies with voltage.)
+Primary 1.8v power is supplied by an onboard fixed voltage regulator fed by an optional ‚Äúwall wart‚Äù (type N plug, positive center conductor, voltage at the J2 connector 3.6 to 19.5VDC with recommended minimum of 4.0V) and up to three USB connectors. Each source is diode protected from the others so whichever one is supplying the highest voltage will be the one that is used at any given time; these diodes have an internal drop of 200 to 300 mV. Each USB connector communicates with a USB host using an FTDI chip. The power available from each USB connection varies from a minimum of 100 mA at 4.4V to the maximum of 500 mA at 5V; the FTDI chips are configured to request permission to use the maximum to improve flexibility. An efficient (‚âà78%) switching regulator produces a maximum of 2A at 1.8V for the logic circuitry on the board. If this full rated power is needed, a "wall wart" capable of delivering 4.5 to 5 watts will be required (efficiency varies with voltage.)
 
 The main 1.8v bus is used to power our side of the FTDI chips, the SPI flash, the Host chip's external SRAM, and the two logic chips used in SPI bus multiplexing. This bus is also the default source of VDDC, VDDI and VDDA for the Host and Target chips. Finally it is available to power the SD/MMC socket, the level shifter chips, and is routed for easy availability in the prototyping area.
 
@@ -240,13 +240,13 @@ J1 pin 1
 
 Pins 2-3 connected Main 1.8v Bus
 
-Current may be measured by inserting a shunt or other type ammeter across the desired pair of pins. Some combinations of current and shunt resistance will require use of an adjustable external power supply to give the desired voltage on the chip side of the shunt. The jumpers provided are rated at 3A with max resistance of 20 m.
+Current may be measured by inserting a shunt or other type ammeter across the desired pair of pins. Some combinations of current and shunt resistance will require use of an adjustable external power supply to give the desired voltage on the chip side of the shunt. The jumpers provided are rated at 3A with max resistance of 20 mŒ©.
 3.4 Other Available Voltages
 An unregulated VCC is input to the onboard switching regulator. No contact is provided because the voltage is not controlled. Each FTDI chip that is connected to a USB host can provide up to 50 mA of 3.3v, made available on J7, J12 and J19 for ports A, B and C respectively.
 
 8
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -279,7 +279,7 @@ Clock output, 6 MHz. Clock output, 48 MHz. Driven low to indicate inbound ("TX")
 
 The FTDI chips are specially configured for their use on this board. Excellent documentation as well as configuration utilities and drivers are available from the manufacturer at http://www.ftdichip.com/. Template files are included in the software distribution. Please contact us before changing the configuration of your FTDI chips.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 9
 
@@ -346,7 +346,7 @@ chip
 
 10
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -416,7 +416,7 @@ J37 pins 1-2, 3-4
 Configuration
 SPI Flash is always selected. Node 600 unused. Node 600 selects SPI flash when its pin is low (reset condition), or MMC card when the pin is high.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 11
 
@@ -446,7 +446,7 @@ Node 708 is normally used for arrayForth IDE but if not required these are avail
 
 12
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -490,7 +490,7 @@ As noted earlier, Host SERDES node 701 is hardwired to target node 001 with prob
 
 Host node 300 may be connected with Target node 300 for booting or other communications. This is enabled by inserting jumpers J34 and J35 to the right of the SERDES probe points.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 13
 
@@ -538,7 +538,7 @@ TP2 TP3 TP10
 
 14
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 7.4 Optional Connector Hole Patterns
@@ -558,7 +558,7 @@ For analog audio input/output development, up to three 3.5mm stereo TRS receptac
 7.4.7 SMA RF Connectors
 At higher frequencies, RF connectors are more suitable for carrying signals on and off the evaluation board. Accordingly we provide five hole patterns for mounting SMA connectors, chosen for their small size and ready availability.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 15
 
@@ -567,12 +567,12 @@ Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
 Although software being prepared for the evaluation board will be capable of taking advantage of a dual voltage MMC card for various purposes, the board layout is versatile enough to allow for development of code to access 3.3v SD cards as well. To take advantage of this capability, you must arrange to supply the SD socket with 3.3v power and construct the circuitry needed to communicate with it using 3.3v logic signals. All nine pins are available at the socket on J33 and J38, including two handhake lines, VDD , all four data lines, card-present and write-protect signals.
 7.6 Expanding the Prototyping Area
 As suggested above, the grid of holes on 0.1" centers facilitates the installation of female headers into which various expansion devices may be plugged.
-SchmartboardTM Products include small boards which can connect various surface mount parts to our prototyping area using 0.1" headers. This is considerably simpler and more likely to succeed than is "dead bugging" SMT components.
-As another example, by soldering double row female headers appropriately in the prototyping area, PC-104 boards may be connected to the evaluation board. For example, see WinSystemsÆ Products which include prototyping boards that could simply enlarge the prototyping area, or peripheral boards that could be used with level shifters. Here is one possible placement of a 16-bit PC-104 connector and two views of a PC-104 board mounted on it:
+Schmartboard‚Ñ¢ Products include small boards which can connect various surface mount parts to our prototyping area using 0.1" headers. This is considerably simpler and more likely to succeed than is "dead bugging" SMT components.
+As another example, by soldering double row female headers appropriately in the prototyping area, PC-104 boards may be connected to the evaluation board. For example, see WinSystems¬Æ Products which include prototyping boards that could simply enlarge the prototyping area, or peripheral boards that could be used with level shifters. Here is one possible placement of a 16-bit PC-104 connector and two views of a PC-104 board mounted on it:
 
 16
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -876,7 +876,7 @@ Price Angels 73297
 
 50
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 17
 
@@ -1067,7 +1067,7 @@ A00
 
 18
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -1213,7 +1213,7 @@ Power VDDA
 
 Ground GND DAP any gnd Common ground and heat sink.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 19
 
@@ -1421,7 +1421,7 @@ Sync data May be connected to Host node 300.
 
 20
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -1543,7 +1543,7 @@ Power VDDA
 
 Ground GND DAP any gnd Common ground and heat sink.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 21
 
@@ -1588,7 +1588,7 @@ J13 1 DTR signal 2 CBUS2 3 CBUS3 4 CBUS4
 
 22
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 Port C Access
 J19 FTDI 3.3v Pwr
@@ -1657,7 +1657,7 @@ J35 1 Host 300.17 2 Target 300.17
 
 J34 1 Host 300.1 2 Target 300.1
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 23
 
@@ -1747,7 +1747,7 @@ NAND 1 Input NAND 1 Input NAND 1 Output NAND 2 Input NAND 2 Input NAND 2 Output 
 
 24
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB9 RS232 site Left (J52)
 J54 1 RX Incoming 2 TX Outgoing 3 RTS Incoming
@@ -1776,7 +1776,7 @@ J53 1 J51 Signal 2 Gnd
 J56 1 J55 Signal
 Gnd
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 25
 
@@ -1800,7 +1800,7 @@ The following nine pages may be used to print or view high resolution renderings
 
 26
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 DB003 Evaluation Board Reference for EVB001
 
@@ -1812,14 +1812,14 @@ REVISION 110726
 DESCRIPTION
 Preliminary release with pre-production drawings. Upgrade document status to Production reflecting board revision 0.1.1. Added details in Power Configuration section (3). Added table showing FTDI flash configuration (4.3). Corrected Target pin connections to J32 in 8.1.2 and 8.2.4. Clarified jumper table in 8.2.2. Added Errata. Updated schematics and layout to Production. Added Bill of Materials. Various typos.
 
-Copyright© 2010-2011 GreenArrays, Inc. 9/26/11
+Copyright¬© 2010-2011 GreenArrays, Inc. 9/26/11
 
 35
 
-GreenArraysTM
+GreenArrays‚Ñ¢
 Product Data Book DB003 Revised 9/26/11
 IMPORTANT NOTICE
-GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI‚Äôs terms and conditions of sale supplied at the time of order acknowledgment.
 GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
 GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
 GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
@@ -1831,6 +1831,6 @@ GAI products are neither designed nor intended for use in automotive application
 The following are trademarks of GreenArrays, Inc., a Nevada Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
 For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
 Mailing Address: GreenArrays, Inc., 774 Mays Blvd #10 PMB 320, Incline Village, Nevada 89451 Printed in the United States of America
-Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2011, GreenArrays, Incorporated
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright ¬© 2010-2011, GreenArrays, Incorporated
 
 
