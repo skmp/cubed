@@ -503,15 +503,12 @@
 
 <script>
 // ---- Path mapping for deployed site ----
-// txt [Derived from:] headers contain repo-relative paths like ../../reference/greenarrays/BASENAME.compact.html
+// txt [Derived from:] headers contain repo-relative paths like ../../reference/greenarrays/pdfs/BASENAME.pdf
 // On the deployed site, PDFs live at pdf/greenarrays/BASENAME.pdf and pdf/cube/BASENAME.pdf
 function derivedPathToUrl(path) {
-  // ../../reference/greenarrays/BASENAME.compact.html -> pdf/greenarrays/BASENAME.pdf
-  let m = path.match(/\.\.\/\.\.\/reference\/greenarrays\/([^/]+)\.compact\.html$/);
-  if (m) return { url: 'pdf/greenarrays/' + m[1] + '.pdf', label: m[1], kind: 'pdf' };
-  // ../../reference/cube/BASENAME.compact.html -> pdf/cube/BASENAME.pdf
-  m = path.match(/\.\.\/\.\.\/reference\/cube\/([^/]+)\.compact\.html$/);
-  if (m) return { url: 'pdf/cube/' + m[1] + '.pdf', label: m[1], kind: 'pdf' };
+  // ../../reference/greenarrays/pdfs/BASENAME.pdf -> pdf/greenarrays/BASENAME.pdf
+  let m = path.match(/\.\.\/\.\.\/reference\/greenarrays\/pdfs\/([^/]+\.pdf)$/);
+  if (m) return { url: 'pdf/greenarrays/' + m[1], label: m[1].replace('.pdf',''), kind: 'pdf' };
   // ../../reference/cube/pdf/BASENAME.pdf -> pdf/cube/BASENAME.pdf
   m = path.match(/\.\.\/\.\.\/reference\/cube\/pdf\/([^/]+\.pdf)$/);
   if (m) return { url: 'pdf/cube/' + m[1], label: m[1].replace('.pdf',''), kind: 'pdf' };
