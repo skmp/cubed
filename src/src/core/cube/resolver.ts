@@ -74,6 +74,8 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   forever:  [],                         // begin unconditional infinite loop
   repeat:   [],                         // end unconditional infinite loop (jump back)
   delay:    ['n'],                      // burn n cycles in a tight loop (no IO)
+  // Labels for f18a assembly-level control flow
+  label:    ['name'],                  // define a label at the current location counter
   // Shor's algorithm
   shor15:   ['noise_port', 'out_port'], // real Shor's factoring of N=15 (infinite loop)
   // Async serial TX / RX
@@ -90,6 +92,15 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   'lit.hex8':   ['value'],             // push 8-bit literal onto T (validated)
   'lit.ascii':  ['s'],                 // emit ASCII bytes packed into 18-bit words
   'lit.utf8':   ['s'],                 // emit UTF-8 bytes packed into 18-bit words
+  // Raw instruction word assembly
+  'f18a.insn':  ['s0', 's1', 's2', 's3', 'd', 'a'],  // emit one instruction word with explicit slots + optional data/address
+  // Node metadata (register/boot descriptor settings — no code emitted)
+  'f18a.reg.a': ['addr'],                             // set initial A register (boot descriptor)
+  'f18a.reg.b': ['addr'],                             // set initial B register (boot descriptor)
+  'f18a.reg.p': ['addr'],                             // set initial P (start address, boot descriptor)
+  'f18a.org':   ['addr'],                             // set code origin (location counter)
+  'f18a.cy':    ['enable'],                           // set extended arithmetic mode bit (0x200 in jump addresses)
+  'f18a.data':  ['value'],                            // emit raw data word (NOT XOR-encoded)
 };
 
 // F18A opcode names mapped to clean identifiers
@@ -295,6 +306,13 @@ function resolveApplication(app: Application, symbols: Map<string, ResolvedSymbo
   }
 
   for (const arg of app.args) {
+    // Skip resolving label names — they are symbolic identifiers, not variables
+    if ((app.functor === 'label' || app.functor === 'std.label') && arg.name === 'name') continue;
+    // Skip resolving addr args on F18A address ops — they may be label refs, not variables
+    if (sym && sym.kind === SymbolKind.F18A_OP && arg.name === 'addr' && arg.value.kind === 'var') continue;
+    // Skip resolving f18a.insn slot/address args — they are opcode names or label refs
+    if ((app.functor === 'f18a.insn' || app.functor === 'std.f18a.insn') &&
+        ['s0', 's1', 's2', 's3', 'a'].includes(arg.name) && arg.value.kind === 'var') continue;
     resolveTerm(arg.value, symbols, variables, errors);
   }
 }

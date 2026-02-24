@@ -33,10 +33,12 @@ import sampleEcho from '../../../samples/ECHO.cube?raw';
 import sampleHello from '../../../samples/HELLO.cube?raw';
 import sampleHello2 from '../../../samples/HELLO2.cube?raw';
 import sampleHelloPF from '../../../samples/HELLO-PF.cube?raw';
+import sampleNIC10 from '../../../samples/NIC10.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
 const CUBE_SAMPLES: Record<string, string> = {
+  'NIC10 (10baseT NIC, AN007)': sampleNIC10,
   'HELLO-PF (Port B, polyForth)': sampleHelloPF,
   'HELLO2 (Port B, bit-bang)': sampleHello2,
   'HELLO (Serial)': sampleHello,

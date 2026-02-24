@@ -125,8 +125,8 @@ export function tokenizeCube(source: string): { tokens: CubeToken[]; errors: Com
       if (/[a-zA-Z_]/.test(ch)) {
         const startCol = col;
         while (col < line.length && /[a-zA-Z0-9_]/.test(line[col])) col++;
-        // Allow dotted names for namespaced identifiers (f18a.xxx, rom.xxx)
-        if (col < line.length && line[col] === '.' && col + 1 < line.length && /[a-zA-Z_]/.test(line[col + 1])) {
+        // Allow dotted names for namespaced identifiers (f18a.xxx, f18a.reg.a, rom.xxx)
+        while (col < line.length && line[col] === '.' && col + 1 < line.length && /[a-zA-Z_]/.test(line[col + 1])) {
           col++; // skip dot
           while (col < line.length && /[a-zA-Z0-9_]/.test(line[col])) col++;
         }

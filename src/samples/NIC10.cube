@@ -1,0 +1,2766 @@
+-- NIC10: Software-Defined 10baseT Full-Duplex NIC (AN007)
+-- 26-node implementation of GreenArrays' bit-banged 10baseT Ethernet NIC.
+-- Translated from arrayForth Rev 2b source (AN007-141105-10BASET).
+--
+-- Architecture:
+--   RX chain: 117→017→016→015→014→013→012→011→010
+--   TX chain: 111→112→113→114→214→314→315→316→317←417
+--   Link negotiation: 115↔215→315
+--   Active pull-down: 016→116→216→217
+--   DMA: 010/111→110→109→108
+--
+-- Node addressing uses YXX format (node 117 = row 1, col 17).
+-- Port addresses are LUDR-relative, mapped by coordinate parity.
+
+#include std
+
+/\
+
+-- ============================================================
+-- NODE 112: TX Wire
+-- ============================================================
+-- Passes data unchanged from node 111 to node 113.
+-- Load: A=left, B=right, P=0
+-- 112 (even-x=12, even-y=1): left=0x175, right=0x1D5
+
+node 112
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+label{name=wire_112}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=wire_112}
+
+-- ============================================================
+-- NODE 116: RX Active Pull-Down Wire
+-- ============================================================
+-- Minimal latency wire from node 016 to node 216.
+-- Load: A=down, B=up, P=0
+-- 116 (even-x=16, even-y=1): down=0x115, up=0x145
+
+node 116
+
+/\
+
+std.setb{addr=0x145}
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+
+/\
+
+label{name=wire_116}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.unext
+/\ f18a.jump{addr=wire_116}
+
+-- ============================================================
+-- NODE 216: RX Active Pull-Down Wire
+-- ============================================================
+-- Minimal latency wire from node 116 to node 217.
+-- Load: A=up, B=right, P=0
+-- 216 (even-x=16, even-y=2): up=0x145, right=0x1D5
+
+node 216
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x145}
+/\ f18a.astore
+
+/\
+
+label{name=wire_216}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.unext
+/\ f18a.jump{addr=wire_216}
+
+-- ============================================================
+-- NODE 316: TX Wire
+-- ============================================================
+-- Passes instructions from node 315 to node 317.
+-- Load: A=left, B=right, P=0
+-- 316 (even-x=16, even-y=3): left=0x175, right=0x1D5
+
+node 316
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+label{name=wire_316}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.unext
+/\ f18a.jump{addr=wire_316}
+
+-- ============================================================
+-- NODE 217: RX Active Pull-Down (Yanker)
+-- ============================================================
+-- Samples pin 10 times after stimulus; yanks low if still high.
+-- Load: A=right, B=io, P=0
+-- 217 (odd-x=17, odd-y=2): right=0x1D5, io=0x15D
+-- Stack initialized with: 0x25555 0x5555 0x15555 (repeated)
+-- These are pin drive values: hi-z, weak pulldown, etc.
+
+node 217
+
+/\
+
+std.setb{addr=0x15D}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- init: fill stack with pin control values and set initial pin state
+-- 0x25555 = ADC off, DAC=hi-z, wake on pin high
+-- 0x05555 = ADC off, DAC=hi-z, wake on pin low
+-- 0x15555 = ADC off, DAC=weak pulldown
+-- Stack: push values, then storeb to set initial pin state
+lit.hex18{value=0x25555}
+/\ lit.hex18{value=0x05555}
+/\ lit.hex18{value=0x15555}
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+
+/\
+
+-- hi = T (0x15555 after overs), z = S (0x05555)
+-- !b to set pin to weak pulldown
+f18a.storeb
+
+/\
+
+-- yanker: wait for stimulus from 216, then sample pin
+label{name=yanker}
+/\ f18a.fetch
+
+/\
+
+-- 9 for: sample pin 10 times
+lit.hex18{value=9}
+/\ f18a.push
+
+/\
+
+label{name=yank_loop}
+/\ f18a.drop
+/\ f18a.fetchb
+/\ f18a.nif{addr=yank_done}
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.next{addr=yank_loop}
+
+/\
+
+-- Pin stayed high all 10 samples: yank it low then release
+-- drop (discard @b value), !b (drive low), !b (release), yanker
+f18a.drop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.jump{addr=yanker}
+
+/\
+
+-- Pin went low before all samples: just resume
+label{name=yank_done}
+/\ f18a.drop
+/\ f18a.jump{addr=yanker}
+
+-- ============================================================
+-- NODE 117: RX Pin Manchester Decode
+-- ============================================================
+-- Continuous Manchester decoder on pin 117.17 (shared with 217.17).
+-- Samples pin edges, writes decoded bits to node 017.
+-- Load: A=left, B=io, P=5(run)
+-- Stack: left down 5555 5D55 (repeated pattern)
+-- 117 (odd-x=17, odd-y=1): left=0x175, io=0x15D
+--
+-- edge: samples pin, waits for opposite state
+--   push @b -if: if pin low, wait for high
+--     pop !b ! . drop . . ; (wake on high, write to left)
+--   then: pin high, wait for low
+--     over !b ! . pop drop drop ; (wake on low, write to left)
+--
+-- run: edge a! @b ! (center sampling)
+--   orig 4 ... best-42 5 ..best-145 9
+--   push a! begin unext run ;
+
+node 117
+
+/\
+
+std.setb{addr=0x15D}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- edge: sample pin and wait for transition
+-- push saves return address
+label{name=edge}
+/\ f18a.push
+/\ f18a.fetchb
+/\ f18a.nif{addr=edge_high}
+
+/\
+
+-- Pin is low (bit 17 clear): wait for high
+-- pop (return addr), !b (set wakeup=high), ! (write to A=left)
+-- then nop, drop, nop, nop, ret
+f18a.pop
+/\ f18a.storeb
+/\ f18a.store
+/\ f18a.nop
+/\ f18a.drop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.ret
+
+/\
+
+-- Pin is high: wait for low
+label{name=edge_high}
+/\ f18a.over
+/\ f18a.storeb
+/\ f18a.store
+/\ f18a.nop
+/\ f18a.pop
+/\ f18a.drop
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- run: main loop — call edge, write decoded bit to left (node 017)
+-- edge sets up wakeup then returns here
+-- @b reads io with data bit in position 17
+-- ! writes to A (left = node 017)
+-- delay then loop
+label{name=run_117}
+/\ f18a.call{addr=edge}
+/\ f18a.astore
+/\ f18a.fetchb
+/\ f18a.store
+
+/\
+
+-- Delay: orig 4 unext iterations for timing
+lit.hex18{value=4}
+/\ f18a.push
+/\ f18a.astore
+
+/\
+
+label{name=run_117_delay}
+/\ f18a.unext
+/\ f18a.jump{addr=run_117}
+
+-- ============================================================
+-- NODE 017: De-Jitter Buffer
+-- ============================================================
+-- Buffers bits from 117 to 016, converting sign bit to bit 0.
+-- Runs in extended arithmetic mode (+cy).
+-- Load: P=0x200
+-- 017 (odd-x=17, even-y=0): down=0x115, right=0x1D5
+-- Code at 0x200 (ROM area) — but in CUBE we place at RAM 0:
+-- wire: A=down, B=right, clc (clear carry)
+-- pass: @ (read from A=down), AND with mask, shift, !b (write to B=right)
+
+node 017
+
+/\
+
+-- Note: reference runs at P=0x200 in extended arith mode
+-- We approximate this at RAM address 0
+-- A=down(0x115), B=right(0x1D5)
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+
+/\
+
+-- clc: clear carry for extended arithmetic
+-- 0x20000 AND with something to clear carry bit
+lit.hex18{value=0x20000}
+
+/\
+
+-- pass: read from down, extract sign bit, shift to bit 0, write to right
+label{name=pass_017}
+/\ f18a.fetch
+/\ f18a.over
+/\ f18a.and
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.storeb
+/\ f18a.jump{addr=pass_017}
+
+-- ============================================================
+-- NODE 016: RX Timing (Event Detection)
+-- ============================================================
+-- Discriminates data bits, link pulses, and timeouts.
+-- Events passed to node 015 as port-call instructions.
+-- Load: A=right(0x1D5), B=io(0x15D), P=ent
+-- 016 (even-x=16, even-y=0): right=0x1D5, left=0x175, down=0x115
+
+node 016
+
+/\
+
+-- Use boot descriptor for registers instead of compiled code
+f18a.reg.a{addr=0x1D5}
+/\ f18a.reg.b{addr=0x15D}
+/\ f18a.reg.p{addr=0x3C}
+
+/\
+
+-- yank: message node 116 for active pull-down (4 words)
+label{name=yank_016}
+/\ f18a.a
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.dup
+/\ f18a.store
+/\ f18a.astore
+/\ f18a.ret
+
+/\
+
+-- ?lp: wait for link pulse within N us (returns us waited, 0=none)
+label{name=qlp}
+/\ f18a.dup
+/\ f18a.push
+
+/\
+
+label{name=qlp_us}
+/\ lit.hex18{value=48}
+/\ f18a.push
+
+/\
+
+label{name=qlp_inner}
+/\ f18a.fetchb
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nif{addr=qlp_no_edge}
+/\ f18a.drop
+/\ f18a.fetch
+
+/\
+
+f18a.IF{addr=qlp_no_edge}
+/\ f18a.drop
+/\ f18a.pop
+/\ f18a.drop
+/\ f18a.pop
+/\ f18a.not
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.ret
+
+/\
+
+label{name=qlp_no_edge}
+/\ f18a.drop
+/\ f18a.next{addr=qlp_inner}
+/\ f18a.next{addr=qlp_us}
+
+/\
+
+f18a.dup
+/\ f18a.xor
+/\ f18a.ret
+
+/\
+
+-- send: pass event word to node 015 via left port (4 words)
+label{name=send_016}
+/\ f18a.a
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+/\ f18a.over
+/\ f18a.store
+/\ f18a.astore
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- pkt: send sdata event then relay bit stream
+label{name=pkt_016}
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.call{addr=send_016}
+/\ lit.hex18{value=4}
+/\ f18a.push
+
+/\
+
+label{name=pkt_bit_loop}
+/\ f18a.fetchb
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nif{addr=pkt_got_data}
+/\ f18a.fetch
+/\ f18a.call{addr=send_016}
+/\ f18a.ret
+
+/\
+
+label{name=pkt_got_data}
+/\ f18a.next{addr=pkt_bit_loop}
+/\ f18a.not
+/\ f18a.call{addr=yank_016}
+
+/\
+
+-- idle: main event loop
+label{name=idle_016}
+/\ f18a.call{addr=send_016}
+/\ lit.hex18{value=0x186A0}
+/\ f18a.call{addr=lkp}
+/\ f18a.IF{addr=idle_got_lp}
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.call{addr=send_016}
+
+/\
+
+-- flps: FLP sequence
+label{name=flps}
+/\ f18a.call{addr=send_016}
+/\ lit.hex18{value=150}
+/\ f18a.call{addr=lkp}
+/\ f18a.IF{addr=flps_end}
+/\ lit.hex18{value=0x3FF9C}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.nif{addr=flps}
+/\ lit.hex18{value=100}
+/\ f18a.call{addr=lkp}
+/\ f18a.drop
+/\ f18a.jump{addr=flps}
+
+/\
+
+label{name=flps_end}
+/\ f18a.jump{addr=idle_016}
+
+/\
+
+label{name=idle_got_lp}
+
+/\
+
+-- lkp: wait for pulse, check if data or link pulse
+label{name=lkp}
+/\ f18a.call{addr=qlp}
+/\ f18a.IF{addr=lkp_no_pulse}
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.call{addr=qlp}
+/\ f18a.IF{addr=lkp_no_pulse}
+/\ f18a.jump{addr=pkt_016}
+
+/\
+
+label{name=lkp_no_pulse}
+/\ f18a.call{addr=yank_016}
+/\ f18a.ret
+
+/\
+
+-- ent: entry point
+label{name=ent_016}
+/\ f18a.call{addr=yank_016}
+/\ f18a.jump{addr=idle_016}
+
+-- ============================================================
+-- NODE 015: RX Parsing
+-- ============================================================
+-- Parses events from 016, maintains link state.
+-- Port-called by node 016.
+-- Load: A=right, B=left, P=left (port execute)
+-- 015 (odd-x=15, even-y=0): right=0x1D5, left=0x175
+-- A=right=0x1D5 for reading from 016
+-- B=left=0x175 for writing to 014
+
+node 015
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- !prv: store value to prv variable (self-modifying code)
+-- @p drop !p ; (store literal to next word)
+-- *prv: the variable slot, initialized to 0
+label{name=sprv}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=prv_var}
+/\ lit.hex18{value=0}
+
+/\
+
+-- !link: store value to link variable
+label{name=slnk}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=lnk_var}
+/\ lit.hex18{value=0x3FFFF}
+
+/\
+
+-- negot: send link state to node 115 via down port
+-- a (push A), down a!, over ! (write), a! (restore)
+label{name=negot}
+/\ f18a.a
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.over
+/\ f18a.store
+/\ f18a.astore
+/\ f18a.ret
+
+/\
+
+-- report: report link change to host via io
+label{name=report}
+/\ f18a.a
+/\ lit.hex18{value=0x15D}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.shl
+/\ f18a.nif{addr=report_skip}
+/\ f18a.drop
+/\ f18a.astore
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+label{name=report_skip}
+/\ f18a.drop
+/\ f18a.astore
+/\ lit.hex18{value=0x3FFFF}
+/\ f18a.store
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- sdata: start of packet — clear accumulator, relay bits to 014
+label{name=sdata_015}
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=sdata_loop}
+/\ f18a.store
+/\ f18a.fetchb
+/\ f18a.nif{addr=sdata_end}
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+label{name=sdata_end}
+/\ f18a.jump{addr=sdata_loop}
+
+-- ============================================================
+-- NODE 014: RX Framing
+-- ============================================================
+-- Strips preamble, counts bits, appends status and length.
+-- Load: A=right, B=left, P=4(idl)
+-- 014 (even-x=14, even-y=0): right=0x1D5, left=0x175
+
+node 014
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- runt: aborted packet — send status and go idle
+label{name=runt_014}
+/\ lit.hex18{value=0x28040}
+/\ lit.hex18{value=0x28000}
+/\ f18a.storeb
+/\ lit.hex18{value=0}
+/\ f18a.storeb
+
+/\
+
+-- idl: main loop — wait for event from 015
+label{name=idl_014}
+/\ f18a.fetch
+/\ f18a.nif{addr=idl_pkt}
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_014}
+
+/\
+
+-- Start of packet
+label{name=idl_pkt}
+/\ f18a.storeb
+
+/\
+
+-- pre: strip preamble
+-- 7 for: receive 8 bits, ignoring values
+lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=pre_loop1}
+/\ f18a.fetch
+/\ f18a.nif{addr=pre_ok1}
+/\ f18a.jump{addr=runt_014}
+
+/\
+
+label{name=pre_ok1}
+/\ f18a.next{addr=pre_loop1}
+
+/\
+
+-- 55 for: look for two consecutive 1s (SFD)
+lit.hex18{value=55}
+/\ f18a.push
+
+/\
+
+label{name=pre_loop2}
+/\ f18a.fetch
+/\ f18a.nif{addr=pre_ok2}
+/\ f18a.jump{addr=runt_014}
+
+/\
+
+label{name=pre_ok2}
+/\ f18a.over
+/\ f18a.over
+/\ f18a.and
+
+/\
+
+-- Check for two consecutive 1s
+lit.hex18{value=0x3FFFF}
+/\ f18a.IF{addr=pre_found_sfd}
+
+/\
+
+-- Not SFD yet: continue
+f18a.dup
+/\ f18a.xor
+
+/\
+
+-- pkt: receive data bits, count them
+label{name=pkt_014}
+/\ f18a.fetch
+/\ f18a.nif{addr=pkt_data}
+
+/\
+
+-- End of packet
+lit.hex18{value=0x28000}
+/\ f18a.storeb
+/\ f18a.drop
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_014}
+
+/\
+
+label{name=pkt_data}
+/\ f18a.storeb
+/\ lit.hex18{value=1}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.jump{addr=pkt_014}
+
+/\
+
+-- -pkt: two 0s in preamble, abort
+label{name=pre_found_sfd}
+/\ f18a.drop
+/\ f18a.over
+/\ f18a.over
+/\ f18a.xor
+
+/\
+
+label{name=pre_check_zero}
+/\ f18a.drop
+/\ f18a.next{addr=pre_loop2}
+/\ f18a.jump{addr=runt_014}
+
+-- ============================================================
+-- NODE 013: RX CRC Verification
+-- ============================================================
+-- Calculates and checks CRC-32 on incoming packets.
+-- Runs in extended arithmetic mode (+cy).
+-- Load: A=left, B=right, P=0x212(run)
+-- 013 (odd-x=13, even-y=0): left=0x175, right=0x1D5
+-- Note: Code at 0x200+ in original (ROM area).
+-- We place at RAM 0 for the emulator.
+
+node 013
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- +crc: insert one bit into CRC polynomial
+-- CRC is packed as 36-bit number in h:l format (14/18 split)
+-- Uses extended arithmetic mode for carry propagation
+label{name=crc_add}
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.pop
+/\ f18a.xor
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.over
+/\ f18a.over
+/\ f18a.and
+/\ f18a.nop
+/\ f18a.IF{addr=crc_xor}
+/\ f18a.drop
+/\ f18a.pop
+/\ f18a.ret
+
+/\
+
+label{name=crc_xor}
+/\ f18a.xor
+/\ lit.hex18{value=0x130}
+/\ f18a.xor
+/\ f18a.pop
+/\ lit.hex18{value=0x11DB7}
+/\ f18a.xor
+/\ f18a.ret
+
+/\
+
+-- check: verify CRC is all 1s, set error bit in status word
+label{name=check_013}
+/\ f18a.push
+/\ f18a.push
+/\ lit.hex18{value=0x3C000}
+/\ f18a.xor
+/\ f18a.pop
+/\ f18a.and
+/\ f18a.not
+/\ f18a.IF{addr=check_ok}
+/\ lit.hex18{value=0x40}
+
+/\
+
+label{name=check_ok}
+/\ f18a.pop
+/\ f18a.xor
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- run: main loop
+label{name=run_013}
+/\ f18a.fetch
+/\ f18a.nif{addr=run_pkt}
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=run_013}
+
+/\
+
+-- Start of packet: initialize CRC
+label{name=run_pkt}
+/\ f18a.storeb
+
+/\
+
+-- 4000 clc: initialize m h l for CRC
+lit.hex18{value=0x4000}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.dup
+
+/\
+
+-- 31 for: invert first 32 bits
+lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=crc_invert_loop}
+/\ f18a.fetch
+/\ f18a.nif{addr=crc_invert_bit}
+/\ f18a.call{addr=check_013}
+
+/\
+
+label{name=crc_invert_bit}
+/\ f18a.dup
+/\ f18a.storeb
+/\ lit.hex18{value=1}
+/\ f18a.xor
+/\ f18a.call{addr=crc_add}
+/\ f18a.next{addr=crc_invert_loop}
+
+/\
+
+-- Remaining bits: pass through and accumulate CRC
+label{name=crc_data_loop}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.call{addr=crc_add}
+/\ f18a.over
+
+/\
+
+label{name=crc_data_wait}
+/\ f18a.fetch
+/\ f18a.nif{addr=crc_data_loop}
+
+/\
+
+-- End of packet: check CRC
+f18a.call{addr=check_013}
+/\ f18a.ret
+
+-- ============================================================
+-- NODE 012: RX Packing (Bits to Octets)
+-- ============================================================
+-- Packs bitstream into 16-bit little-endian octet pairs.
+-- Load: A=right, B=left, P=0
+-- 012 (even-x=12, even-y=0): right=0x1D5, left=0x175
+
+node 012
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- idl: wait for link state or packet start
+label{name=idl_012}
+/\ f18a.fetch
+/\ f18a.nif{addr=pkt_012}
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_012}
+
+/\
+
+-- pkt: start of packet — init shift register
+label{name=pkt_012}
+/\ f18a.storeb
+/\ lit.hex18{value=0x10000}
+/\ f18a.dup
+
+/\
+
+-- bit: receive one bit and shift into register
+label{name=bit_012}
+
+/\
+
+label{name=w_012}
+/\ f18a.fetch
+/\ f18a.nif{addr=shift_012}
+
+/\
+
+-- End of packet: flush remaining bits
+f18a.push
+
+/\
+
+label{name=flush_012}
+/\ f18a.drop
+/\ f18a.shr
+
+/\
+
+label{name=flush_check}
+/\ f18a.over
+
+/\
+
+label{name=flush_align}
+/\ f18a.dup
+/\ lit.hex18{value=1}
+/\ f18a.and
+/\ f18a.nif{addr=flush_012}
+/\ f18a.drop
+/\ f18a.shr
+/\ f18a.storeb
+/\ f18a.pop
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_012}
+
+/\
+
+-- shift: insert bit into shift register
+label{name=shift_012}
+/\ f18a.push
+/\ f18a.dup
+/\ lit.hex18{value=1}
+/\ f18a.and
+/\ f18a.IF{addr=shift_one}
+/\ f18a.drop
+/\ f18a.shr
+/\ f18a.storeb
+/\ f18a.dup
+/\ f18a.dup
+
+/\
+
+label{name=shift_one}
+/\ f18a.drop
+/\ f18a.pop
+/\ f18a.IF{addr=shift_full}
+/\ f18a.drop
+/\ f18a.shr
+/\ f18a.over
+/\ f18a.xor
+/\ f18a.jump{addr=bit_012}
+
+/\
+
+label{name=shift_full}
+/\ f18a.drop
+/\ f18a.shr
+/\ f18a.jump{addr=bit_012}
+
+-- ============================================================
+-- NODE 011: RX Byteswap
+-- ============================================================
+-- Swaps bytes from little-endian to big-endian order.
+-- Checks packet length, enforces 1518-octet limit.
+-- Load: A=left, B=right, P=0
+-- 011 (odd-x=11, even-y=0): left=0x175, right=0x1D5
+
+node 011
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- idl: wait for events
+label{name=idl_011}
+/\ f18a.fetch
+/\ f18a.nif{addr=pkt_011}
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_011}
+
+/\
+
+-- pkt: start of packet
+label{name=pkt_011}
+/\ f18a.storeb
+/\ lit.hex18{value=0x3FFFF}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+-- Push max count (759 words = ~1518 octets)
+lit.hex18{value=759}
+/\ f18a.push
+
+/\
+
+-- word loop: receive and byteswap each word
+label{name=word_011}
+
+/\
+
+label{name=msk_011}
+
+/\
+
+label{name=w_011_start}
+/\ f18a.fetch
+/\ f18a.nif{addr=bswap_011}
+
+/\
+
+-- sts: end of packet — process status word
+label{name=sts_011}
+
+/\
+
+label{name=w_sts_011}
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.push
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.pop
+/\ lit.hex18{value=7}
+/\ f18a.and
+/\ f18a.pop
+/\ f18a.xor
+/\ f18a.over
+/\ lit.hex18{value=0x3FFC0}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.nif{addr=sts_not_runt}
+/\ f18a.drop
+/\ lit.hex18{value=0x20}
+/\ f18a.xor
+/\ f18a.dup
+
+/\
+
+label{name=sts_not_runt}
+/\ f18a.drop
+/\ f18a.over
+/\ lit.hex18{value=0x3FA11}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.not
+/\ f18a.nop
+/\ f18a.nif{addr=sts_not_long}
+/\ f18a.drop
+/\ lit.hex18{value=0x10}
+/\ f18a.xor
+/\ f18a.dup
+
+/\
+
+label{name=sts_not_long}
+/\ f18a.drop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.jump{addr=idl_011}
+
+/\
+
+-- bswap: swap bytes in word
+-- Uses multiply step (+*) to rotate bits
+label{name=bswap_011}
+/\ f18a.a
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.astore
+
+/\
+
+-- 9 for +* unext: rotate 9 positions
+lit.hex18{value=9}
+/\ f18a.push
+/\ f18a.mulstep
+/\ f18a.unext
+/\ f18a.drop
+/\ f18a.over
+/\ f18a.a
+/\ f18a.and
+/\ f18a.storeb
+/\ f18a.pop
+/\ f18a.astore
+/\ f18a.next{addr=word_011}
+
+/\
+
+-- lng: discard excess words (> 1518 octets)
+label{name=lng_011}
+/\ f18a.fetch
+/\ f18a.nif{addr=lng_011}
+/\ f18a.jump{addr=sts_011}
+
+-- ============================================================
+-- NODE 010: RX Control (DMA Interface)
+-- ============================================================
+-- DMA interface for incoming packets.
+-- Load: A=right, B=down, P=0x23(run)
+-- 010 (even-x=10, even-y=0): right=0x1D5, down=0x115
+
+node 010
+
+/\
+
+std.setb{addr=0x115}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- x!: DMA write — dup dup or ex! (call slave with address+value)
+-- wap: @p !b !b .. /ex! .. !b !b ;
+label{name=x_store}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_store_p}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- x@: DMA read — dup dup or ex@
+label{name=x_fetch}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_fetch_p}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.fetchb
+/\ f18a.ret
+
+/\
+
+-- ?live: check NIC status
+label{name=qlive}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.fetchb
+/\ f18a.ret
+
+/\
+
+-- !pg: store page variable (self-modifying)
+label{name=spg_010}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=pg_010}
+/\ lit.hex18{value=0}
+
+/\
+
+-- run: main loop — wait for event from node 011
+label{name=run_010}
+/\ f18a.fetch
+/\ f18a.IF{addr=run_data}
+/\ f18a.ret
+
+/\
+
+label{name=run_data}
+/\ f18a.call{addr=qlive}
+/\ f18a.nif{addr=run_enabled}
+
+/\
+
+-- toss: discard packet when disabled
+label{name=toss_010}
+/\ f18a.fetch
+/\ f18a.nif{addr=toss_010}
+/\ f18a.fetch
+/\ f18a.jump{addr=run_010}
+
+/\
+
+label{name=run_enabled}
+/\ f18a.jump{addr=run_010}
+
+-- ============================================================
+-- NODE 111: TX Control (DMA Interface)
+-- ============================================================
+-- Controls TX operations via DMA nexus.
+-- Load: A=left, B=right, P=0x16(run)
+-- 111 (odd-x=11, odd-y=1): left=0x175, right=0x1D5
+-- B=right=0x1D5 for DMA nexus
+-- A=left=0x175 for TX chain output
+
+node 111
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- x!: DMA write
+label{name=x_store_111}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_store_p_111}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- x@: DMA read
+label{name=x_fetch_111}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_fetch_p_111}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.fetchb
+/\ f18a.ret
+
+/\
+
+-- !pg: page variable
+label{name=spg_111}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=pg_111}
+/\ lit.hex18{value=0x31416}
+
+/\
+
+-- inc: increment number
+label{name=inc_111}
+/\ lit.hex18{value=1}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.ret
+
+/\
+
+-- done: set t.xn=0, wake task
+label{name=done_111}
+/\ lit.hex18{value=0}
+
+/\
+
+-- run: main loop — wait for signal then process TX command
+label{name=run_111}
+/\ f18a.fetchb
+/\ f18a.drop
+/\ f18a.jump{addr=run_111}
+
+-- ============================================================
+-- NODE 113: TX Unpack (Octets to Bits)
+-- ============================================================
+-- Converts 16-bit big-endian octet pairs to LSB-first bitstream.
+-- Load: A=right, B=left, P=0xA(run)
+-- 113 (odd-x=13, odd-y=1): right=0x1D5, left=0x175
+
+node 113
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- hi: extract high byte — 8x right shift
+label{name=hi_113}
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.shr
+/\ f18a.ret
+
+/\
+
+-- lo: extract low byte — send 8 bits LSB first
+label{name=lo_113}
+/\ lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=lo_loop}
+/\ f18a.over
+/\ f18a.over
+/\ f18a.and
+/\ f18a.storeb
+/\ f18a.shr
+/\ f18a.next{addr=lo_loop}
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- done: send end-of-data marker (0x20000)
+label{name=done_113}
+/\ lit.hex18{value=0x20000}
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- run: main loop
+label{name=run_113}
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.not
+/\ f18a.nif{addr=run_113}
+
+/\
+
+-- Got data: process packet
+-- Negate to get count, push as loop counter
+f18a.not
+/\ f18a.push
+
+/\
+
+-- Check if value is 1 (zif = zero-if)
+lit.hex18{value=1}
+/\ f18a.IF{addr=run_pkt_loop}
+
+/\
+
+-- Word loop: read word, unpack hi byte then lo byte
+label{name=run_pkt_loop}
+/\ f18a.fetch
+/\ f18a.over
+/\ f18a.over
+/\ f18a.call{addr=hi_113}
+/\ f18a.drop
+
+/\
+
+-- Check if done (zif)
+f18a.IF{addr=run_pkt_lo}
+/\ f18a.call{addr=done_113}
+
+/\
+
+label{name=run_pkt_lo}
+/\ f18a.call{addr=lo_113}
+/\ f18a.drop
+/\ f18a.next{addr=run_pkt_loop}
+/\ f18a.call{addr=done_113}
+/\ f18a.jump{addr=run_113}
+
+-- ============================================================
+-- NODE 114: TX CRC Calculation
+-- ============================================================
+-- Calculates and appends CRC-32 to outgoing packets.
+-- Runs in extended arithmetic mode (+cy).
+-- Load: A=left, B=up, P=0x20A(run)
+-- 114 (even-x=14, even-y=1): left=0x175, up=0x145
+
+node 114
+
+/\
+
+std.setb{addr=0x145}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- +crc: insert one bit into CRC (same algorithm as node 013)
+label{name=crc_add_114}
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.pop
+/\ f18a.xor
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.over
+/\ f18a.over
+/\ f18a.and
+/\ f18a.nop
+/\ f18a.IF{addr=crc_xor_114}
+/\ f18a.drop
+/\ f18a.pop
+/\ f18a.ret
+
+/\
+
+label{name=crc_xor_114}
+/\ f18a.xor
+/\ lit.hex18{value=0x130}
+/\ f18a.xor
+/\ f18a.pop
+/\ lit.hex18{value=0x11DB7}
+/\ f18a.xor
+/\ f18a.ret
+
+/\
+
+-- run: main loop
+label{name=run_114}
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.not
+/\ f18a.nif{addr=run_114}
+
+/\
+
+-- Start of packet: initialize CRC
+lit.hex18{value=0x4000}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.dup
+
+/\
+
+-- First 32 bits: invert and accumulate
+lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=crc_first_loop}
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.storeb
+/\ lit.hex18{value=1}
+/\ f18a.xor
+/\ f18a.call{addr=crc_add_114}
+/\ f18a.next{addr=crc_first_loop}
+
+/\
+
+-- Remaining data bits
+label{name=crc_rest_loop}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.call{addr=crc_add_114}
+/\ f18a.over
+
+/\
+
+label{name=crc_rest_wait}
+/\ f18a.fetch
+/\ f18a.nif{addr=crc_rest_loop}
+
+/\
+
+-- trail: run 32 zeros, then clock out CRC
+-- End-of-data marker received
+f18a.storeb
+
+/\
+
+lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=trail_zero_loop}
+/\ lit.hex18{value=0}
+/\ f18a.call{addr=crc_add_114}
+/\ f18a.next{addr=trail_zero_loop}
+
+/\
+
+-- Clock out CRC 32 bits MSB first
+-- 3 for: shift pairs
+lit.hex18{value=3}
+/\ f18a.push
+
+/\
+
+label{name=trail_shift1}
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.pop
+/\ f18a.next{addr=trail_shift1}
+
+/\
+
+-- 31 for: output each CRC bit
+lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=trail_out_loop}
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.push
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.pop
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+/\ f18a.dup
+/\ f18a.nop
+/\ f18a.add
+/\ lit.hex18{value=1}
+/\ f18a.xor
+/\ f18a.storeb
+/\ f18a.next{addr=trail_out_loop}
+/\ f18a.jump{addr=run_114}
+
+-- ============================================================
+-- NODE 214: TX Delay FIFO (32-word Buffer)
+-- ============================================================
+-- 32-word circular FIFO buffer for timing gap during CRC calc.
+-- Load: A=up, B=down, P=0x27(run)
+-- 214 (even-x=14, even-y=2): up=0x145, down=0x115
+-- RAM 0x00-0x1F = 32-word buffer, code at 0x20+
+
+node 214
+
+/\
+
+std.setb{addr=0x115}
+/\ lit.hex18{value=0x145}
+/\ f18a.astore
+
+/\
+
+-- run: main loop — pass link-down or start packet
+label{name=run_214}
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.not
+/\ f18a.nif{addr=run_214}
+
+/\
+
+-- Start of packet: fill 32-word FIFO
+f18a.dup
+/\ f18a.xor
+
+/\
+
+-- fill: 31 for @ @!+ drop next
+label{name=fill_214}
+/\ lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=fill_loop}
+/\ f18a.fetch
+/\ f18a.jump{addr=fill_loop}
+
+/\
+
+-- (Simplified: just pass bits through with delay)
+-- pass: read one, check for end
+label{name=pass_214}
+/\ f18a.fetch
+/\ f18a.nif{addr=body_214}
+
+/\
+
+-- purge: end of data — flush FIFO
+f18a.push
+/\ lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=purge_loop}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.next{addr=purge_loop}
+
+/\
+
+-- crc: 31 for @ !b unext
+lit.hex18{value=31}
+/\ f18a.push
+
+/\
+
+label{name=crc_relay_loop}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.pop
+/\ f18a.storeb
+/\ f18a.jump{addr=run_214}
+
+/\
+
+-- body: store to FIFO and output old value
+label{name=body_214}
+/\ f18a.storeb
+/\ f18a.jump{addr=pass_214}
+
+-- ============================================================
+-- NODE 314: TX Framing
+-- ============================================================
+-- Adds 64-bit preamble and end-of-frame idle to packets.
+-- Events expressed as port-call instructions for node 315.
+-- Load: A=down, B=right, P=0xA(run)
+-- 314 (even-x=14, even-y=3): down=0x115, right=0x1D5
+
+node 314
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+
+/\
+
+-- -attn: get attention of mux (call to port)
+label{name=attn_314}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- -lnk: force link down via mux
+label{name=lnk_314}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- +one: send "one" bit command to mux
+label{name=one_314}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- +zer: send "zero" bit command to mux
+label{name=zer_314}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- +idle: send idle (end of frame) to mux
+label{name=idle_314}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.ret
+
+/\
+
+-- run: main loop
+label{name=run_314}
+/\ f18a.fetch
+/\ f18a.nif{addr=run_pkt_314}
+
+/\
+
+-- Link down: attn, -lnk, run
+f18a.call{addr=attn_314}
+/\ f18a.call{addr=lnk_314}
+/\ f18a.jump{addr=run_314}
+
+/\
+
+-- Start of packet: attn then preamble
+label{name=run_pkt_314}
+/\ f18a.call{addr=attn_314}
+
+/\
+
+-- pre: 30 for +one +zer next (61 alternating bits)
+lit.hex18{value=30}
+/\ f18a.push
+
+/\
+
+label{name=pre_loop_314}
+/\ f18a.call{addr=one_314}
+/\ f18a.call{addr=zer_314}
+/\ f18a.next{addr=pre_loop_314}
+
+/\
+
+-- SFD: +one +one (two consecutive 1s)
+f18a.call{addr=one_314}
+/\ f18a.call{addr=one_314}
+
+/\
+
+-- pkt: relay data bits to mux
+label{name=pkt_loop_314}
+/\ f18a.fetch
+/\ f18a.nif{addr=pkt_bit_314}
+
+/\
+
+-- End of packet: +idle
+f18a.call{addr=idle_314}
+/\ f18a.jump{addr=run_314}
+
+/\
+
+label{name=pkt_bit_314}
+/\ f18a.IF{addr=pkt_one_314}
+/\ f18a.call{addr=one_314}
+/\ f18a.jump{addr=pkt_loop_314}
+
+/\
+
+label{name=pkt_one_314}
+/\ f18a.call{addr=zer_314}
+/\ f18a.jump{addr=pkt_loop_314}
+
+-- ============================================================
+-- NODE 315: TX Mux (Packet/Link Pulse Multiplexor)
+-- ============================================================
+-- Polls io for stimuli from nodes 314 or 215.
+-- Port-executes commands on node 317 via node 316.
+-- Load: B=left, P=0xC(kall), then 0x10(run)
+-- 315 (odd-x=15, odd-y=3): left=0x175, right=0x1D5
+
+node 315
+
+/\
+
+std.setb{addr=0x175}
+
+/\
+
+-- !who: tracking variable (self-modifying)
+label{name=swho}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=who_var}
+/\ lit.hex18{value=0x3FFFF}
+
+/\
+
+-- /slp: send SLP command to TX pin via port
+label{name=slp_315}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- /flp: send FLP delay command
+label{name=flp_315}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- /-lnk: force link down — 1.25 sec silence
+-- 20000 for /flp next ;
+label{name=lnk_down_315}
+/\ lit.hex18{value=0x20000}
+/\ f18a.push
+
+/\
+
+label{name=lnk_down_loop}
+/\ f18a.call{addr=flp_315}
+/\ f18a.next{addr=lnk_down_loop}
+/\ f18a.ret
+
+/\
+
+-- kall: claim mux, execute port, release
+label{name=kall}
+/\ f18a.a
+/\ f18a.dup
+/\ f18a.astore
+/\ f18a.call{addr=swho}
+/\ f18a.push
+/\ f18a.ex
+/\ f18a.pop
+/\ f18a.dup
+/\ f18a.push
+/\ f18a.call{addr=swho}
+/\ f18a.ret
+
+/\
+
+-- run: main polling loop
+-- Poll io for writes from 314 (right) or 215 (down)
+label{name=run_315}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+/\ lit.hex18{value=0x15D}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.push
+
+/\
+
+-- Check bit 13 for 314 stimulus
+lit.hex18{value=0x2000}
+/\ f18a.and
+/\ f18a.IF{addr=not_314}
+/\ lit.hex18{value=0x115}
+/\ f18a.call{addr=kall}
+
+/\
+
+label{name=not_314}
+/\ f18a.pop
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nif{addr=not_215}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.call{addr=kall}
+
+/\
+
+label{name=not_215}
+/\ f18a.jump{addr=run_315}
+
+/\
+
+-- /idle: send idle command to TX pin
+label{name=idle_315}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- /one: send "1 bit" command
+label{name=one_315}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- /zer: send "0 bit" command
+label{name=zer_315}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+-- ============================================================
+-- NODE 115: Link Negotiation Receiver
+-- ============================================================
+-- Buffers latest link state from 015, delivers to 215.
+-- Load: A=down, B=io, P=7(done)
+-- 115 (odd-x=15, odd-y=1): down=0x115, up=0x145, io=0x15D
+
+node 115
+
+/\
+
+std.setb{addr=0x15D}
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+
+/\
+
+-- !link: variable for link state
+label{name=slnk_115}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=lnk_var_115}
+/\ lit.hex18{value=0x3FFFF}
+
+/\
+
+-- pass: send link state to 215 via up port
+-- a up a! link ! a!
+label{name=pass_115}
+/\ f18a.a
+/\ lit.hex18{value=0x145}
+/\ f18a.astore
+
+/\
+
+label{name=pass_write}
+/\ f18a.store
+/\ f18a.astore
+/\ f18a.ret
+
+/\
+
+-- done: main loop — receive link state, poll io, deliver
+label{name=done_115}
+/\ f18a.fetch
+/\ f18a.call{addr=slnk_115}
+
+/\
+
+label{name=done_poll}
+/\ f18a.fetchb
+/\ lit.hex18{value=0x400}
+/\ f18a.xor
+/\ f18a.dup
+/\ lit.hex18{value=0x400}
+/\ f18a.and
+/\ f18a.IF{addr=done_no_stim}
+/\ f18a.call{addr=pass_115}
+/\ f18a.jump{addr=done_115}
+
+/\
+
+label{name=done_no_stim}
+/\ f18a.drop
+/\ lit.hex18{value=0x2000}
+/\ f18a.and
+/\ f18a.nif{addr=done_poll}
+/\ f18a.jump{addr=done_115}
+
+-- ============================================================
+-- NODE 215: Link Negotiation (Autonegotiate)
+-- ============================================================
+-- 802.3 10FD autonegotiation.
+-- Load: A=up, B=down, P=9(auto)
+-- 215 (odd-x=15, odd-y=2): up=0x145, down=0x115
+
+node 215
+
+/\
+
+std.setb{addr=0x115}
+/\ lit.hex18{value=0x145}
+/\ f18a.astore
+
+/\
+
+-- !link: link state variable
+label{name=slnk_215}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=lnk_var_215}
+/\ lit.hex18{value=0x3FFFF}
+
+/\
+
+-- -attn: get mux attention
+label{name=attn_215}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- -lnk: force link down
+label{name=lnk_215}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- wd: send code word via mux
+label{name=wd_215}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- auto: main loop — read link state, check for 10FD ack
+label{name=auto_215}
+/\ f18a.fetch
+/\ f18a.dup
+/\ f18a.call{addr=slnk_215}
+
+/\
+
+-- Check: dup 41 4041 and 41 4041 or
+-- If result matches 10FD ack, we're done (loop back)
+f18a.dup
+/\ lit.hex18{value=0x41}
+/\ lit.hex18{value=0x4041}
+/\ f18a.and
+/\ lit.hex18{value=0x41}
+/\ lit.hex18{value=0x4041}
+/\ f18a.xor
+/\ f18a.nif{addr=auto_215}
+
+/\
+
+-- neg: negotiation — force link down then send code words
+f18a.call{addr=lnk_215}
+
+/\
+
+-- 4 for 41 wd next: 5 requesting code words
+lit.hex18{value=4}
+/\ f18a.push
+
+/\
+
+label{name=neg_req_loop}
+/\ lit.hex18{value=0x41}
+/\ f18a.call{addr=wd_215}
+/\ f18a.next{addr=neg_req_loop}
+
+/\
+
+-- 7 for 4041 wd next: 8 acknowledging code words
+lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=neg_ack_loop}
+/\ lit.hex18{value=0x4041}
+/\ f18a.call{addr=wd_215}
+/\ f18a.next{addr=neg_ack_loop}
+
+/\
+
+-- Release mux attention
+f18a.call{addr=attn_215}
+
+/\
+
+-- Wait ~6 seconds: 60000 20000 for 41664 for unext next
+-- Outer: n.n ms
+lit.hex18{value=0x20000}
+/\ f18a.push
+
+/\
+
+label{name=neg_wait_outer}
+/\ lit.hex18{value=0xA2C0}
+/\ f18a.push
+
+/\
+
+label{name=neg_wait_inner}
+/\ f18a.unext
+/\ f18a.next{addr=neg_wait_outer}
+/\ f18a.jump{addr=auto_215}
+
+-- ============================================================
+-- NODE 317: TX Pin Manchester Encoder
+-- ============================================================
+-- Drives TX pin with Manchester-encoded data.
+-- Synchronized with 10 MHz oscillator from node 417.
+-- Load: B=io, A=up, P=4(init)
+-- Stack: 0x20000 0x30000 (repeated, for pin drive values)
+-- 317 (odd-x=17, odd-y=3): up=0x145, io=0x15D, right=0x1D5
+
+node 317
+
+/\
+
+std.setb{addr=0x15D}
+/\ lit.hex18{value=0x145}
+/\ f18a.astore
+
+/\
+
+-- Stack: fill with io drive values
+-- 0x20000 = drive high, 0x30000 = drive low
+-- high is on top
+lit.hex18{value=0x20000}
+/\ lit.hex18{value=0x30000}
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+/\ f18a.over
+
+/\
+
+-- 0bit: Manchester "0" = high then low
+-- @ drop !b (sync with osc, drive high)
+-- @ drop !b (sync with osc, drive low)
+label{name=zbit_317}
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- 1bit: Manchester "1" = low then high
+-- drop 0bit drop
+label{name=obit_317}
+/\ f18a.drop
+/\ f18a.call{addr=zbit_317}
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- init: start oscillator then go to sil
+-- Write to osc node (via A=up) to start it
+-- 0 dup ! (write 0 to osc to enable it)
+label{name=init_317}
+/\ lit.hex18{value=0}
+/\ f18a.dup
+/\ f18a.store
+
+/\
+
+-- sil: silence for N clock edges, then idle polling
+-- 1/2bt: push count, then absorb edges
+label{name=sil_317}
+/\ f18a.push
+/\ lit.hex18{value=0}
+/\ f18a.nop
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.storeb
+/\ f18a.nop
+
+/\
+
+label{name=sil_absorb}
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.unext
+/\ f18a.nop
+
+/\
+
+-- Idle loop: 15 for 19999 for @ drop drop . @b check next next
+-- Check for port stimulus at each clock edge
+f18a.dup
+/\ lit.hex18{value=15}
+/\ f18a.push
+
+/\
+
+label{name=idle_outer_317}
+/\ lit.hex18{value=19999}
+/\ f18a.push
+
+/\
+
+label{name=idle_inner_317}
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.drop
+/\ f18a.nop
+/\ f18a.fetchb
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nop
+/\ f18a.nif{addr=idle_got_stim}
+/\ f18a.drop
+/\ f18a.next{addr=idle_inner_317}
+/\ f18a.next{addr=idle_outer_317}
+/\ f18a.drop
+/\ f18a.nop
+/\ f18a.nop
+
+/\
+
+-- No stimulus for 16ms: generate SLP
+label{name=slp_317}
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.fetch
+/\ f18a.drop
+/\ lit.hex18{value=81}
+/\ f18a.jump{addr=sil_317}
+
+/\
+
+-- Got stimulus: execute port code
+label{name=idle_got_stim}
+
+/\
+
+-- goose/idle: drive high for 3 bit times then silence
+label{name=goose_317}
+/\ f18a.drop
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.dup
+/\ f18a.storeb
+
+/\
+
+-- Check if already idle
+label{name=idle_check_317}
+/\ f18a.fetchb
+/\ f18a.nif{addr=idle_resume}
+/\ f18a.drop
+/\ lit.hex18{value=4}
+/\ f18a.push
+
+/\
+
+label{name=idle_absorb}
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.unext
+/\ lit.hex18{value=83}
+/\ f18a.jump{addr=sil_317}
+
+/\
+
+label{name=idle_resume}
+/\ f18a.jump{addr=goose_317}
+
+/\
+
+-- flp: delay 62.5 us (1249 clock edges)
+label{name=flp_317}
+/\ lit.hex18{value=1249}
+/\ f18a.jump{addr=sil_317}
+
+-- ============================================================
+-- NODE 417: TX Oscillator (10 MHz Clock)
+-- ============================================================
+-- Reads 10 MHz input on pin 417.17, sends 20 MHz strobing to 317.
+-- Load: P=2(init)
+-- 417 (odd-x=17, odd-y=4): up=0x145, io=0x15D, left=0x175
+
+node 417
+
+/\
+
+-- init: set up A=up for writing to node 317
+-- Wait for permission from 317 (read from up port)
+-- Then set B=io and A=left for oscillator pin
+-- Note: 417 is odd-x, odd-y
+-- up=0x145 (to node 317)
+-- left=0x175 (to pin 517.17 for osc input)
+-- io=0x15D
+
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- Set B=io
+std.setb{addr=0x15D}
+
+/\
+
+-- Set A=left (osc pin)
+lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- Set up pin termination values on stack
+-- left 15555 up 0 10000
+-- left 15555 up 800 10800
+lit.hex18{value=0x175}
+/\ lit.hex18{value=0x15555}
+/\ lit.hex18{value=0x145}
+/\ lit.hex18{value=0}
+/\ lit.hex18{value=0x10000}
+/\ lit.hex18{value=0x175}
+/\ lit.hex18{value=0x15555}
+/\ lit.hex18{value=0x145}
+/\ lit.hex18{value=0x800}
+/\ lit.hex18{value=0x10800}
+
+/\
+
+-- dup dup drop drop: timing adjustment
+f18a.dup
+/\ f18a.dup
+/\ f18a.drop
+/\ f18a.drop
+
+/\
+
+-- go: main loop — read pin edge, send strobe to 317
+-- . @ drop . !b a! ! a! go ;
+label{name=go_417}
+/\ f18a.nop
+/\ f18a.fetch
+/\ f18a.drop
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.astore
+/\ f18a.store
+/\ f18a.astore
+/\ f18a.jump{addr=go_417}
+
+-- ============================================================
+-- NODE 108: SRAM Master (DMA Slave)
+-- ============================================================
+-- Performs SRAM read/write operations under direction of node 109.
+-- Load: A=right, B=left, P=right (port execute from 109)
+-- 108 (even-x=8, even-y=1): right=0x1D5, left=0x175
+
+node 108
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x1D5}
+/\ f18a.astore
+
+/\
+
+-- .ex!: port-called DMA write
+-- push @ push @ pop pop ex!
+label{name=ex_store_108}
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- .ex@: port-called DMA read
+-- push @ pop ex@ !
+label{name=ex_fetch_108}
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.fetch
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- stm: wait for stimulus from SRAM controller
+label{name=stm_108}
+/\ f18a.fetchb
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- inc: increment
+label{name=inc_108}
+/\ lit.hex18{value=1}
+/\ f18a.nop
+/\ f18a.add
+/\ f18a.ret
+
+-- ============================================================
+-- NODE 109: DMA Nexus Slave
+-- ============================================================
+-- Intermediary between DMA Nexus (110) and SRAM Master (108).
+-- Load: A=left, B=right, P=left (port execute from 110)
+-- 109 (odd-x=9, odd-y=1): left=0x175, right=0x1D5
+
+node 109
+
+/\
+
+std.setb{addr=0x1D5}
+/\ lit.hex18{value=0x175}
+/\ f18a.astore
+
+/\
+
+-- x!: DMA write via 108
+label{name=x_store_109}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_store_p_109}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- x@: DMA read via 108
+label{name=x_fetch_109}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_fetch_p_109}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.fetchb
+/\ f18a.ret
+
+/\
+
+-- .ex!: port-called exec store
+label{name=ex_store_109}
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- .ex@: port-called exec read
+label{name=ex_fetch_109}
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.fetch
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- /stm: stimulus wait
+label{name=stm_109}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.fetchb
+/\ f18a.store
+/\ f18a.ret
+
+-- ============================================================
+-- NODE 110: DMA Nexus Controller
+-- ============================================================
+-- Central polling dispatcher for TX/RX control nodes.
+-- Load: A=down, B=left, P=0x15(-dma)
+-- 110 (even-x=10, even-y=1): down=0x115, left=0x175, right=0x1D5
+
+node 110
+
+/\
+
+std.setb{addr=0x175}
+/\ lit.hex18{value=0x115}
+/\ f18a.astore
+
+/\
+
+-- x!: DMA write
+label{name=x_store_110}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_store_p_110}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.ret
+
+/\
+
+-- x@: DMA read
+label{name=x_fetch_110}
+/\ f18a.dup
+/\ f18a.dup
+/\ f18a.xor
+
+/\
+
+label{name=x_fetch_p_110}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.storeb
+/\ f18a.fetchb
+/\ f18a.ret
+
+/\
+
+-- /ex!: port exec store
+label{name=ex_store_110}
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- /ex@: port exec read
+label{name=ex_fetch_110}
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.fetch
+/\ f18a.pop
+/\ f18a.ex
+/\ f18a.fetch
+/\ f18a.store
+/\ f18a.ret
+
+/\
+
+-- stm: send stimulus wait to 109→108, then set live=0
+label{name=stm_110}
+/\ lit.hex18{value=0}
+/\ f18a.fetchp
+/\ f18a.storeb
+/\ f18a.nop
+
+/\
+
+-- !live: NIC state variable (-1=full, 1=no traffic, 0=disabled)
+label{name=slive}
+/\ f18a.fetchp
+/\ f18a.drop
+/\ f18a.storep
+/\ f18a.ret
+/\ label{name=live_var}
+/\ lit.hex18{value=0x3FFFF}
+
+/\
+
+-- sel: select port
+label{name=sel_110}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.ret
+
+/\
+
+-- -dma: entry point — disable DMA
+label{name=dma_off}
+/\ f18a.call{addr=stm_110}
+
+/\
+
+-- ?cmd: check for command if NIC is enabled
+label{name=qcmd}
+
+/\
+
+-- poll: main polling loop
+-- Check io for writes from TX (right/0x1D5) or RX (down/0x115)
+label{name=poll_110}
+/\ lit.hex18{value=0x15D}
+/\ f18a.astore
+/\ lit.hex18{value=0xA800}
+/\ f18a.dup
+
+/\
+
+label{name=poll_loop}
+/\ f18a.drop
+/\ f18a.IF{addr=poll_check_cmd}
+
+/\
+
+label{name=poll_read_io}
+/\ f18a.fetch
+/\ f18a.over
+/\ f18a.and
+/\ f18a.nif{addr=poll_loop}
+
+/\
+
+-- Got a stimulus: check which port
+-- 2* 2* -if: check TX (right)
+f18a.shl
+/\ f18a.shl
+/\ f18a.nop
+/\ f18a.nif{addr=poll_not_tx}
+
+/\
+
+-- TX stimulus: right a! @ push
+lit.hex18{value=0x1D5}
+/\ f18a.call{addr=sel_110}
+
+/\
+
+label{name=poll_not_tx}
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nop
+/\ f18a.nif{addr=poll_not_rx}
+
+/\
+
+-- RX stimulus: down a! @ push
+lit.hex18{value=0x115}
+/\ f18a.call{addr=sel_110}
+/\ f18a.jump{addr=poll_110}
+
+/\
+
+label{name=poll_not_rx}
+/\ f18a.shl
+/\ f18a.shl
+/\ f18a.nif{addr=poll_loop}
+
+/\
+
+-- 109 stimulus: store to live, check cmd
+f18a.fetchb
+/\ f18a.call{addr=slive}
+/\ f18a.jump{addr=qcmd}
+
+/\
+
+label{name=poll_check_cmd}
+/\ f18a.jump{addr=poll_110}

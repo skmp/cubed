@@ -16,6 +16,7 @@ export interface ArgInfo {
   mapping?: VarMapping;
   literal?: number;
   stringValue?: string;
+  variable?: string;    // raw variable name (for label references)
 }
 
 /** Whether an argument is "known" (has a literal or a RAM mapping) */
@@ -79,6 +80,11 @@ export interface BuiltinContext {
   failLabel?: string;
   /** ROM divmod address, if available on the target node */
   romDivmodAddr?: number;
+  /** Node register metadata — written by f18a.reg.* builtins, read by emitter */
+  regA?: number;
+  regB?: number;
+  regP?: number;
+  regStack?: number[];
 }
 
 // ---- Main entry point ----
@@ -138,6 +144,31 @@ export function emitBuiltin(
       return emitForever(builder);
     case 'repeat':
       return emitRepeat(builder);
+    case 'label':
+      return emitLabelDirective(builder, argMappings);
+    case 'f18a.insn':
+      return emitF18aInsn(builder, argMappings);
+    case 'f18a.reg.a':
+      if (ctx.regA === undefined) ctx.regA = argMappings.get('addr')?.literal;
+      else ctx.regA = argMappings.get('addr')?.literal;
+      return true;
+    case 'f18a.reg.b':
+      ctx.regB = argMappings.get('addr')?.literal;
+      return true;
+    case 'f18a.reg.p':
+      ctx.regP = argMappings.get('addr')?.literal;
+      return true;
+    case 'f18a.org':
+      builder.setLocationCounter(argMappings.get('addr')?.literal ?? 0);
+      return true;
+    case 'f18a.cy': {
+      const enable = argMappings.get('enable')?.literal ?? 0;
+      builder.setExtendedArith(enable ? 0x200 : 0);
+      return true;
+    }
+    case 'f18a.data':
+      builder.emitData(argMappings.get('value')?.literal ?? 0);
+      return true;
     case 'delay':
       return emitDelay(builder, argMappings);
     case 'setb':
@@ -690,6 +721,133 @@ function emitRepeat(builder: CodeBuilder): boolean {
 
   builder.flushWithJump();
   builder.emitJump(OPCODE_MAP.get('jump')!, loopAddr);
+  return true;
+}
+
+// ---- label{name}: define a named label at the current location counter ----
+// Used with f18a.jump{addr=name} / f18a.call{addr=name} for assembly-level control flow.
+
+function emitLabelDirective(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  const nameArg = args.get('name');
+  if (!nameArg?.variable) return false;
+  builder.label(nameArg.variable);
+  return true;
+}
+
+// ---- f18a.insn{s0, s1, s2, s3, d, a}: emit one instruction word with explicit slots ----
+// Maps clean identifier names (used in f18a.xxx) back to raw opcode names for OPCODE_MAP lookup.
+const CLEAN_TO_RAW: Record<string, string> = {
+  ret: ';', ex: 'ex', jump: 'jump', call: 'call', unext: 'unext', next: 'next',
+  IF: 'if', nif: '-if', fetchp: '@p', fetchplus: '@+', fetchb: '@b', fetch: '@',
+  storep: '!p', storeplus: '!+', storeb: '!b', store: '!', mulstep: '+*',
+  shl: '2*', shr: '2/', not: '-', add: '+', and: 'and', xor: 'or',
+  drop: 'drop', dup: 'dup', pop: 'pop', over: 'over', a: 'a', nop: '.',
+  push: 'push', bstore: 'b!', astore: 'a!',
+};
+
+/** Resolve a slot argument to an opcode number, or undefined for nop/missing. */
+function resolveSlotOpcode(arg: ArgInfo | undefined): number | undefined {
+  if (!arg) return undefined;
+  // Literal number → direct opcode
+  if (arg.literal !== undefined) return arg.literal;
+  // Variable name → look up as f18a.xxx or clean name
+  if (arg.variable) {
+    // Strip f18a. prefix if present (e.g., f18a.dup → dup)
+    const name = arg.variable.startsWith('f18a.') ? arg.variable.slice(5) : arg.variable;
+    const rawName = CLEAN_TO_RAW[name] ?? name;
+    return OPCODE_MAP.get(rawName);
+  }
+  return undefined;
+}
+
+// Address-class opcodes that consume the rest of the word's address field
+const ADDR_OPCODES = new Set([
+  OPCODE_MAP.get('jump')!, OPCODE_MAP.get('call')!, OPCODE_MAP.get('next')!,
+  OPCODE_MAP.get('if')!, OPCODE_MAP.get('-if')!,
+]);
+// Opcodes that use the rest of the word (fill remaining slots with nop): ; and ex
+const REST_OF_WORD_OPCODES = new Set([OPCODE_MAP.get(';')!, OPCODE_MAP.get('ex')!]);
+
+function emitF18aInsn(
+  builder: CodeBuilder,
+  args: Map<string, ArgInfo>,
+): boolean {
+  // First, flush any partial word in progress
+  builder.flush();
+
+  const s0 = resolveSlotOpcode(args.get('s0'));
+  const s1 = resolveSlotOpcode(args.get('s1'));
+  const s2 = resolveSlotOpcode(args.get('s2'));
+  const s3 = resolveSlotOpcode(args.get('s3'));
+  const dArg = args.get('d');
+  const aArg = args.get('a');
+
+  // Determine if any slot has an address-class opcode
+  const addrSlot = s0 !== undefined && ADDR_OPCODES.has(s0) ? 0
+    : s1 !== undefined && ADDR_OPCODES.has(s1) ? 1
+    : s2 !== undefined && ADDR_OPCODES.has(s2) ? 2
+    : -1;
+
+  if (addrSlot >= 0) {
+    // Address-class instruction: emit via emitJump
+    // First emit any preceding opcodes
+    for (let i = 0; i < addrSlot; i++) {
+      const op = [s0, s1, s2, s3][i];
+      if (op !== undefined) {
+        builder.emitOp(op);
+        // If this is @p, queue the data word
+        if (op === OPCODE_MAP.get('@p')! && dArg) {
+          builder.reserveDataWord(dArg.literal ?? 0);
+        }
+      }
+    }
+    // Resolve address: literal or label reference
+    const addrOpcode = [s0, s1, s2, s3][addrSlot]!;
+    let addr = 0;
+    if (aArg) {
+      if (aArg.literal !== undefined) {
+        addr = aArg.literal;
+      } else if (aArg.variable) {
+        // Label reference
+        const knownAddr = builder.getLabel(aArg.variable);
+        if (knownAddr !== undefined) {
+          addr = knownAddr;
+        } else {
+          builder.addForwardRef(aArg.variable);
+        }
+      }
+    }
+    builder.emitJump(addrOpcode, addr);
+    return true;
+  }
+
+  // No address-class opcode: emit all 4 slots as regular opcodes
+  // Check if any slot has @p — if so, queue the data word
+  const hasAtP = (op: number | undefined) => op === OPCODE_MAP.get('@p')!;
+
+  const slots = [s0, s1, s2, s3];
+  for (let i = 0; i < 4; i++) {
+    const op = slots[i];
+    if (op !== undefined) {
+      builder.emitOp(op);
+      // If @p and data provided, reserve the data word
+      if (hasAtP(op) && dArg) {
+        builder.reserveDataWord(dArg.literal ?? 0);
+      }
+      // If ; or ex, fill rest with nops (reference behavior)
+      if (REST_OF_WORD_OPCODES.has(op)) {
+        builder.flush();
+        break;
+      }
+    }
+  }
+  // If we haven't flushed yet (no ;/ex), ensure the word is complete
+  // by flushing (remaining slots are already nop by default)
+  builder.flush();
+
   return true;
 }
 

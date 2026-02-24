@@ -15,11 +15,11 @@ import { XOR_ENCODING } from '../types';
 // ---- Helpers ----
 
 /** Compile a CUBE source and return the first node's memory */
-function compileAndGetMem(source: string): { mem: number[]; errors: string[] } {
+function compileAndGetMem(source: string): { mem: number[]; len: number; errors: string[] } {
   const result = compileCube(source);
   const errors = result.errors.map(e => e.message);
-  if (result.nodes.length === 0) return { mem: [], errors };
-  return { mem: Array.from(result.nodes[0].mem), errors };
+  if (result.nodes.length === 0) return { mem: [], len: 0, errors };
+  return { mem: Array.from(result.nodes[0].mem), len: result.nodes[0].len, errors };
 }
 
 /** Decode a data word (raw, not XOR-encoded) from memory following an @p+jump instruction */
@@ -252,10 +252,74 @@ describe('f18a address opcodes', () => {
     expect(mem.length).toBeGreaterThan(0);
   });
 
-  it('errors on non-literal addr', () => {
-    // Using a variable instead of a literal should error
-    const result = compileCube('f18a.jump{addr=x}');
-    expect(result.errors.length).toBeGreaterThan(0);
+  it('variable addr resolves as label reference', () => {
+    // addr=x is now valid when x is a label — produces a forward ref
+    const source = 'label{name=start} /\\ f18a.dup /\\ f18a.jump{addr=start}';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes.length).toBeGreaterThan(0);
+  });
+});
+
+// ---- Labels ----
+
+describe('label support', () => {
+  it('backward label ref: label then jump', () => {
+    const source = 'label{name=loop} /\\ f18a.dup /\\ f18a.storeb /\\ f18a.jump{addr=loop}';
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(mem.length).toBeGreaterThan(0);
+    // The jump should target address 0 (where label was defined)
+    const lastInstrWord = mem[mem.length - 1];
+    const jumpAddr = lastInstrWord & 0x3FF;
+    expect(jumpAddr).toBe(0);
+  });
+
+  it('forward label ref: jump then label', () => {
+    const source = 'f18a.jump{addr=skip} /\\ f18a.dup /\\ label{name=skip} /\\ f18a.drop';
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(mem.length).toBeGreaterThan(0);
+    // First word is the jump — its address should point to where label{name=skip} was defined
+    const jumpAddr = mem[0] & 0x3FF;
+    // skip label is after the jump word and the dup word
+    expect(jumpAddr).toBeGreaterThan(0);
+  });
+
+  it('call to label and return', () => {
+    const source = [
+      'f18a.call{addr=sub}',
+      '/\\ f18a.jump{addr=done}',
+      '/\\ label{name=sub}',
+      '/\\ f18a.dup',
+      '/\\ f18a.ret',
+      '/\\ label{name=done}',
+    ].join(' ');
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(mem.length).toBeGreaterThan(0);
+  });
+
+  it('next with label for counted loop', () => {
+    const source = [
+      'lit.hex18{value=9}',
+      '/\\ f18a.push',
+      '/\\ label{name=loop}',
+      '/\\ f18a.dup',
+      '/\\ f18a.drop',
+      '/\\ f18a.next{addr=loop}',
+    ].join(' ');
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(mem.length).toBeGreaterThan(0);
+  });
+
+  it('undefined label produces error', () => {
+    const source = 'f18a.jump{addr=nowhere}';
+    const result = compileCube(source);
+    // Should produce a warning about unresolved forward ref
+    const allMessages = [...result.errors.map(e => e.message), ...result.warnings.map(w => w.message)];
+    expect(allMessages.some(m => m.includes('nowhere'))).toBe(true);
   });
 });
 
@@ -269,5 +333,82 @@ describe('assembly integration', () => {
     expect(mem.length).toBeGreaterThan(0);
     const data = findLiteralData(mem);
     expect(data).toContain(0x155);
+  });
+});
+
+// ---- f18a.insn tests ----
+
+describe('f18a.insn', () => {
+  it('emits a single word with 4 opcodes', () => {
+    // a @p a! dup → all 4 slots filled (matching reference yank word 0 pattern)
+    const source = 'f18a.insn{s0=f18a.a, s1=f18a.fetchp, s2=f18a.astore, s3=f18a.dup, d=0x115}';
+    const { mem, len, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    // 2 words (insn + data) + 1 halt loop appended by emitter
+    expect(len).toBe(3);
+    // Decode instruction word: s0=a(27), s1=@p(8), s2=a!(31), s3=dup(24>>2=6)
+    const decoded0 = mem[0] ^ XOR_ENCODING;
+    expect((decoded0 >> 13) & 0x1F).toBe(27); // a
+    expect((decoded0 >> 8) & 0x1F).toBe(8);   // @p
+    expect((decoded0 >> 3) & 0x1F).toBe(31);  // a!
+    expect(decoded0 & 0x7).toBe(24 >> 2);     // dup (slot3: 24/4=6)
+    // Data word
+    expect(mem[1]).toBe(0x115);
+  });
+
+  it('fills unspecified slots with nop', () => {
+    // Only s0 specified → s1,s2=nop(28), s3=.(28>>2=7)
+    const source = 'f18a.insn{s0=f18a.drop}';
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    const decoded0 = mem[0] ^ XOR_ENCODING;
+    expect((decoded0 >> 13) & 0x1F).toBe(23); // drop
+    expect((decoded0 >> 8) & 0x1F).toBe(28);  // nop
+    expect((decoded0 >> 3) & 0x1F).toBe(28);  // nop
+    expect(decoded0 & 0x7).toBe(7);           // . (slot3 default)
+  });
+
+  it('handles ; filling rest of word', () => {
+    // store a! ; → should fill s3 with nop
+    const source = 'f18a.insn{s0=f18a.store, s1=f18a.astore, s2=f18a.ret}';
+    const { mem, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    const decoded0 = mem[0] ^ XOR_ENCODING;
+    expect((decoded0 >> 13) & 0x1F).toBe(15); // !
+    expect((decoded0 >> 8) & 0x1F).toBe(31);  // a!
+    expect((decoded0 >> 3) & 0x1F).toBe(0);   // ;
+    // s3 filled with nop after ;
+    expect(decoded0 & 0x7).toBe(7);           // .
+  });
+
+  it('handles jump at slot 0 with address', () => {
+    const source = 'f18a.insn{s0=f18a.jump, a=0x10}';
+    const { mem, len, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(len).toBe(1);
+    const decoded0 = mem[0] ^ XOR_ENCODING;
+    expect((decoded0 >> 13) & 0x1F).toBe(2); // jump
+    expect(mem[0] & 0x1FFF).toBe(0x10);      // address (raw, not XOR-encoded)
+  });
+
+  it('handles call at slot 1 with preceding opcode', () => {
+    // drop call(0x20) → slot 0 = drop, slot 1 = call with 8-bit address
+    const source = 'f18a.insn{s0=f18a.drop, s1=f18a.call, a=0x20}';
+    const { mem, len, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(len).toBe(1);
+    const decoded0 = mem[0] ^ XOR_ENCODING;
+    expect((decoded0 >> 13) & 0x1F).toBe(23); // drop
+    expect((decoded0 >> 8) & 0x1F).toBe(3);   // call
+    expect(mem[0] & 0xFF).toBe(0x20);         // 8-bit address
+  });
+
+  it('handles label references in address field', () => {
+    const source = 'label{name=target} /\\ f18a.insn{s0=f18a.jump, a=target}';
+    const { mem, len, errors } = compileAndGetMem(source);
+    expect(errors).toHaveLength(0);
+    expect(len).toBe(1);
+    // Label is at address 0, so jump target should be 0
+    expect(mem[0] & 0x1FFF).toBe(0);
   });
 });

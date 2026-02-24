@@ -31,6 +31,8 @@ export class CodeBuilder {
   private forwardRefs: Array<{ name: string; wordAddr: number; slot: number }>;
   private extendedArith: number;
   private _lastWasJump = false;
+  /** Pending data words placed after @p (inline literal pattern). */
+  private pendingData: number[] = [];
 
   constructor(memSize: number = 64) {
     this.mem = new Array(memSize).fill(null);
@@ -93,12 +95,22 @@ export class CodeBuilder {
    * Unused slot 3 will contain '.' (nop), which is harmless.
    */
   flush(): void {
-    if (this.slotPointer === 0) return;
-    const word = this.assembleWord(this.currentWord);
-    if (this.locationCounter < this.mem.length) {
-      this.mem[this.locationCounter] = word;
+    if (this.slotPointer === 0 && this.pendingData.length === 0) return;
+    if (this.slotPointer > 0) {
+      const word = this.assembleWord(this.currentWord);
+      if (this.locationCounter < this.mem.length) {
+        this.mem[this.locationCounter] = word;
+      }
+      this.locationCounter++;
     }
-    this.locationCounter++;
+    // Write any pending data words (from @p inline literals)
+    for (const data of this.pendingData) {
+      if (this.locationCounter < this.mem.length) {
+        this.mem[this.locationCounter] = data;
+      }
+      this.locationCounter++;
+    }
+    this.pendingData = [];
     this.slotPointer = 0;
     this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
   }
@@ -205,6 +217,14 @@ export class CodeBuilder {
       this.mem[this.locationCounter] = encoded;
     }
     this.locationCounter++;
+    // Write any pending data words (from @p inline literals)
+    for (const data of this.pendingData) {
+      if (this.locationCounter < this.mem.length) {
+        this.mem[this.locationCounter] = data;
+      }
+      this.locationCounter++;
+    }
+    this.pendingData = [];
     this.slotPointer = 0;
     this.currentWord = [NOP, NOP, NOP, SLOT3_DEFAULT];
     // Track whether the last emitted instruction was any branch/jump instruction
@@ -220,26 +240,16 @@ export class CodeBuilder {
    * corrupting P when the return stack has non-return-address values.
    */
   emitLiteral(value: number): void {
-    // @p and the skip-jump must share one instruction word (no flush between them).
-    // If @p is at slot 0 → jump can go to slot 1 (8-bit address range, safe).
-    // If @p is at slot 1 → jump would go to slot 2 (only 3-bit range, wrong for
-    //   any continueAddr > 7). Instead, just flush with NOP/'.': @p already
-    //   increments P past the data word, so the harmless NOP and '.' in the
-    //   remaining slots don't affect correctness.
+    // Matches reference arrayForth compiler: @p fills remaining slots with '.',
+    // then data word follows. @p increments P past the data word, so the nops
+    // in remaining slots are harmless.
     // If slotPointer >= 2, flush first to make room for @p in this word.
     if (this.slotPointer >= 2) {
       this.flushWithJump();
     }
     this.emitOp(OPCODE_MAP.get('@p')!);
-    const continueAddr = this.locationCounter + 2;
-    if (this.slotPointer === 1) {
-      // @p landed at slot 0: emit jump at slot 1 (8-bit range) to skip data + slot 3
-      this.emitJump(JMP_OPCODE, continueAddr);
-    } else {
-      // @p landed at slot 1: flush word (NOP at slot 2, '.' at slot 3 are harmless).
-      // @p already advanced P to continueAddr; no explicit jump needed.
-      this.flush();
-    }
+    // Fill remaining slots with nop/'.', matching reference @p .. pattern
+    this.flush();
     // Store literal data (NOT XOR-encoded — @p reads raw values)
     if (this.locationCounter < this.mem.length) {
       this.mem[this.locationCounter] = value & WORD_MASK;
@@ -254,19 +264,12 @@ export class CodeBuilder {
    * this patches the raw data word directly.
    */
   emitLiteralRef(labelName: string): void {
-    // Same guard as emitLiteral: flush if @p can't fit with a jump in one word.
+    // Same pattern as emitLiteral: @p fills rest with nops, data word follows.
     if (this.slotPointer >= 2) {
       this.flushWithJump();
     }
     this.emitOp(OPCODE_MAP.get('@p')!);
-    const continueAddr = this.locationCounter + 2;
-    if (this.slotPointer === 1) {
-      // @p at slot 0: jump at slot 1 (8-bit range, safe)
-      this.emitJump(JMP_OPCODE, continueAddr);
-    } else {
-      // @p at slot 1: flush with NOP/'.'; @p already moved P to continueAddr
-      this.flush();
-    }
+    this.flush();
     // Store placeholder data word (will be patched by resolveForwardRefs)
     const dataAddr = this.locationCounter;
     if (dataAddr < this.mem.length) {
@@ -284,6 +287,17 @@ export class CodeBuilder {
       this.mem[this.locationCounter] = value & WORD_MASK;
     }
     this.locationCounter++;
+  }
+
+  /**
+   * Reserve a data word to be emitted after the current instruction word.
+   * Matches the reference arrayForth @p inline pattern: @p is placed in a slot,
+   * subsequent opcodes can still fill remaining slots in the same word,
+   * and the data word is written immediately after the instruction word flushes.
+   * Multiple reserveDataWord calls queue multiple data words in order.
+   */
+  reserveDataWord(value: number): void {
+    this.pendingData.push(value & WORD_MASK);
   }
 
   label(name: string): number {

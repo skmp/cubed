@@ -117,14 +117,20 @@ export function emitCode(
     });
   }
 
+  const bctx = ctx.builtinCtx;
+  const node: CompiledNode = {
+    coord: plan.nodeCoord,
+    mem,
+    len,
+    b: bctx.regB ?? PORT.IO,  // Default B=IO unless overridden by f18a.reg.b
+    symbols,
+  };
+  if (bctx.regA !== undefined) node.a = bctx.regA;
+  if (bctx.regP !== undefined) node.p = bctx.regP;
+  if (bctx.regStack !== undefined) node.stack = bctx.regStack;
+
   return {
-    nodes: [{
-      coord: plan.nodeCoord,
-      mem,
-      len,
-      b: PORT.IO,  // Ensure boot descriptors restore B=0x15D (IO register)
-      symbols,
-    }],
+    nodes: [node],
     errors: ctx.errors,
     warnings: ctx.warnings,
     sourceMap: ctx.sourceMap,
@@ -219,6 +225,19 @@ function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymb
 
   if (addrArg && addrArg.value.kind === 'literal') {
     targetAddr = addrArg.value.value;
+  } else if (addrArg && addrArg.value.kind === 'var') {
+    // Label reference: look up defined label or create forward ref
+    const labelName = addrArg.value.name;
+    const knownAddr = ctx.builder.getLabel(labelName);
+    if (knownAddr !== undefined) {
+      // Backward reference — label already defined
+      targetAddr = knownAddr;
+    } else {
+      // Forward reference — emit placeholder, resolve later
+      ctx.builder.addForwardRef(labelName);
+      ctx.builder.emitJump(sym.opcode!, 0);
+      return;
+    }
   } else if (relArg && relArg.value.kind === 'literal') {
     // Relative: flush to get accurate location counter, then add offset
     ctx.builder.flushWithJump();
@@ -231,7 +250,7 @@ function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymb
     ctx.errors.push({
       line: app.loc.line,
       col: app.loc.col,
-      message: `${app.functor} requires a literal 'addr' or 'rel' argument`,
+      message: `${app.functor} requires a literal 'addr' or 'rel' argument, or a label name`,
     });
   }
 }
@@ -245,12 +264,13 @@ function emitBuiltinCall(ctx: EmitContext, app: Application, sym: ResolvedSymbol
     argMappings.set(arg.name, termInfo);
   }
 
-  const builtinCtx: BuiltinContext = {
-    ...ctx.builtinCtx,
-    failLabel: ctx.failLabel,
-  };
+  // Use ctx.builtinCtx directly so metadata builtins (f18a.reg.*) can mutate it.
+  const savedFailLabel = ctx.builtinCtx.failLabel;
+  ctx.builtinCtx.failLabel = ctx.failLabel;
 
-  emitBuiltin(ctx.builder, sym.name, argMappings, builtinCtx);
+  emitBuiltin(ctx.builder, sym.name, argMappings, ctx.builtinCtx);
+
+  ctx.builtinCtx.failLabel = savedFailLabel;
 }
 
 // ---- User predicate call ----
@@ -629,7 +649,7 @@ function emitUnification(ctx: EmitContext, unif: Unification): void {
 function resolveTermValue(
   term: Term,
   varMap: VariableMap,
-): { mapping?: VarMapping; literal?: number; stringValue?: string } {
+): { mapping?: VarMapping; literal?: number; stringValue?: string; variable?: string } {
   switch (term.kind) {
     case 'literal':
       return { literal: term.value };
@@ -637,7 +657,7 @@ function resolveTermValue(
       return { stringValue: term.value };
     case 'var': {
       const mapping = varMap.vars.get(term.name);
-      return mapping ? { mapping } : {};
+      return mapping ? { mapping } : { variable: term.name };
     }
     default:
       return {};
