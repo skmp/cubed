@@ -57,7 +57,10 @@ export function emitCode(
 
   // Determine ROM divmod address for the target node
   const romFuncs = getRomFunctions(plan.nodeCoord);
-  const romDivmodAddr = romFuncs['divmod'];
+  // Use --u/mod (divmod2, 0x2D5) which clears carry before division.
+  // -u/mod (divmod, 0x2D6) does NOT clear carry, producing wrong results
+  // when carry is dirty from prior arithmetic.
+  const romDivmodAddr = romFuncs['divmod2'] ?? romFuncs['divmod'];
 
   const ctx: EmitContext = {
     builder,

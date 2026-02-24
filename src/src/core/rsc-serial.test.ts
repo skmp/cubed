@@ -20,7 +20,6 @@ import { GA144 } from './ga144';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { readIoWrite, taggedCoord, taggedValue } from '../ui/emulator/vgaResolution';
-import { buildBootStream } from './bootstream';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,14 +53,34 @@ function extractSerialData(snap: {
 
 /**
  * Group a flat array of serial data values into 5-element result tuples.
- * Returns complete groups only (trailing partial group is discarded).
+ * Finds the first occurrence of N=15 to establish alignment, then groups
+ * from that point. Returns complete groups only.
  */
 function groupResults(data: number[]): number[][] {
+  // Find alignment: first occurrence of 15 (N value) that starts a valid group
+  let start = 0;
+  for (let i = 0; i + 5 <= data.length; i++) {
+    if (data[i] === 15) {
+      start = i;
+      break;
+    }
+  }
   const groups: number[][] = [];
-  for (let i = 0; i + 5 <= data.length; i += 5) {
+  for (let i = start; i + 5 <= data.length; i += 5) {
     groups.push(data.slice(i, i + 5));
   }
   return groups;
+}
+
+function validateResults(results: number[][]): void {
+  for (const [N, a, r, p, q] of results) {
+    expect(N).toBe(15);
+    expect(a).toBeGreaterThanOrEqual(2);
+    expect(a).toBeLessThanOrEqual(9);
+    expect([2, 4]).toContain(r);
+    expect(p * q).toBe(15);
+    expect(new Set([p, q])).toEqual(new Set([3, 5]));
+  }
 }
 
 describe('RSC sample: continuous serial TX', () => {
@@ -69,9 +88,6 @@ describe('RSC sample: continuous serial TX', () => {
   it('RSC.cube compiles all 7 nodes without errors', () => {
     const source = readFileSync(join(__dirname, '../../samples/RSC.cube'), 'utf-8');
     const compiled = compileCube(source);
-    if (compiled.errors.length > 0) {
-      console.log('Errors:', compiled.errors);
-    }
     expect(compiled.errors).toHaveLength(0);
     expect(compiled.nodes.length).toBe(7);
 
@@ -83,7 +99,6 @@ describe('RSC sample: continuous serial TX', () => {
   });
 
   it('minimal pipeline (508→608→708) boots and produces serial output', { timeout: 60_000 }, () => {
-    // Test just the 3 pipeline nodes to isolate boot relay issues
     const source = [
       '#include std',
       '',
@@ -105,55 +120,14 @@ describe('RSC sample: continuous serial TX', () => {
       'std.asynctx{port=0x115}',
     ].join('\n') + '\n';
 
-    // Also test simpler 2-node case to isolate
-    const source2 = [
-      '#include std',
-      'node 608',
-      '/\\',
-      'std.shor15{noise_port=0x145, out_port=0x115}',
-      'node 708',
-      '/\\',
-      'std.asynctx{port=0x115}',
-    ].join('\n') + '\n';
-    const compiled2 = compileCube(source2);
-    expect(compiled2.errors).toHaveLength(0);
-    const boot2 = buildBootStream(compiled2.nodes);
-    console.log(`2-node boot stream: ${boot2.words.length} words, path: ${boot2.path.length} nodes, wire: ${boot2.wireNodes.length}`);
-
-    const ga2 = new GA144('test2');
-    ga2.setRomData(ROM_DATA);
-    ga2.reset();
-    ga2.loadViaBootStream(compiled2);
-    for (const coord of [608, 708]) {
-      const ns = ga2.getSnapshot(coord).selectedNode!;
-      console.log(
-        `2-node post-boot ${coord}: P=0x${ns.registers.P.toString(16)} ` +
-        `state=${ns.state} B=0x${ns.registers.B.toString(16)} A=0x${ns.registers.A.toString(16)}`
-      );
-    }
-
     const compiled = compileCube(source);
-    if (compiled.errors.length > 0) console.log('Errors:', compiled.errors);
     expect(compiled.errors).toHaveLength(0);
     expect(compiled.nodes.length).toBe(3);
-
-    // Diagnostic: check boot stream structure
-    const boot = buildBootStream(compiled.nodes);
-    console.log(`Boot stream: ${boot.words.length} words, path: ${boot.path.length} nodes, wire: ${boot.wireNodes.length}`);
 
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
     ga.loadViaBootStream(compiled);
-
-    // Check if nodes loaded correctly after boot
-    for (const coord of [508, 608, 708]) {
-      const ns = ga.getSnapshot(coord).selectedNode!;
-      console.log(
-        `post-boot ${coord}: P=0x${ns.registers.P.toString(16)} ` +
-        `state=${ns.state} B=0x${ns.registers.B.toString(16)} A=0x${ns.registers.A.toString(16)}`
-      );
-    }
 
     ga.stepUntilDone(500_000);
 
@@ -162,20 +136,8 @@ describe('RSC sample: continuous serial TX', () => {
     const results = groupResults(serialData);
 
     console.log(`Serial data: ${serialData.length} values, ${results.length} complete results`);
-    for (const [i, r] of results.entries()) {
-      console.log(`  result[${i}]: N=${r[0]} a=${r[1]} r=${r[2]} p=${r[3]} q=${r[4]}`);
-    }
-
     expect(results.length).toBeGreaterThanOrEqual(1);
-
-    for (const [N, a, r, p, q] of results) {
-      expect(N).toBe(15);
-      expect(a).toBeGreaterThanOrEqual(2);
-      expect(a).toBeLessThanOrEqual(9);
-      expect([2, 4]).toContain(r);
-      expect(p * q).toBe(15);
-      expect(new Set([p, q])).toEqual(new Set([3, 5]));
-    }
+    validateResults(results);
   });
 
   it('full RSC.cube: serial boot and continuous serial output', { timeout: 60_000 }, () => {
@@ -196,14 +158,6 @@ describe('RSC sample: continuous serial TX', () => {
 
     console.log(`Serial data: ${serialData.length} values, ${results.length} complete results`);
     expect(results.length).toBeGreaterThanOrEqual(3);
-
-    for (const [N, a, r, p, q] of results) {
-      expect(N).toBe(15);
-      expect(a).toBeGreaterThanOrEqual(2);
-      expect(a).toBeLessThanOrEqual(9);
-      expect([2, 4]).toContain(r);
-      expect(p * q).toBe(15);
-      expect(new Set([p, q])).toEqual(new Set([3, 5]));
-    }
+    validateResults(results);
   });
 });

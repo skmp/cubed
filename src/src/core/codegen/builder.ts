@@ -115,13 +115,21 @@ export class CodeBuilder {
 
     const target = targetAddr ?? (this.locationCounter + 1);
 
-    if (this.slotPointer <= 2) {
-      // Insert jump at current slot to skip remaining slots (including slot 3)
+    if (this.slotPointer === 1) {
+      // slot 1: 8-bit address range (0–255), safe for 64-word RAM
+      this.emitJump(JMP_OPCODE, target);
+    } else if (this.slotPointer === 2 && target <= 7) {
+      // slot 2: only 3-bit address range (0–7) — only safe for small targets
       this.emitJump(JMP_OPCODE, target);
     } else {
-      // slotPointer === 3: all 5-bit slots used, can't insert jump.
-      // Fall back to regular flush with '.' (nop) at slot 3.
+      // slot 2 with large target, or slot 3: flush safely with '.' at slot 3.
+      // Since SLOT3_DEFAULT='.', flush() is always safe here.
+      // After flush, execution naturally continues at the next sequential word.
+      // Only emit a redirect jump when an explicit non-sequential target is given.
       this.flush();
+      if (targetAddr !== undefined && target !== this.locationCounter) {
+        this.emitJump(JMP_OPCODE, target);
+      }
     }
   }
 
@@ -212,20 +220,26 @@ export class CodeBuilder {
    * corrupting P when the return stack has non-return-address values.
    */
   emitLiteral(value: number): void {
-    // @p and jump must be in the same instruction word. @p reads from P
-    // (the data word at loc+1), then jump skips past it to loc+2.
-    // If @p ends up at slot 2+, the jump can't fit in the same word,
-    // causing @p to read the wrong word (the next instruction, not data).
-    // Flush first if there's not enough room for both @p + jump.
+    // @p and the skip-jump must share one instruction word (no flush between them).
+    // If @p is at slot 0 → jump can go to slot 1 (8-bit address range, safe).
+    // If @p is at slot 1 → jump would go to slot 2 (only 3-bit range, wrong for
+    //   any continueAddr > 7). Instead, just flush with NOP/'.': @p already
+    //   increments P past the data word, so the harmless NOP and '.' in the
+    //   remaining slots don't affect correctness.
+    // If slotPointer >= 2, flush first to make room for @p in this word.
     if (this.slotPointer >= 2) {
       this.flushWithJump();
     }
     this.emitOp(OPCODE_MAP.get('@p')!);
-    // Jump past the literal data word to skip slot 3 safely.
-    // After @p reads from P (the data word), P is already at loc+2.
-    // The jump target loc+2 matches P, so it's effectively a no-op for P.
     const continueAddr = this.locationCounter + 2;
-    this.emitJump(JMP_OPCODE, continueAddr);
+    if (this.slotPointer === 1) {
+      // @p landed at slot 0: emit jump at slot 1 (8-bit range) to skip data + slot 3
+      this.emitJump(JMP_OPCODE, continueAddr);
+    } else {
+      // @p landed at slot 1: flush word (NOP at slot 2, '.' at slot 3 are harmless).
+      // @p already advanced P to continueAddr; no explicit jump needed.
+      this.flush();
+    }
     // Store literal data (NOT XOR-encoded — @p reads raw values)
     if (this.locationCounter < this.mem.length) {
       this.mem[this.locationCounter] = value & WORD_MASK;
@@ -240,13 +254,19 @@ export class CodeBuilder {
    * this patches the raw data word directly.
    */
   emitLiteralRef(labelName: string): void {
-    // Same slot-2 guard as emitLiteral: @p + jump must share a word.
+    // Same guard as emitLiteral: flush if @p can't fit with a jump in one word.
     if (this.slotPointer >= 2) {
       this.flushWithJump();
     }
     this.emitOp(OPCODE_MAP.get('@p')!);
     const continueAddr = this.locationCounter + 2;
-    this.emitJump(JMP_OPCODE, continueAddr);
+    if (this.slotPointer === 1) {
+      // @p at slot 0: jump at slot 1 (8-bit range, safe)
+      this.emitJump(JMP_OPCODE, continueAddr);
+    } else {
+      // @p at slot 1: flush with NOP/'.'; @p already moved P to continueAddr
+      this.flush();
+    }
     // Store placeholder data word (will be patched by resolveForwardRefs)
     const dataAddr = this.locationCounter;
     if (dataAddr < this.mem.length) {

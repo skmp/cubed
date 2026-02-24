@@ -4,6 +4,8 @@ import { XOR_ENCODING } from './types';
 export interface DisassembledSlot {
   opcode: string;
   address?: number;
+  /** True when the jump/call address has bit 9 set, enabling extended arithmetic mode */
+  extendedArith?: boolean;
 }
 
 export interface DisassembledWord {
@@ -24,7 +26,11 @@ export function disassembleWord(word: number): DisassembledWord {
   const slot0name = OPCODES[slot0opcode];
   slots[0] = { opcode: slot0name };
   if (ADDRESS_REQUIRED.has(slot0name)) {
-    slots[0].address = word & 0x3FF; // 10 bits
+    const addr = word & 0x3FF; // 10 bits
+    slots[0].address = addr;
+    if ((slot0name === 'jump' || slot0name === 'call') && (addr & 0x200)) {
+      slots[0].extendedArith = true;
+    }
     return { slots, raw: word };
   }
   if (INSTRUCTIONS_USING_REST_OF_WORD.has(slot0name)) {
@@ -72,7 +78,8 @@ export function formatDisassembly(word: number): string {
   for (const slot of dis.slots) {
     if (!slot) break;
     if (slot.address !== undefined) {
-      parts.push(`${slot.opcode} 0x${slot.address.toString(16)}`);
+      const ea = slot.extendedArith ? ' [ea]' : '';
+      parts.push(`${slot.opcode} 0x${slot.address.toString(16)}${ea}`);
     } else {
       parts.push(slot.opcode);
     }
@@ -89,7 +96,8 @@ function formatSlots(dis: DisassembledWord): string {
   for (const slot of dis.slots) {
     if (!slot) break;
     if (slot.address !== undefined) {
-      parts.push(`${slot.opcode}(${slot.address})`);
+      const ea = slot.extendedArith ? '[ea]' : '';
+      parts.push(`${slot.opcode}(${slot.address})${ea}`);
     } else {
       parts.push(slot.opcode);
     }

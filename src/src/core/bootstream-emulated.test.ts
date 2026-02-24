@@ -507,7 +507,12 @@ describe('boot ROM serial simulation', () => {
         }
       }
       expect(nodeMismatches, `node ${node.coord} RAM`).toBe(0);
-      expect(ns.registers.B, `node ${node.coord} B`).toBe(PORT.IO);
+      // Only check B=PORT.IO for nodes that haven't started executing their program.
+      // Running/blocked nodes (e.g. shor15 sets B=out_port on first instruction) will
+      // have modified B legitimately.
+      if (!isRunning) {
+        expect(ns.registers.B, `node ${node.coord} B`).toBe(PORT.IO);
+      }
     }
   });
 

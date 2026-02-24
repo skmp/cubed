@@ -300,12 +300,12 @@ function emitMultiplyForward(
   c: ArgInfo | undefined,
 ): boolean {
   // F18A multiply using +* (multiply step):
-  // Setup: A = multiplicand, S = 0, T = multiplier
-  // After 17 iterations: S:T = 36-bit product (T = low 18 bits)
-  loadArg(builder, a);
-  builder.emitOp(OPCODE_MAP.get('a!')!);  // A = a
-  builder.emitLiteral(0);                  // T = 0 → S
-  loadArg(builder, b);                     // T = b, S = 0
+  // Setup: T = 0 (accumulator), S = multiplicand, A = multiplier
+  // After 18 iterations: A = low 18 bits of product, T = high 18 bits
+  loadArg(builder, a);                       // T = a
+  loadArg(builder, b);                       // T = b, S = a
+  builder.emitOp(OPCODE_MAP.get('a!')!);     // A = b (multiplier). T = S = a
+  builder.emitLiteral(0);                    // T = 0, S = a (multiplicand)
 
   builder.emitLiteral(17);
   builder.emitOp(OPCODE_MAP.get('push')!);  // R = 17
@@ -313,6 +313,9 @@ function emitMultiplyForward(
   const loopAddr = builder.getLocationCounter();
   builder.emitOp(OPCODE_MAP.get('+*')!);
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+
+  // Product low 18 bits in A; push onto data stack
+  builder.emitOp(OPCODE_MAP.get('a')!);     // T = product
 
   if (c?.mapping) emitStore(builder, c.mapping);
   return true;
@@ -324,10 +327,17 @@ function emitDivide(
   divisor: ArgInfo,
   divmodAddr: number,
 ): void {
-  // ROM divmod convention: T = divisor, S = dividend
+  // ROM --u/mod convention: stack = [neg_divisor, dividend, 0(high_word)]
+  // The divisor must be NEGATED (two's complement) before calling.
+  // The 0 high-word is required for the extended-precision division loop.
   // Returns: T = quotient, S = remainder
+  builder.emitLiteral(0);             // high word (required by divmod)
   loadArg(builder, dividend);
   loadArg(builder, divisor);
+  // Negate divisor: - (NOT), then add 1  →  ~T + 1 = -T
+  builder.emitOp(OPCODE_MAP.get('-')!);
+  builder.emitLiteral(1);
+  builder.emitOp(OPCODE_MAP.get('+')!);
   builder.emitJump(OPCODE_MAP.get('call')!, divmodAddr);
   // T now holds quotient
 }
@@ -924,7 +934,8 @@ function emitShor15(
   emit('or');                      // [a²%15 XOR 1, a²%15]
   // 'if' pops T. If T=0 (a²≡1) → period 2, jump over period-4 jump.
   // After 'if' pops: T = S = a²%15 in both branches.
-  const period2Addr = builder.getLocationCounter() + 2;
+  // +3 because jmp('if') at sp=1 emits: flush-word (+1) + if-word (+1) + p4-jump (+1)
+  const period2Addr = builder.getLocationCounter() + 3;
   jmp('if', period2Addr);         // T=0 → skip to period 2 code
   builder.addForwardRef('__shor_p4');
   jmp('jump', 0);                 // T≠0 → period 4 path
@@ -950,7 +961,8 @@ function emitShor15(
   lit(1);
   emit('or');                      // [a⁴%15 XOR 1]
   // If T=0 → coprime, continue. If T≠0 → not coprime, retry.
-  const p4okAddr = builder.getLocationCounter() + 2;
+  // +3 because jmp('if') at sp=1 emits: flush-word (+1) + if-word (+1) + retry-jump (+1)
+  const p4okAddr = builder.getLocationCounter() + 3;
   jmp('if', p4okAddr);            // T=0 → coprime
   jmp('jump', mainLoop);          // not coprime → retry
 
@@ -980,28 +992,27 @@ function emitShor15(
   // Pre:  T = multiplier, RAM[0] = a
   // Post: T = (multiplier × a) mod 15
   // Clobbers: A, S, R (return addr handled by call/;)
+  //
+  // F18A +* convention: T=0 (accumulator), S=multiplicand, A=multiplier.
+  // After 18 iterations: A = low 18 bits of product, T = high 18 bits.
   builder.label('__shor_mulmod');
-  emit('push');                    // R = [ret_addr, ...], save multiplier... wait
-  // Actually 'call' already pushed return addr to R. So R = [ret_addr].
-  // We need to save the multiplier somewhere. Use R-stack:
   // At entry: T=multiplier, R=[ret_addr]
-  // push: R=[multiplier, ret_addr], T=S, S=deeper
-  // But we need multiplier back later. And we need A=a.
-  // Load a from RAM[0] into A:
+  emit('push');                    // R=[multiplier, ret_addr], T=S_old
   lit(0);
-  emit('a!'); emit('@');           // [a, ...] R=[multiplier, ret_addr]
-  emit('a!');                      // A=a. [S_old, ...] R=[multiplier, ret_addr]
-  lit(0);                          // [0, S_old, ...] R=[multiplier, ret_addr]
-  emit('pop');                     // [multiplier, 0, ...] R=[ret_addr]
-  // Setup for +*: A=multiplicand(a), T=multiplier, S=0
+  emit('a!'); emit('@');           // A=0, T=RAM[0]=a. R=[multiplier, ret_addr]
+  emit('pop');                     // T=multiplier, S=a. R=[ret_addr]
+  emit('a!');                      // A=multiplier (pop T). T=S=a
+  lit(0);                          // T=0, S=a
+  // Setup complete: T=0, S=a(multiplicand), A=multiplier
   lit(17);
   emit('push');                    // R=[17, ret_addr]
   fwj();                           // skip slot 3 ';' (would pop 17 as P!)
   const mulLoop = builder.getLocationCounter();
   emit('+*');
   jmp('next', mulLoop);           // 18 iterations of +*
-  // T = product (low 18 bits). Now mod 15.
-  lit(15);                         // [15, product]
+  // After +*: A=low product, T=high(0 for small), S=a(unchanged).
+  emit('a');                       // [product, high(0), ...]
+  lit(0x3FFF1);                    // [-15 (negated), product]
   jmp('call', divmod);            // [quotient] S=remainder
   emit('drop');                    // [remainder] = (multiplier × a) mod 15
   emit(';');                       // return: pop R to P
