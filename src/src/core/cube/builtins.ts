@@ -134,6 +134,10 @@ export function emitBuiltin(
       return emitLoop(builder, argMappings);
     case 'again':
       return emitAgain(builder);
+    case 'forever':
+      return emitForever(builder);
+    case 'repeat':
+      return emitRepeat(builder);
     case 'delay':
       return emitDelay(builder, argMappings);
     case 'setb':
@@ -666,6 +670,26 @@ function emitAgain(builder: CodeBuilder): boolean {
 
   builder.flushWithJump();                            // skip slot 3, ensure next gets slot 0 (13-bit addr)
   builder.emitJump(OPCODE_MAP.get('next')!, loopAddr);
+  return true;
+}
+
+// ---- forever{}: begin unconditional infinite loop ----
+// Marks the loop start address. No counter setup — paired with repeat{}.
+
+function emitForever(builder: CodeBuilder): boolean {
+  loopStack.push(builder.getLocationCounter());
+  return true;
+}
+
+// ---- repeat{}: end unconditional infinite loop ----
+// Emits jump back to the matching forever{} start.
+
+function emitRepeat(builder: CodeBuilder): boolean {
+  const loopAddr = loopStack.pop();
+  if (loopAddr === undefined) return false;
+
+  builder.flushWithJump();
+  builder.emitJump(OPCODE_MAP.get('jump')!, loopAddr);
   return true;
 }
 

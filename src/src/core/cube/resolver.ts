@@ -71,6 +71,8 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   deltarelay: ['port', 'count'],              // relay delta (current - prev) to IO
   loop:     ['n'],                      // begin counted loop (push n-1 to R)
   again:    [],                         // end counted loop (next back to loop start)
+  forever:  [],                         // begin unconditional infinite loop
+  repeat:   [],                         // end unconditional infinite loop (jump back)
   delay:    ['n'],                      // burn n cycles in a tight loop (no IO)
   // Shor's algorithm
   shor15:   ['noise_port', 'out_port'], // real Shor's factoring of N=15 (infinite loop)

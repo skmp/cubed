@@ -99,10 +99,10 @@ x = 0
 
 /\
 
-std.loop{n=32767}
+std.forever{}
 /\ std.plus{a=x, b=1, c=x}
 /\ std.send{port=0x145, value=x}
-/\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- SHOR'S COMPUTE (node 608 — basic node)
