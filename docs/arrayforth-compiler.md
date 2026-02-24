@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/DB004-131030-aFUSER.txt,txt/DB005-120825-PF-REF.txt,txt/DB006-221112-PF-G144A12.txt,txt/DB013-221112-aFUSER.txt,txt/dpans94.txt -->
+> Sources: [DB004-131030-aFUSER](txt/DB004-131030-aFUSER.txt), [DB005-120825-PF-REF](txt/DB005-120825-PF-REF.txt), [DB006-221112-PF-G144A12](txt/DB006-221112-PF-G144A12.txt), [DB013-221112-aFUSER](txt/DB013-221112-aFUSER.txt), [dpans94](txt/dpans94.txt)
+
 # arrayForth Compilation Model
 
 This document describes how arrayForth compiles code for the GA144, which serves as the reference model for implementing a GA144 compiler.

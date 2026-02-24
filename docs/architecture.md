@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/DB001-221113-F18A.txt,txt/DB014-190520-EVB002.txt,txt/PB001-100503-GA144-1-10.txt -->
+> Sources: [DB001-221113-F18A](txt/DB001-221113-F18A.txt), [DB014-190520-EVB002](txt/DB014-190520-EVB002.txt), [PB001-100503-GA144-1-10](txt/PB001-100503-GA144-1-10.txt)
+
 # Architecture Overview
 
 This document describes the high-level architecture of CUBED, with emphasis on the emulator core and the VGA rendering pipeline.

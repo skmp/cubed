@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/DB001-171107-F18A.txt,txt/DB001-221113-F18A.txt,txt/PB001-100503-GA144-1-10.txt -->
+> Sources: [DB001-171107-F18A](txt/DB001-171107-F18A.txt), [DB001-221113-F18A](txt/DB001-221113-F18A.txt), [PB001-100503-GA144-1-10](txt/PB001-100503-GA144-1-10.txt)
+
 # F18A Instruction Set Reference
 
 ## Instruction Word Format

@@ -539,21 +539,35 @@ let currentBasePath = '';
 function md(src) {
   src = src.replace(/\r\n/g, '\n');
 
-  // Extract and remove <!-- Derived from: ... --> comment
+  // Extract and remove "> Sources:" blockquote header
   let derivedFrom = '';
-  src = src.replace(/^<!--\s*Derived from:\s*(.+?)\s*-->\s*\n?/, (_, refs) => {
-    const parts = refs.split(/,\s*/);
-    const links = parts.map(p => {
-      const resolved = resolveHref(p.trim(), currentBasePath);
-      if (resolved.endsWith('.txt') && !resolved.startsWith('http')) {
-        const name = resolved.replace(/^txt\//, '').replace('.txt', '');
-        return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${name}</a> (<a href="pdf/greenarrays/${name}.pdf" target="_blank">PDF</a>)`;
-      }
-      return `<a href="${resolved}" target="_blank">${resolved}</a>`;
-    });
+  function makeDerivedLink(text, href) {
+    const resolved = resolveHref(href, currentBasePath);
+    if (resolved.endsWith('.txt') && !resolved.startsWith('http')) {
+      const name = resolved.replace(/^txt\//, '').replace('.txt', '');
+      return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${name}</a> (<a href="pdf/greenarrays/${name}.pdf" target="_blank">PDF</a>)`;
+    }
+    if (resolved.endsWith('.md') && !resolved.startsWith('http')) {
+      return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${text}</a>`;
+    }
+    return `<a href="${resolved}" target="_blank">${text}</a>`;
+  }
+  // Multi-line: > Sources:\n> - [link](path)\n> - [link](path)
+  src = src.replace(/^> Sources:[ \t]*\n((?:> - .+\n)+)\n?/, (_, items) => {
+    const links = [];
+    items.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (__, text, href) => { links.push(makeDerivedLink(text, href)); });
     derivedFrom = `<div class="derived-from">Sources: ${links.join(', ')}</div>`;
     return '';
   });
+  // Single-line: > Sources: [link](path), [link](path)
+  if (!derivedFrom) {
+    src = src.replace(/^> Sources:\s+(.+)\n\n?/, (_, rest) => {
+      const links = [];
+      rest.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (__, text, href) => { links.push(makeDerivedLink(text, href)); });
+      derivedFrom = `<div class="derived-from">Sources: ${links.join(', ')}</div>`;
+      return '';
+    });
+  }
 
   // Fenced code blocks
   src = src.replace(/^```(\w*)\n([\s\S]*?)^```/gm, (_, lang, code) =>

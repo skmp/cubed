@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/AB004-141021-PORTEX.txt,txt/AB005-220623-DELAY.txt,txt/AB006-171108-BRIDGE.txt,txt/AN011-130608-GANGLIA1.txt,txt/AN016-141111-DCMOTOR.txt,txt/WP002-100405-energycons.txt -->
+> Sources: [AB004-141021-PORTEX](txt/AB004-141021-PORTEX.txt), [AB005-220623-DELAY](txt/AB005-220623-DELAY.txt), [AB006-171108-BRIDGE](txt/AB006-171108-BRIDGE.txt), [AN011-130608-GANGLIA1](txt/AN011-130608-GANGLIA1.txt), [AN016-141111-DCMOTOR](txt/AN016-141111-DCMOTOR.txt), [WP002-100405-energycons](txt/WP002-100405-energycons.txt)
+
 # F18A / GA144 Programming Patterns
 
 Common programming patterns and idioms used in GA144 applications, extracted from tutorials, application notes, and example code.

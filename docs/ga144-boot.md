@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/AN021-220819-GS-EVB002.txt,txt/BOOT-02.txt,txt/DB001-221113-F18A.txt,txt/DB014-190520-EVB002.txt -->
+> Sources: [AN021-220819-GS-EVB002](txt/AN021-220819-GS-EVB002.txt), [BOOT-02](txt/BOOT-02.txt), [DB001-221113-F18A](txt/DB001-221113-F18A.txt), [DB014-190520-EVB002](txt/DB014-190520-EVB002.txt)
+
 # GA144 Boot Process
 
 ## Overview

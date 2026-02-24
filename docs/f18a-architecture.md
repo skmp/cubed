@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/DB001-171107-F18A.txt,txt/DB001-221113-F18A.txt,txt/PB001-100503-GA144-1-10.txt,txt/PB005-100501-F18B.txt -->
+> Sources: [DB001-171107-F18A](txt/DB001-171107-F18A.txt), [DB001-221113-F18A](txt/DB001-221113-F18A.txt), [PB001-100503-GA144-1-10](txt/PB001-100503-GA144-1-10.txt), [PB005-100501-F18B](txt/PB005-100501-F18B.txt)
+
 # F18A Core Architecture
 
 The F18A is an 18-bit stack-based processor core. Each GA144 chip contains 144 instances of the F18A, connected in an 8×18 mesh grid.

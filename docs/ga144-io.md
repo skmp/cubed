@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/DB001-221113-F18A.txt,txt/PB004-110412-F18A-IO.txt,txt/PB006-100501-F18B-IO.txt,txt/WP001-090805-noise.txt -->
+> Sources: [DB001-221113-F18A](txt/DB001-221113-F18A.txt), [PB004-110412-F18A-IO](txt/PB004-110412-F18A-IO.txt), [PB006-100501-F18B-IO](txt/PB006-100501-F18B-IO.txt), [WP001-090805-noise](txt/WP001-090805-noise.txt)
+
 # GA144 I/O Register & Pin Reference
 
 ## The `io` Register

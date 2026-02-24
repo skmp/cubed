@@ -1,4 +1,5 @@
-<\!-- Derived from: txt/g144poster.A1.txt,txt/PB001-100503-GA144-1-10.txt,txt/PB004-110412-F18A-IO.txt -->
+> Sources: [g144poster.A1](txt/g144poster.A1.txt), [PB001-100503-GA144-1-10](txt/PB001-100503-GA144-1-10.txt), [PB004-110412-F18A-IO](txt/PB004-110412-F18A-IO.txt)
+
 # GA144 Node Map & Chip Layout
 
 ## Overview
