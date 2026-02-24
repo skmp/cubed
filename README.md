@@ -114,7 +114,7 @@ If massively parallel stack machines or 3D visual languages sound interesting to
 
 - [GitHub](https://github.com/skmp/cubed) &mdash; source code, issues, and pull requests
 - [Twitter / X](https://x.com/poiitidis) &mdash; project updates
-- [Discord](https://discord.gg/emudev) &mdash; emudev community
+- [Discord](https://discord.gg/ZYats5GZsR) &mdash; emudev community
 
 ## License
 
