@@ -10,7 +10,6 @@ import { tokenizeCube, CubeTokenType } from './tokenizer';
 import { parseCube } from './parser';
 import { compileCube } from './compiler';
 import { serializeCube } from './serializer';
-import { XOR_ENCODING } from '../types';
 
 // ---- Helpers ----
 

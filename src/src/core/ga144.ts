@@ -300,9 +300,13 @@ export class GA144 {
       GA144.BOOT_BAUD_PERIOD * 10, // idle lead-in for auto-baud detection
     );
 
-    // Compute max steps: total bit duration + generous padding for mesh forwarding
+    // Compute max steps: serial bit duration + mesh relay propagation time.
+    // After serial bits finish, boot data still propagates through relay hops.
+    // Each hop relays accumulated words via port pump (~3 steps/word).
+    // Use path length × frame size × 5 as generous padding.
     const totalBitDuration = bits.reduce((sum, b) => sum + b.duration, 0);
-    const maxSteps = totalBitDuration + compiled.nodes.length * 5000;
+    const relayPadding = boot.path.length * boot.words.length * 5;
+    const maxSteps = totalBitDuration + Math.max(relayPadding, 100_000);
 
     // Drive serial bits into node 708
     this.stepWithSerialBits(708, bits, maxSteps);

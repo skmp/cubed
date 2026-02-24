@@ -9,8 +9,8 @@ import {
   WORD_MASK, XOR_ENCODING, NodeState,
 } from './types';
 import {
-  OPCODES, PORT, IO_BITS, PortIndex,
-  coordToIndex, getDirectionAddress, convertDirection,
+  PORT, PortIndex,
+  getDirectionAddress, convertDirection,
 } from './constants';
 
 // ============================================================================

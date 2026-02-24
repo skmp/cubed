@@ -39,6 +39,7 @@ export function ArrayForthViewer({ source }: ArrayForthViewerProps) {
     return () => {
       editor.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update content when source changes

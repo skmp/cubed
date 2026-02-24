@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ROM_DATA } from './rom-data';
-import { disassembleRom, formatWord } from './disassembler';
+import { disassembleRom } from './disassembler';
 
 describe('ROM data', () => {
   it('ROM_DATA is keyed by node coord (YXX format)', () => {

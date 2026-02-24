@@ -103,7 +103,7 @@ describe('updateLiteralValue', () => {
 
   it('does not mutate the original AST', () => {
     const ast = parse('plus{a=1, b=2, c=x}');
-    const newAst = updateLiteralValue(ast, 'i0.a0.v', 99);
+    const _newAst = updateLiteralValue(ast, 'i0.a0.v', 99);
     const origApp = ast.conjunction.items[0] as Application;
     if (origApp.args[0].value.kind === 'literal') {
       expect(origApp.args[0].value.value).toBe(1);

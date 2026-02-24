@@ -29,6 +29,11 @@ export default defineConfig([
       react: { version: 'detect' },
     },
     rules: {
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       'react/jsx-boolean-value': ['warn', 'never'],
       'react/self-closing-comp': 'warn',
       'jsx-a11y/alt-text': 'warn',

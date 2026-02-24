@@ -33,6 +33,7 @@ export function EditableLabel({
 
   useEffect(() => {
     if (isEditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditValue(value);
       setTimeout(() => inputRef.current?.focus(), 0);
     }

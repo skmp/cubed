@@ -9,8 +9,8 @@
  *   Slot 3: bits 2-0   (3 bits, value << 2 = opcode)
  *
  * Slot 3 can only encode opcodes that are multiples of 4: {0,4,8,12,16,20,24,28}
- * = {;, unext, @p, !p, +*, +, dup, .}. The default slot 3 value is 0
- * (';'/return). Use emitJump() to skip slot 3 when its execution would be harmful.
+ * = {;, unext, @p, !p, +*, +, dup, .}. The default slot 3 value is 7
+ * ('.'/nop). Subroutines that need ';' at slot 3 must emit it explicitly.
  *
  * All instruction words are XOR-encoded with 0x15555 before storage.
  * Data words (literals) are stored raw (NOT XOR-encoded).
@@ -19,7 +19,7 @@ import { WORD_MASK } from '../types';
 import { OPCODE_MAP } from '../constants';
 
 const NOP = 0x1C; // nop opcode (5-bit slots only, CANNOT fit in slot 3)
-const SLOT3_DEFAULT = 0x00; // slot 3 default: ';' (return, opcode 0)
+const SLOT3_DEFAULT = 0x07; // slot 3 default: '.' (nop, opcode 28 >> 2 = 7)
 const JMP_OPCODE = 2; // jump opcode
 
 export class CodeBuilder {
@@ -90,9 +90,7 @@ export class CodeBuilder {
 
   /**
    * Flush the current partial word to memory.
-   * WARNING: Unused slot 3 will contain ';' (return), which pops R to P.
-   * For safe flushing, use flushWithJump() instead when slot 3 side effects
-   * would be harmful.
+   * Unused slot 3 will contain '.' (nop), which is harmless.
    */
   flush(): void {
     if (this.slotPointer === 0) return;
@@ -122,7 +120,7 @@ export class CodeBuilder {
       this.emitJump(JMP_OPCODE, target);
     } else {
       // slotPointer === 3: all 5-bit slots used, can't insert jump.
-      // Fall back to regular flush with ';' at slot 3.
+      // Fall back to regular flush with '.' (nop) at slot 3.
       this.flush();
     }
   }

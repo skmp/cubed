@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { tokenizeCube } from './tokenizer';
 import { parseCube } from './parser';
 import { indexAst, getItemAtPath, getParentPath, getItemIndex, itemPath, clausePath, argPath, termPath } from './ast-path';
-import type { CubeProgram, Application, PredicateDef, Unification } from './ast';
+import type { CubeProgram, Application } from './ast';
 
 function parse(source: string): CubeProgram {
   const { tokens } = tokenizeCube(source);

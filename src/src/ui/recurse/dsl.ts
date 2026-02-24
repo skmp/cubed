@@ -418,7 +418,7 @@ function callFunc(
       //   117(R DAC), 617(G DAC), 717(B DAC), 217(sync)
 
       const splitEntries = (s: string) =>
-        s.trim().split(/[\/\n]/).map(l => l.trim()).filter(l => l.length > 0);
+        s.trim().split(/[/\n]/).map(l => l.trim()).filter(l => l.length > 0);
       const stripeDefs = splitEntries(args[0] ?? '');
       const triangleDefs = splitEntries(args[1] ?? '');
 

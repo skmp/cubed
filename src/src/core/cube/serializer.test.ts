@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tokenizeCube } from './tokenizer';
 import { parseCube } from './parser';
 import { serializeCube } from './serializer';
-import type { CubeProgram, Application, Unification, PredicateDef } from './ast';
+import type { CubeProgram, Application } from './ast';
 
 /** Parse source text into AST, asserting no errors. */
 function parse(source: string): CubeProgram {

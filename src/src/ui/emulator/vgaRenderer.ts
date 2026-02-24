@@ -91,7 +91,7 @@ export function renderIoWrites(
   state.lastHasSyncSignals = hasSyncSignals;
   const needsFullRedraw = state.forceFullRedraw || streamReset || dataDropped || syncChanged;
 
-  let seq = needsFullRedraw ? startSeq : state.lastDrawnSeq;
+  const seq = needsFullRedraw ? startSeq : state.lastDrawnSeq;
   if (needsFullRedraw) {
     cursor.x = 0;
     cursor.y = 0;

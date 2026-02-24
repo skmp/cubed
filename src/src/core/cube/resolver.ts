@@ -128,8 +128,6 @@ const F18A_NAMES: Record<string, string> = {
 
 /** Standard library builtin names that get the std. prefix */
 export const STD_BUILTINS = Object.keys(BUILTIN_PARAMS).filter(n => !n.startsWith('lit.'));
-/** Literal builtins (already namespaced under lit.*) */
-const LIT_BUILTINS = Object.keys(BUILTIN_PARAMS).filter(n => n.startsWith('lit.'));
 
 export function resolve(program: CubeProgram, targetCoord: number = 408): { resolved: ResolvedProgram; errors: CompileError[] } {
   const errors: CompileError[] = [];

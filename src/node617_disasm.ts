@@ -15,7 +15,7 @@ for (const node of result.nodes) {
         try {
           const asm = disassemble(v, i);
           console.log(`  [${i}] 0x${v.toString(16).padStart(5,'0')}  ${asm}`);
-        } catch(e) {
+        } catch {
           console.log(`  [${i}] 0x${v.toString(16).padStart(5,'0')}  (data)`);
         }
       }

@@ -570,9 +570,11 @@ function emitSend(
     loadArg(builder, value);
     builder.emitOp(OPCODE_MAP.get('!b')!);     // write T to [B=0x15D]
   } else {
+    // Load value first, then set A to port address.
+    // a! consumes the port from T, revealing the value underneath.
+    loadArg(builder, value);
     emitLoadLiteral(builder, port.literal);
     builder.emitOp(OPCODE_MAP.get('a!')!);     // A = port address
-    loadArg(builder, value);
     builder.emitOp(OPCODE_MAP.get('!')!);      // blocking write T to [A]
   }
   return true;
@@ -1002,8 +1004,7 @@ function emitShor15(
   lit(15);                         // [15, product]
   jmp('call', divmod);            // [quotient] S=remainder
   emit('drop');                    // [remainder] = (multiplier × a) mod 15
-  // Return: ';' at slot 3 pops ret_addr from R to P.
-  builder.flush();                 // flush with ';' at slot 3 → return
+  emit(';');                       // return: pop R to P
 
   // Resolve forward references within this builtin
   const refErrors: Array<{ message: string }> = [];
@@ -1120,7 +1121,7 @@ function emitAsyncTx(
   builder.addForwardRef('__asynctx_emit8');
   jmp('call', 0);                  // emit8: send bits [17:16] (+ zeros), T dropped
   emit('drop');                    // clean up leftover shifted value
-  builder.flush();                 // ';' at slot 3 → return
+  emit(';');                       // return from emit18
 
   // === EMIT8: send 8 bits LSB-first with start/stop bits ===
   // ( n -- n>>8 ) start-bit(0), 8 data bits, stop-bit(1)
@@ -1147,10 +1148,7 @@ function emitAsyncTx(
   lit(1);
   builder.addForwardRef('__asynctx_emit1');
   jmp('call', 0);                  // emit1(1) — stop bit (drive high)
-  // After the call, slotPointer=0, so flush() is a no-op. Force the ';'
-  // return word by emitting a nop first to make slotPointer > 0.
-  emit('.');                       // nop (slot 0)
-  builder.flush();                 // nop ';' → ';' at slot 3 returns from emit8
+  emit(';');                       // return from emit8
 
   // === EMIT1: transmit one bit over IO ===
   // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b
@@ -1163,7 +1161,7 @@ function emitAsyncTx(
   lit(3);
   emit('or');                      // T = (bit & 1) XOR 3  (F18A 'or' = XOR)
   emit('!b');                      // drive IO pin, pop
-  builder.flush();                 // ';' at slot 3 → return from emit1
+  emit(';');                       // return from emit1
 
   // Resolve all forward refs within this builtin
   const refErrors: Array<{ message: string }> = [];
@@ -1259,8 +1257,7 @@ function emitAsyncEcho8(
   lit(1);
   builder.addForwardRef('__asyncecho8_emit1');
   jmp('call', 0);                  // stop bit (1)
-  emit('.');                       // nop to ensure slotPointer > 0 for flush
-  builder.flush();                 // ';' → return from emit8
+  emit(';');                       // return from emit8
 
   // === EMIT1: transmit one bit via async serial pin, then delay one bit period ===
   // ( bit -- )  encoding: (bit & 1) XOR 3 → !b, then delay 2×d cycles.
@@ -1294,7 +1291,7 @@ function emitAsyncEcho8(
   emit('.');
   emit('.');
   emit('unext');                   // slot 3: R-- and jump back to start of this word
-  builder.flush();                 // ';' → return from emit1
+  emit(';');                       // return from emit1
 
   // Resolve all forward refs
   const refErrors: Array<{ message: string }> = [];
@@ -1398,8 +1395,7 @@ function emitHelloTx(builder: CodeBuilder): boolean {
   lit(1);
   builder.addForwardRef('__hellotx_emit1');
   jmp('call', 0);                      // stop bit
-  emit('.');
-  builder.flush();                     // ';' → return from emit8
+  emit(';');                           // return from emit8
 
   // === EMIT1 ===
   builder.label('__hellotx_emit1');
@@ -1421,7 +1417,7 @@ function emitHelloTx(builder: CodeBuilder): boolean {
   fwj();
   emit('.');  emit('.');  emit('.');
   emit('unext');                       // second half-period
-  builder.flush();                     // ';' → return from emit1
+  emit(';');                           // return from emit1
 
   const refErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(refErrors, 'hellotx');
@@ -1571,7 +1567,7 @@ function emitHelloTxRx(builder: CodeBuilder): boolean {
   lit(BAUD_ADDR); emit('a!'); emit('@'); emit('push'); fwj();
   emit('.'); emit('.'); emit('.');
   emit('unext');
-  builder.flush(); // ';'
+  emit(';');                           // return from delay
 
   const rxRefErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(rxRefErrors, 'hellotx_rx');
@@ -1627,7 +1623,7 @@ function emitHelloTxTx(builder: CodeBuilder): boolean {
   emit('2/'); fwj();
   jmp('next', bitLoop);
   lit(1); builder.addForwardRef('__hellotxtx_emit1'); jmp('call', 0);
-  emit('.'); builder.flush(); // ';'
+  emit(';');                           // return from emit8
 
   // === EMIT1: (bit&1) XOR 3 → !b, then delay 2×d ===
   builder.label('__hellotxtx_emit1');
@@ -1638,7 +1634,7 @@ function emitHelloTxTx(builder: CodeBuilder): boolean {
   emit('@'); emit('push'); fwj();
   emit('.'); emit('.'); emit('.');
   emit('unext');
-  builder.flush(); // ';'
+  emit(';');                           // return from emit1
 
   const txRefErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(txRefErrors, 'hellotx_tx');

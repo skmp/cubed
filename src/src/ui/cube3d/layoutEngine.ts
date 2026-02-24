@@ -997,6 +997,7 @@ function layoutTerm(
     case 'rename':
       return null; // Rename terms are structural, not visual
   }
+  return null;
 }
 
 // ---- Layout a term attached to a port (creates pipe) ----

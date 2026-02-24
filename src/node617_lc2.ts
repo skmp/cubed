@@ -14,7 +14,7 @@ CodeBuilder.prototype.build = function() {
 };
 
 // Also track emitOp to count operations
-let opCount617 = 0;
+const _opCount617 = 0;
 
 const source = readFileSync('./samples/CH.cube', 'utf-8');
 const result = compileCube(source);

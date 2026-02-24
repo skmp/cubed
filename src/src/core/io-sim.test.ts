@@ -28,35 +28,35 @@ import {
 const BAUD_PERIOD = GA144.BOOT_BAUD_PERIOD; // ~723 steps per bit at 921600 baud
 
 // Opcodes
-const RET    = 0;   // ;
+const _RET   = 0;   // ;
 const JUMP   = 2;   // jump
-const CALL   = 3;   // call
-const UNEXT  = 4;   // unext
-const NEXT   = 5;   // next
-const IF     = 6;   // if
-const NIF    = 7;   // -if
+const _CALL  = 3;   // call
+const _UNEXT = 4;   // unext
+const _NEXT  = 5;   // next
+const _IF    = 6;   // if
+const _NIF   = 7;   // -if
 const ATP    = 8;   // @p
 const ATB    = 10;  // @b
-const AT     = 11;  // @
+const _AT    = 11;  // @
 const STOREP = 12;  // !p
 const STOREPLUS = 13; // !+ (store T to [A], pop, increment A)
 const STOREB = 14;  // !b
-const STORE  = 15;  // !
-const TWOMUL = 17;  // 2*
+const _STORE = 15;  // !
+const _TWOMUL = 17; // 2*
 const TWODIV = 18;  // 2/
-const NOT    = 19;  // - (complement)
-const PLUS   = 20;  // +
-const AND    = 21;  // and
-const OR     = 22;  // or
+const _NOT   = 19;  // - (complement)
+const _PLUS  = 20;  // +
+const _AND   = 21;  // and
+const _OR    = 22;  // or
 const DROP   = 23;  // drop
 const DUP    = 24;  // dup
-const POP    = 25;  // pop
-const OVER   = 26;  // over
-const FETCHR = 27;  // a
-const NOP    = 28;  // .
-const PUSH   = 29;  // push
+const _POP   = 25;  // pop
+const _OVER  = 26;  // over
+const _FETCHR = 27; // a
+const _NOP   = 28;  // .
+const _PUSH  = 29;  // push
 const BSTORE = 30;  // b!
-const ASTORE = 31;  // a!
+const _ASTORE = 31; // a!
 
 // ============================================================================
 // Helpers
@@ -69,7 +69,7 @@ function xorOp(opcode: number, slot: number, shift: number): number {
 }
 
 /** Pack a jump/branch at slot 0 with address. */
-function packJump(opcode: number, addr: number): number {
+function _packJump(opcode: number, addr: number): number {
   return xorOp(opcode, 0, 13) | (addr & 0x3FF);
 }
 
@@ -79,13 +79,13 @@ function packOpJump(s0: number, jumpAddr: number): number {
 }
 
 /** Pack [opcode_slot0, opcode_slot1, jump_slot2 addr]. */
-function packOp2Jump(s0: number, s1: number, jumpAddr: number): number {
+function _packOp2Jump(s0: number, s1: number, jumpAddr: number): number {
   return (xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(JUMP, 2, 3) | (jumpAddr & 0x7)) & WORD_MASK;
 }
 
 /** Pack 4 opcodes into an 18-bit XOR-encoded instruction word.
  *  Slot 3 can encode opcodes that are multiples of 4: {0,4,8,12,16,20,24,28}. */
-function packWord(s0: number, s1: number, s2: number, s3: number): number {
+function _packWord(s0: number, s1: number, s2: number, s3: number): number {
   return xorOp(s0, 0, 13) | xorOp(s1, 1, 8) | xorOp(s2, 2, 3) | (((s3 >> 2) ^ XOR_BITS[3]) & 0x7);
 }
 

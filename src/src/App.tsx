@@ -111,13 +111,13 @@ function App() {
     compileAndLoad(output, { asLanguage: 'cube' });
   }, [compileAndLoad]);
 
-  if (!snapshot) return null;
-
   const sourceMap = cubeCompileResult?.sourceMap ?? null;
   const arrayforthSource = useMemo(
     () => compiledProgram?.nodes ? decompile(compiledProgram.nodes) : '( no compiled program )',
     [compiledProgram]
   );
+
+  if (!snapshot) return null;
 
   return (
     <ThemeProvider theme={theme}>
