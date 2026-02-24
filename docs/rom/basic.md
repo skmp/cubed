@@ -103,5 +103,5 @@ ROM address range: 0x80 - 0xBF (64 words)
 
 ## References
 
-- [DB001 - F18A Technology Reference (2022)](../../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — ROM math functions (multiply, division, polynomial evaluation)
-- [PB001 - GA144 Product Brief](../../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — Node ROM type assignments and available ROM routines
+- [DB001 - F18A Technology Reference (2022)](../txt/DB001-221113-F18A.txt) — ROM math functions (multiply, division, polynomial evaluation)
+- [PB001 - GA144 Product Brief](../txt/PB001-100503-GA144-1-10.txt) — Node ROM type assignments and available ROM routines

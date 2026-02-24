@@ -251,6 +251,67 @@
   .md-content a { color: var(--accent); text-decoration: none; }
   .md-content a:hover { text-decoration: underline; }
   .md-content hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  /* Derived-from source banner */
+  .derived-from {
+    background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .derived-from a { color: var(--accent); text-decoration: none; }
+  .derived-from a:hover { text-decoration: underline; }
+
+  /* Plain text viewer */
+  .txt-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    overflow-x: auto;
+  }
+
+  /* Reference document list */
+  .ref-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .ref-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    transition: border-color 0.15s;
+  }
+  .ref-item:hover { border-color: var(--accent); }
+  .ref-item .ref-id { color: var(--accent); font-weight: 600; min-width: 3.5rem; }
+  .ref-item .ref-title { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ref-item .ref-links { display: flex; gap: 0.4rem; flex-shrink: 0; }
+  .ref-item .ref-links a {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-decoration: none;
+  }
+  .ref-item .ref-links a:hover { color: var(--accent); border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -386,6 +447,46 @@
       <span class="tag tag-prog">performance</span>
     </a>
   </div>
+
+  <div class="section-title">ROM Disassembly</div>
+  <div class="grid">
+    <a class="card" href="#rom/README.md" data-file="rom/README.md">
+      <h3><span class="dot dot-hw"></span>ROM Disassembly Index</h3>
+      <p>Disassembled ROM contents for all GA144 node types: boot, analog, basic, and serial.</p>
+      <span class="tag tag-hw">hardware</span>
+    </a>
+  </div>
+
+  <div class="section-title">GreenArrays Reference Documents</div>
+  <div id="ref-docs" class="ref-list"></div>
+
+  <div class="section-title">CUBE Language Papers</div>
+  <div class="ref-list">
+    <div class="ref-item">
+      <span class="ref-id">VL91</span>
+      <span class="ref-title">Visual Programming in 3-D (Najork & Kaplan, 1991)</span>
+      <span class="ref-links">
+        <a href="#txt/vl1991.txt" onclick="event.preventDefault();history.pushState(null,'','#txt/vl1991.txt');showDoc('txt/vl1991.txt')">TXT</a>
+        <a href="pdf/cube/vl1991.pdf" target="_blank">PDF</a>
+      </span>
+    </div>
+    <div class="ref-item">
+      <span class="ref-id">VL92</span>
+      <span class="ref-title">Computing with 3-D Type Visualizations (Najork & Kaplan, 1992)</span>
+      <span class="ref-links">
+        <a href="#txt/vl1992.txt" onclick="event.preventDefault();history.pushState(null,'','#txt/vl1992.txt');showDoc('txt/vl1992.txt')">TXT</a>
+        <a href="pdf/cube/vl1992.pdf" target="_blank">PDF</a>
+      </span>
+    </div>
+    <div class="ref-item">
+      <span class="ref-id">JVLC96</span>
+      <span class="ref-title">Programming in Three Dimensions (Najork, 1996)</span>
+      <span class="ref-links">
+        <a href="#txt/jvlc1996.txt" onclick="event.preventDefault();history.pushState(null,'','#txt/jvlc1996.txt');showDoc('txt/jvlc1996.txt')">TXT</a>
+        <a href="pdf/cube/jvlc1996.pdf" target="_blank">PDF</a>
+      </span>
+    </div>
+  </div>
 </main>
 
 <div id="viewer">
@@ -401,10 +502,58 @@
 </footer>
 
 <script>
-// Minimal markdown-to-HTML renderer (no dependencies)
+// ---- Path mapping for deployed site ----
+// txt [Derived from:] headers contain repo-relative paths like ../../reference/greenarrays/BASENAME.compact.html
+// On the deployed site, PDFs live at pdf/greenarrays/BASENAME.pdf and pdf/cube/BASENAME.pdf
+function derivedPathToUrl(path) {
+  // ../../reference/greenarrays/BASENAME.compact.html -> pdf/greenarrays/BASENAME.pdf
+  let m = path.match(/\.\.\/\.\.\/reference\/greenarrays\/([^/]+)\.compact\.html$/);
+  if (m) return { url: 'pdf/greenarrays/' + m[1] + '.pdf', label: m[1], kind: 'pdf' };
+  // ../../reference/cube/BASENAME.compact.html -> pdf/cube/BASENAME.pdf
+  m = path.match(/\.\.\/\.\.\/reference\/cube\/([^/]+)\.compact\.html$/);
+  if (m) return { url: 'pdf/cube/' + m[1] + '.pdf', label: m[1], kind: 'pdf' };
+  // ../../reference/cube/pdf/BASENAME.pdf -> pdf/cube/BASENAME.pdf
+  m = path.match(/\.\.\/\.\.\/reference\/cube\/pdf\/([^/]+\.pdf)$/);
+  if (m) return { url: 'pdf/cube/' + m[1], label: m[1].replace('.pdf',''), kind: 'pdf' };
+  return { url: path, label: path.split('/').pop(), kind: 'unknown' };
+}
+
+// ---- Resolve relative paths against a base directory ----
+function resolveHref(href, basePath) {
+  if (href.startsWith('http') || href.startsWith('#') || href.startsWith('/')) return href;
+  if (!basePath) return href;
+  // ../txt/X.txt from rom/ -> txt/X.txt
+  const parts = (basePath + '/' + href).split('/');
+  const resolved = [];
+  for (const p of parts) {
+    if (p === '..') resolved.pop();
+    else if (p !== '.') resolved.push(p);
+  }
+  return resolved.join('/');
+}
+
+// Current base path for resolving relative links in md files
+let currentBasePath = '';
+
+// ---- Minimal markdown-to-HTML renderer (no dependencies) ----
 function md(src) {
-  // Normalize line endings
   src = src.replace(/\r\n/g, '\n');
+
+  // Extract and remove <!-- Derived from: ... --> comment
+  let derivedFrom = '';
+  src = src.replace(/^<!--\s*Derived from:\s*(.+?)\s*-->\s*\n?/, (_, refs) => {
+    const parts = refs.split(/,\s*/);
+    const links = parts.map(p => {
+      const resolved = resolveHref(p.trim(), currentBasePath);
+      if (resolved.endsWith('.txt') && !resolved.startsWith('http')) {
+        const name = resolved.replace(/^txt\//, '').replace('.txt', '');
+        return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${name}</a> (<a href="pdf/greenarrays/${name}.pdf" target="_blank">PDF</a>)`;
+      }
+      return `<a href="${resolved}" target="_blank">${resolved}</a>`;
+    });
+    derivedFrom = `<div class="derived-from">Sources: ${links.join(', ')}</div>`;
+    return '';
+  });
 
   // Fenced code blocks
   src = src.replace(/^```(\w*)\n([\s\S]*?)^```/gm, (_, lang, code) =>
@@ -429,9 +578,7 @@ function md(src) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Skip if already processed (pre/table tags)
     if (line.startsWith('<pre>') || line.startsWith('<table>')) {
-      // Collect until closing tag
       let block = line;
       const closeTag = line.startsWith('<pre>') ? '</pre>' : '</table>';
       while (!block.includes(closeTag) && i + 1 < lines.length) {
@@ -443,7 +590,6 @@ function md(src) {
       continue;
     }
 
-    // Headings
     const hm = line.match(/^(#{1,6})\s+(.+)/);
     if (hm) {
       if (inList) { html += `</${listType}>`; inList = false; }
@@ -452,21 +598,18 @@ function md(src) {
       continue;
     }
 
-    // HR
     if (/^[-*_]{3,}\s*$/.test(line)) {
       if (inList) { html += `</${listType}>`; inList = false; }
       html += '<hr>\n';
       continue;
     }
 
-    // Blockquote
     if (line.startsWith('> ')) {
       if (inList) { html += `</${listType}>`; inList = false; }
       html += `<blockquote><p>${inline(line.slice(2))}</p></blockquote>\n`;
       continue;
     }
 
-    // Unordered list
     const ulm = line.match(/^(\s*)[-*+]\s+(.*)/);
     if (ulm) {
       if (!inList || listType !== 'ul') {
@@ -477,7 +620,6 @@ function md(src) {
       continue;
     }
 
-    // Ordered list
     const olm = line.match(/^(\s*)\d+[.)]\s+(.*)/);
     if (olm) {
       if (!inList || listType !== 'ol') {
@@ -488,20 +630,18 @@ function md(src) {
       continue;
     }
 
-    // Close list if we're not in one
     if (inList && line.trim() === '') {
       html += `</${listType}>\n`; inList = false;
       continue;
     }
 
-    // Paragraph
     if (line.trim()) {
       if (inList) { html += `</${listType}>`; inList = false; }
       html += `<p>${inline(line)}</p>\n`;
     }
   }
   if (inList) html += `</${listType}>`;
-  return html;
+  return derivedFrom + html;
 }
 
 function esc(s) {
@@ -509,32 +649,49 @@ function esc(s) {
 }
 
 function inline(s) {
-  // Inline code (must come first to prevent inner processing)
   s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
-  // Bold + italic
   s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  // Bold
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic
   s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Links
-  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // HTML entities for special chars
+  // Links: resolve relative paths, make txt/md links open in viewer
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => {
+    const resolved = resolveHref(href, currentBasePath);
+    if (resolved.endsWith('.txt') && !resolved.startsWith('http')) {
+      const name = resolved.replace(/^txt\//, '').replace('.txt', '');
+      return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${text}</a> (<a href="pdf/greenarrays/${name}.pdf" target="_blank" title="Original PDF">PDF</a>)`;
+    }
+    if (resolved.endsWith('.md') && !resolved.startsWith('http')) {
+      return `<a href="#${resolved}" onclick="event.preventDefault();history.pushState(null,'','#${resolved}');showDoc('${resolved}')">${text}</a>`;
+    }
+    return `<a href="${resolved}" target="_blank" rel="noopener">${text}</a>`;
+  });
   s = s.replace(/&mdash;/g, '\u2014');
   s = s.replace(/&ndash;/g, '\u2013');
   s = s.replace(/&times;/g, '\u00D7');
   return s;
 }
 
-// Navigation
-const index = document.getElementById('index');
+// ---- Render plain text file ----
+function renderTxt(src) {
+  // Extract [Derived from: ...] header
+  let banner = '';
+  src = src.replace(/^\[Derived from:\s*(.+?)\]\s*\n?/, (_, ref) => {
+    const info = derivedPathToUrl(ref.trim());
+    banner = `<div class="derived-from">Source: <a href="${info.url}" target="_blank">${info.label} (${info.kind.toUpperCase()})</a></div>`;
+    return '';
+  });
+  return banner + '<div class="txt-content">' + esc(src) + '</div>';
+}
+
+// ---- Navigation ----
+const indexEl = document.getElementById('index');
 const viewer = document.getElementById('viewer');
 const content = document.getElementById('md-content');
 const backBtn = document.getElementById('back-btn');
 
 function showIndex() {
   viewer.classList.remove('active');
-  index.classList.remove('hidden');
+  indexEl.classList.remove('hidden');
   history.pushState(null, '', window.location.pathname);
 }
 
@@ -543,13 +700,20 @@ async function showDoc(file) {
     const resp = await fetch(file);
     if (!resp.ok) throw new Error(`${resp.status}`);
     const text = await resp.text();
-    content.innerHTML = md(text);
-    index.classList.add('hidden');
+    // Set base path for resolving relative links (e.g. 'rom' for 'rom/README.md')
+    const lastSlash = file.lastIndexOf('/');
+    currentBasePath = lastSlash > 0 ? file.substring(0, lastSlash) : '';
+    if (file.endsWith('.txt')) {
+      content.innerHTML = renderTxt(text);
+    } else {
+      content.innerHTML = md(text);
+    }
+    indexEl.classList.add('hidden');
     viewer.classList.add('active');
     window.scrollTo(0, 0);
   } catch (e) {
     content.innerHTML = `<p>Failed to load <code>${esc(file)}</code>: ${esc(e.message)}</p>`;
-    index.classList.add('hidden');
+    indexEl.classList.add('hidden');
     viewer.classList.add('active');
   }
 }
@@ -569,14 +733,105 @@ backBtn.addEventListener('click', showIndex);
 // Handle back/forward and direct hash links
 window.addEventListener('hashchange', () => {
   const h = location.hash.slice(1);
-  if (h && h.endsWith('.md')) showDoc(h);
+  if (h && (h.endsWith('.md') || h.endsWith('.txt'))) showDoc(h);
   else showIndex();
 });
 
 // Initial load
-if (location.hash && location.hash.slice(1).endsWith('.md')) {
-  showDoc(location.hash.slice(1));
-}
+(function() {
+  const h = location.hash ? location.hash.slice(1) : '';
+  if (h && (h.endsWith('.md') || h.endsWith('.txt'))) showDoc(h);
+})();
+
+// ---- Build reference document list ----
+const REF_DOCS = [
+  { id: 'DB001', title: 'F18A Technology Reference', revisions: [
+    { date: '2017', file: 'DB001-171107-F18A' },
+    { date: '2022', file: 'DB001-221113-F18A' },
+  ]},
+  { id: 'DB003', title: 'EVB001 Evaluation Board', revisions: [
+    { date: '2011a', file: 'DB003-110726-EVB001' },
+    { date: '2011b', file: 'DB003-110926-EVB001' },
+  ]},
+  { id: 'DB004', title: 'arrayForth User\'s Manual', revisions: [{ date: '2013', file: 'DB004-131030-aFUSER' }]},
+  { id: 'DB005', title: 'polyFORTH Reference', revisions: [{ date: '2012', file: 'DB005-120825-PF-REF' }]},
+  { id: 'DB006', title: 'G144A12 polyFORTH Supplement', revisions: [{ date: '2022', file: 'DB006-221112-PF-G144A12' }]},
+  { id: 'DB013', title: 'arrayForth 3 User\'s Manual', revisions: [{ date: '2022', file: 'DB013-221112-aFUSER' }]},
+  { id: 'DB014', title: 'EVB002 Evaluation Board', revisions: [{ date: '2019', file: 'DB014-190520-EVB002' }]},
+  { id: 'PB001', title: 'GA144 Product Brief', revisions: [{ date: '2010', file: 'PB001-100503-GA144-1-10' }]},
+  { id: 'PB004', title: 'F18A I/O Facilities', revisions: [{ date: '2011', file: 'PB004-110412-F18A-IO' }]},
+  { id: 'PB005', title: 'F18B Computer', revisions: [{ date: '2010', file: 'PB005-100501-F18B' }]},
+  { id: 'PB006', title: 'F18B I/O Facilities', revisions: [{ date: '2010', file: 'PB006-100501-F18B-IO' }]},
+  { id: 'PB008', title: 'GreenArrays Introduction', revisions: [{ date: '2010', file: 'PB008-100607-GA-Intro' }]},
+  { id: 'AN001', title: 'MD5 Hash', revisions: [{ date: '2014', file: 'AN001-141023-MD5' }]},
+  { id: 'AN002', title: 'Crystal Oscillator', revisions: [{ date: '2017', file: 'AN002-171106-OSC' }]},
+  { id: 'AN003', title: 'SRAM Interface', revisions: [{ date: '2011', file: 'AN003-110810-SRAM' }]},
+  { id: 'AN004', title: 'Getting Started EVB001', revisions: [{ date: '2011', file: 'AN004-111008-GS-EVB001' }]},
+  { id: 'AN005', title: 'Schmart Board', revisions: [{ date: '2011', file: 'AN005-110926-SCHMART' }]},
+  { id: 'AN007', title: '10BASE-T Ethernet', revisions: [
+    { date: '2014a', file: 'AN007-141105-10BASET' },
+    { date: '2014b', file: 'AN007-141112-10BASET' },
+  ]},
+  { id: 'AN008', title: 'Accelerometer', revisions: [{ date: '2012', file: 'AN008-120510-ACCEL' }]},
+  { id: 'AN009', title: 'Keyboard Interface', revisions: [{ date: '2012', file: 'AN009-120912-KEYBRD' }]},
+  { id: 'AN010', title: 'Snorkel Mark 1', revisions: [{ date: '2013', file: 'AN010-130604-SNORKEL1' }]},
+  { id: 'AN011', title: 'Ganglia Mark 1', revisions: [{ date: '2013', file: 'AN011-130608-GANGLIA1' }]},
+  { id: 'AN012', title: 'SensorTag I2C', revisions: [{ date: '2013', file: 'AN012-130606-SENSORTAG' }]},
+  { id: 'AN016', title: 'DC Motor PID Controller', revisions: [
+    { date: '2014a', file: 'AN016-141102-DCMOTOR' },
+    { date: '2014b', file: 'AN016-141111-DCMOTOR' },
+  ]},
+  { id: 'AN017', title: 'Ganglia Mark 2', revisions: [{ date: '2017', file: 'AN017-170105-GANGLIA2' }]},
+  { id: 'AN018', title: 'ADV7611 HDMI', revisions: [{ date: '2017', file: 'AN018-171105-ADV7611' }]},
+  { id: 'AN020', title: '1080p Video', revisions: [{ date: '2017', file: 'AN020-171106-1080P' }]},
+  { id: 'AN021', title: 'Getting Started EVB002', revisions: [
+    { date: '2019', file: 'AN021-190520-GS-EVB002' },
+    { date: '2022', file: 'AN021-220819-GS-EVB002' },
+  ]},
+  { id: 'AB002', title: 'Ethernet RX', revisions: [{ date: '2012', file: 'AB002-120108-ETH-RX' }]},
+  { id: 'AB003', title: 'EVB Current Measurement', revisions: [{ date: '2012', file: 'AB003-121018-EVBCURR' }]},
+  { id: 'AB004', title: 'Port Execution', revisions: [{ date: '2014', file: 'AB004-141021-PORTEX' }]},
+  { id: 'AB005', title: 'Delay Lines/Buffers', revisions: [
+    { date: '2017', file: 'AB005-171106-DELAY' },
+    { date: '2022', file: 'AB005-220623-DELAY' },
+  ]},
+  { id: 'AB006', title: 'Transparent Port Bridge', revisions: [{ date: '2017', file: 'AB006-171108-BRIDGE' }]},
+  { id: 'AB007', title: 'Update Flash', revisions: [
+    { date: '2022a', file: 'AB007-220620-UPDFLASH' },
+    { date: '2022b', file: 'AB007-221112-UPDFLASH' },
+  ]},
+  { id: 'BOOT', title: 'Boot Protocols', revisions: [{ date: '', file: 'BOOT-02' }]},
+  { id: 'WP001', title: 'ADC Noise Reduction', revisions: [{ date: '2009', file: 'WP001-090805-noise' }]},
+  { id: 'WP002', title: 'Energy Conservation', revisions: [{ date: '2010', file: 'WP002-100405-energycons' }]},
+  { id: 'EVB001', title: 'EVB001 Schematics & Models', revisions: [
+    { date: '2011a', file: 'EVB001_110717' },
+    { date: '2011b', file: 'EVB001-v110717-model' },
+    { date: '144x2', file: 'EVB001-144x2' },
+  ]},
+  { id: 'g144', title: 'GA144 Poster', revisions: [{ date: '', file: 'g144poster.A1' }]},
+  { id: 'dpans94', title: 'ANS Forth Standard', revisions: [{ date: '1994', file: 'dpans94' }]},
+  { id: 'PCBCOM', title: 'PCB Communications', revisions: [{ date: '2019', file: 'PCBCOM-190527' }]},
+];
+
+(function buildRefList() {
+  const container = document.getElementById('ref-docs');
+  if (!container) return;
+  for (const doc of REF_DOCS) {
+    const el = document.createElement('div');
+    el.className = 'ref-item';
+    const revLinks = doc.revisions.map(r => {
+      const txtHref = 'txt/' + r.file + '.txt';
+      const pdfHref = 'pdf/greenarrays/' + r.file + '.pdf';
+      const label = r.date || 'view';
+      return `<a href="#${txtHref}" onclick="event.preventDefault();history.pushState(null,'','#${txtHref}');showDoc('${txtHref}')" title="View text">${label}</a>` +
+             `<a href="${pdfHref}" target="_blank" title="Original PDF">PDF</a>`;
+    }).join(' ');
+    el.innerHTML = `<span class="ref-id">${doc.id}</span>` +
+                   `<span class="ref-title">${doc.title}</span>` +
+                   `<span class="ref-links">${revLinks}</span>`;
+    container.appendChild(el);
+  }
+})();
 </script>
 </body>
 </html>

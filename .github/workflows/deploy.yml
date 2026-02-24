@@ -43,12 +43,19 @@ jobs:
 
       - name: Assemble site
         run: |
-          mkdir -p _site/dist
+          mkdir -p _site/dist _site/txt _site/rom _site/pdf/greenarrays _site/pdf/cube
           cp docs/index.html _site/
           cp docs/*.md _site/
           cp -f docs/social.png _site/ 2>/dev/null || true
           cp -r src/dist/* _site/dist/
           cp -f docs/social.png _site/dist/ 2>/dev/null || true
+          # Reference text files
+          cp docs/txt/*.txt _site/txt/ 2>/dev/null || true
+          # ROM disassembly docs
+          cp docs/rom/*.md _site/rom/ 2>/dev/null || true
+          # PDF source documents
+          cp reference/greenarrays/pdfs/*.pdf _site/pdf/greenarrays/ 2>/dev/null || true
+          cp reference/cube/pdf/*.pdf _site/pdf/cube/ 2>/dev/null || true
           touch _site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
