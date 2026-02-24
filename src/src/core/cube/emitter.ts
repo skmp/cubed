@@ -127,6 +127,7 @@ export function emitCode(
   };
   if (bctx.regA !== undefined) node.a = bctx.regA;
   if (bctx.regP !== undefined) node.p = bctx.regP;
+  if (bctx.regIO !== undefined) node.io = bctx.regIO;
   if (bctx.regStack !== undefined) node.stack = bctx.regStack;
 
   return {
@@ -178,10 +179,53 @@ function emitItem(ctx: EmitContext, item: ConjunctionItem): void {
   }
 }
 
+// ---- Node boot descriptors ----
+
+/**
+ * Apply boot descriptor values from a `node NNN { a=X, b=Y, p=Z }` directive.
+ * These set register metadata on BuiltinContext, same as f18a.reg.* builtins,
+ * so the values propagate to CompiledNode without emitting any code.
+ */
+function applyNodeBootDescriptors(ctx: EmitContext, app: Application): void {
+  for (const arg of app.args) {
+    if (arg.name === 'coord') continue; // already handled by splitByNode
+    if (arg.value.kind !== 'literal') {
+      ctx.errors.push({
+        line: arg.loc.line, col: arg.loc.col,
+        message: `Node boot descriptor '${arg.name}' requires a literal value`,
+      });
+      continue;
+    }
+    const val = arg.value.value;
+    switch (arg.name) {
+      case 'a': ctx.builtinCtx.regA = val; break;
+      case 'b': ctx.builtinCtx.regB = val; break;
+      case 'p': ctx.builtinCtx.regP = val; break;
+      case 'io': ctx.builtinCtx.regIO = val; break;
+      case 'stack':
+        ctx.errors.push({
+          line: arg.loc.line, col: arg.loc.col,
+          message: `Node boot descriptor 'stack' is not yet supported in inline syntax`,
+        });
+        break;
+      default:
+        ctx.errors.push({
+          line: arg.loc.line, col: arg.loc.col,
+          message: `Unknown node boot descriptor: '${arg.name}' (expected a, b, p, io)`,
+        });
+    }
+  }
+}
+
 // ---- Application ----
 
 function emitApplication(ctx: EmitContext, app: Application): void {
-  if (app.functor === '__node' || app.functor === '__include') return;
+  if (app.functor === '__node') {
+    // Apply boot descriptor args (a, b, p, io, stack) from node directive
+    applyNodeBootDescriptors(ctx, app);
+    return;
+  }
+  if (app.functor === '__include') return;
 
   const sym = ctx.resolved.symbols.get(app.functor);
   if (!sym) return;

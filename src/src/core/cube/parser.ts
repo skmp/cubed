@@ -190,14 +190,28 @@ export function parseCube(tokens: CubeToken[]): { ast: CubeProgram; errors: Comp
   function parseNodeDirective(): AtomicFormula {
     const tok = advance(); // consume 'node'
     const numTok = expect(CubeTokenType.INT_LIT, 'node number');
+    const args: ArgBinding[] = [{
+      name: 'coord',
+      value: { kind: 'literal', value: numTok.numValue ?? 0, loc: { line: numTok.line, col: numTok.col } },
+      loc: { line: numTok.line, col: numTok.col },
+    }];
+
+    // Optional boot descriptor block: node NNN { a=0x175, b=0x1D5, p=0 }
+    if (check(CubeTokenType.LBRACE)) {
+      advance(); // consume {
+      if (!check(CubeTokenType.RBRACE)) {
+        args.push(parseArgBinding());
+        while (match(CubeTokenType.COMMA)) {
+          args.push(parseArgBinding());
+        }
+      }
+      expect(CubeTokenType.RBRACE, '}');
+    }
+
     return {
       kind: 'application',
       functor: '__node',
-      args: [{
-        name: 'coord',
-        value: { kind: 'literal', value: numTok.numValue ?? 0, loc: { line: numTok.line, col: numTok.col } },
-        loc: { line: numTok.line, col: numTok.col },
-      }],
+      args,
       loc: { line: tok.line, col: tok.col },
     };
   }

@@ -84,6 +84,7 @@ export interface BuiltinContext {
   regA?: number;
   regB?: number;
   regP?: number;
+  regIO?: number;
   regStack?: number[];
 }
 

@@ -412,3 +412,94 @@ describe('f18a.insn', () => {
     expect(mem[0] & 0x1FFF).toBe(0);
   });
 });
+
+// ---- Node boot descriptor syntax ----
+
+describe('node boot descriptor syntax', () => {
+  it('parses node with boot descriptors', () => {
+    const { tokens, errors } = tokenizeCube('node 112 { a=0x175, b=0x1D5 }');
+    expect(errors).toHaveLength(0);
+    const { ast, errors: parseErrors } = parseCube(tokens);
+    expect(parseErrors).toHaveLength(0);
+    const nodeItem = ast.conjunction.items[0];
+    expect(nodeItem.kind).toBe('application');
+    if (nodeItem.kind === 'application') {
+      expect(nodeItem.functor).toBe('__node');
+      expect(nodeItem.args).toHaveLength(3); // coord, a, b
+      expect(nodeItem.args[0].name).toBe('coord');
+      expect(nodeItem.args[1].name).toBe('a');
+      expect(nodeItem.args[1].value).toEqual(expect.objectContaining({ kind: 'literal', value: 0x175 }));
+      expect(nodeItem.args[2].name).toBe('b');
+      expect(nodeItem.args[2].value).toEqual(expect.objectContaining({ kind: 'literal', value: 0x1D5 }));
+    }
+  });
+
+  it('parses node without boot descriptors (backward compatible)', () => {
+    const { tokens, errors } = tokenizeCube('node 112');
+    expect(errors).toHaveLength(0);
+    const { ast, errors: parseErrors } = parseCube(tokens);
+    expect(parseErrors).toHaveLength(0);
+    const nodeItem = ast.conjunction.items[0];
+    if (nodeItem.kind === 'application') {
+      expect(nodeItem.functor).toBe('__node');
+      expect(nodeItem.args).toHaveLength(1); // only coord
+    }
+  });
+
+  it('sets CompiledNode.a and .b from boot descriptors', () => {
+    const source = 'node 112 { a=0x175, b=0x1D5 }\n/\\\nf18a.dup';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(1);
+    const node = result.nodes[0];
+    expect(node.coord).toBe(112);
+    expect(node.a).toBe(0x175);
+    expect(node.b).toBe(0x1D5);
+  });
+
+  it('sets CompiledNode.p from boot descriptor', () => {
+    const source = 'node 016 { p=0x3C }\n/\\\nf18a.dup';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    const node = result.nodes[0];
+    expect(node.p).toBe(0x3C);
+  });
+
+  it('sets CompiledNode.io from boot descriptor', () => {
+    const source = 'node 112 { io=0x15D }\n/\\\nf18a.dup';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    const node = result.nodes[0];
+    expect(node.io).toBe(0x15D);
+  });
+
+  it('does not emit preamble code for boot descriptors', () => {
+    // Boot descriptor a/b should NOT produce any code — only metadata.
+    // Compare with f18a.reg.a which also produces no code.
+    const source = 'node 112 { a=0x175, b=0x1D5 }\n/\\\nlabel{name=go}\n/\\\nf18a.fetch\n/\\\nf18a.storeb\n/\\\nf18a.jump{addr=go}';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    const node = result.nodes[0];
+    // Should be: [0] @|!b|jump(0) — just 1 word, no preamble
+    expect(node.len).toBe(1);
+    expect(node.a).toBe(0x175);
+    expect(node.b).toBe(0x1D5);
+  });
+
+  it('reports error for unknown boot descriptor key', () => {
+    const source = 'node 112 { x=5 }\n/\\\nf18a.dup';
+    const result = compileCube(source);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].message).toContain('Unknown node boot descriptor');
+  });
+
+  it('combines boot descriptors with all a, b, p', () => {
+    const source = 'node 016 { a=0x1D5, b=0x15D, p=0x3C }\n/\\\nf18a.dup';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    const node = result.nodes[0];
+    expect(node.a).toBe(0x1D5);
+    expect(node.b).toBe(0x15D);
+    expect(node.p).toBe(0x3C);
+  });
+});

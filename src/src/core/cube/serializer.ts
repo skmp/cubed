@@ -114,10 +114,15 @@ function serializeTypeExpr(te: TypeExpr): string {
 
 /** Serialize an application (or __node directive). */
 function serializeApplication(app: Application): string {
-  // Special handling for __node → node NNN
+  // Special handling for __node → node NNN { a=X, b=Y, ... }
   if (app.functor === '__node') {
-    const coord = app.args[0]?.value;
+    const coord = app.args.find(a => a.name === 'coord')?.value;
     if (coord && coord.kind === 'literal') {
+      const bootArgs = app.args.filter(a => a.name !== 'coord');
+      if (bootArgs.length > 0) {
+        const pairs = bootArgs.map(a => `${a.name}=${serializeTerm(a.value)}`).join(', ');
+        return `node ${coord.value} { ${pairs} }`;
+      }
       return `node ${coord.value}`;
     }
   }
