@@ -36,10 +36,12 @@ node 117
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.deltarelay{port=0x141, count=640}
 /\ std.send{port=0x145, value=0}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- GREEN DAC — DELTA VCO (node 617, analog)
@@ -49,9 +51,11 @@ node 617
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.deltarelay{port=0x141, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- BLUE DAC — DELTA VCO (node 717, analog)
@@ -61,15 +65,21 @@ node 717
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.deltarelay{port=0x141, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
 
 node 217
+
+/\
+
+std.forever{}
 
 /\
 
@@ -82,6 +92,10 @@ std.loop{n=480}
 
 -- End of frame: VSYNC
 std.send{port=0x15D, value=0x30000}
+
+/\
+
+std.repeat{}
 
 -- ============================================================
 -- NOISE COUNTER (node 508 — free-running)
