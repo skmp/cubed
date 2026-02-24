@@ -67,11 +67,7 @@ std.loop{n=480}
 -- ============================================================
 -- R = max for red + white stripes, 0 for blue stripe.
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -99,11 +95,7 @@ std.loop{n=160}
 -- ============================================================
 -- G = 0 for red, max for white, 0 for blue.
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 
@@ -131,11 +123,7 @@ std.loop{n=160}
 -- ============================================================
 -- B = 0 for red, max for white + blue stripes.
 
-node 716
-
-/\
-
-std.setb{addr=0x1D5}
+node 716 { b=0x1D5 }
 
 /\
 

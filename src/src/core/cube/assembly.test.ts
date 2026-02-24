@@ -475,7 +475,7 @@ describe('node boot descriptor syntax', () => {
 
   it('does not emit preamble code for boot descriptors', () => {
     // Boot descriptor a/b should NOT produce any code — only metadata.
-    // Compare with f18a.reg.a which also produces no code.
+    // Boot descriptors produce no code — only metadata.
     const source = 'node 112 { a=0x175, b=0x1D5 }\n/\\\nlabel{name=go}\n/\\\nf18a.fetch\n/\\\nf18a.storeb\n/\\\nf18a.jump{addr=go}';
     const result = compileCube(source);
     expect(result.errors).toHaveLength(0);

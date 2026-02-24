@@ -23,13 +23,7 @@
 -- Load: A=left, B=right, P=0
 -- 112 (even-x=12, even-y=1): left=0x175, right=0x1D5
 
-node 112
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 112 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -45,13 +39,7 @@ label{name=wire_112}
 -- Load: A=down, B=up, P=0
 -- 116 (even-x=16, even-y=1): down=0x115, up=0x145
 
-node 116
-
-/\
-
-std.setb{addr=0x145}
-/\ lit.hex18{value=0x115}
-/\ f18a.astore
+node 116 { a=0x115, b=0x145 }
 
 /\
 
@@ -69,13 +57,7 @@ label{name=wire_116}
 -- Load: A=up, B=right, P=0
 -- 216 (even-x=16, even-y=2): up=0x145, right=0x1D5
 
-node 216
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x145}
-/\ f18a.astore
+node 216 { a=0x145, b=0x1D5 }
 
 /\
 
@@ -93,13 +75,7 @@ label{name=wire_216}
 -- Load: A=left, B=right, P=0
 -- 316 (even-x=16, even-y=3): left=0x175, right=0x1D5
 
-node 316
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 316 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -119,13 +95,7 @@ label{name=wire_316}
 -- Stack initialized with: 0x25555 0x5555 0x15555 (repeated)
 -- These are pin drive values: hi-z, weak pulldown, etc.
 
-node 217
-
-/\
-
-std.setb{addr=0x15D}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 217 { a=0x1D5, b=0x15D }
 
 /\
 
@@ -209,13 +179,7 @@ label{name=yank_done}
 --   orig 4 ... best-42 5 ..best-145 9
 --   push a! begin unext run ;
 
-node 117
-
-/\
-
-std.setb{addr=0x15D}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 117 { a=0x175, b=0x15D }
 
 /\
 
@@ -290,16 +254,7 @@ label{name=run_117_delay}
 -- wire: A=down, B=right, clc (clear carry)
 -- pass: @ (read from A=down), AND with mask, shift, !b (write to B=right)
 
-node 017
-
-/\
-
--- Note: reference runs at P=0x200 in extended arith mode
--- We approximate this at RAM address 0
--- A=down(0x115), B=right(0x1D5)
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x115}
-/\ f18a.astore
+node 017 { a=0x115, b=0x1D5 }
 
 /\
 
@@ -331,14 +286,7 @@ label{name=pass_017}
 -- Load: A=right(0x1D5), B=io(0x15D), P=ent
 -- 016 (even-x=16, even-y=0): right=0x1D5, left=0x175, down=0x115
 
-node 016
-
-/\
-
--- Use boot descriptor for registers instead of compiled code
-f18a.reg.a{addr=0x1D5}
-/\ f18a.reg.b{addr=0x15D}
-/\ f18a.reg.p{addr=0x3C}
+node 016 { a=0x1D5, b=0x15D, p=0x3C }
 
 /\
 
@@ -514,13 +462,7 @@ label{name=ent_016}
 -- A=right=0x1D5 for reading from 016
 -- B=left=0x175 for writing to 014
 
-node 015
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 015 { a=0x1D5, b=0x175 }
 
 /\
 
@@ -612,13 +554,7 @@ label{name=sdata_end}
 -- Load: A=right, B=left, P=4(idl)
 -- 014 (even-x=14, even-y=0): right=0x1D5, left=0x175
 
-node 014
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 014 { a=0x1D5, b=0x175 }
 
 /\
 
@@ -749,13 +685,7 @@ label{name=pre_check_zero}
 -- Note: Code at 0x200+ in original (ROM area).
 -- We place at RAM 0 for the emulator.
 
-node 013
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 013 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -894,13 +824,7 @@ f18a.call{addr=check_013}
 -- Load: A=right, B=left, P=0
 -- 012 (even-x=12, even-y=0): right=0x1D5, left=0x175
 
-node 012
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 012 { a=0x1D5, b=0x175 }
 
 /\
 
@@ -1006,13 +930,7 @@ label{name=shift_full}
 -- Load: A=left, B=right, P=0
 -- 011 (odd-x=11, even-y=0): left=0x175, right=0x1D5
 
-node 011
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 011 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -1153,13 +1071,7 @@ label{name=lng_011}
 -- Load: A=right, B=down, P=0x23(run)
 -- 010 (even-x=10, even-y=0): right=0x1D5, down=0x115
 
-node 010
-
-/\
-
-std.setb{addr=0x115}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 010 { a=0x1D5, b=0x115 }
 
 /\
 
@@ -1257,13 +1169,7 @@ label{name=run_enabled}
 -- B=right=0x1D5 for DMA nexus
 -- A=left=0x175 for TX chain output
 
-node 111
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 111 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -1344,13 +1250,7 @@ label{name=run_111}
 -- Load: A=right, B=left, P=0xA(run)
 -- 113 (odd-x=13, odd-y=1): right=0x1D5, left=0x175
 
-node 113
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 113 { a=0x1D5, b=0x175 }
 
 /\
 
@@ -1449,13 +1349,7 @@ label{name=run_pkt_lo}
 -- Load: A=left, B=up, P=0x20A(run)
 -- 114 (even-x=14, even-y=1): left=0x175, up=0x145
 
-node 114
-
-/\
-
-std.setb{addr=0x145}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 114 { a=0x175, b=0x145 }
 
 /\
 
@@ -1617,13 +1511,7 @@ label{name=trail_out_loop}
 -- 214 (even-x=14, even-y=2): up=0x145, down=0x115
 -- RAM 0x00-0x1F = 32-word buffer, code at 0x20+
 
-node 214
-
-/\
-
-std.setb{addr=0x115}
-/\ lit.hex18{value=0x145}
-/\ f18a.astore
+node 214 { a=0x145, b=0x115 }
 
 /\
 
@@ -1707,13 +1595,7 @@ label{name=body_214}
 -- Load: A=down, B=right, P=0xA(run)
 -- 314 (even-x=14, even-y=3): down=0x115, right=0x1D5
 
-node 314
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x115}
-/\ f18a.astore
+node 314 { a=0x115, b=0x1D5 }
 
 /\
 
@@ -1829,11 +1711,7 @@ label{name=pkt_one_314}
 -- Load: B=left, P=0xC(kall), then 0x10(run)
 -- 315 (odd-x=15, odd-y=3): left=0x175, right=0x1D5
 
-node 315
-
-/\
-
-std.setb{addr=0x175}
+node 315 { b=0x175 }
 
 /\
 
@@ -1963,13 +1841,7 @@ label{name=zer_315}
 -- Load: A=down, B=io, P=7(done)
 -- 115 (odd-x=15, odd-y=1): down=0x115, up=0x145, io=0x15D
 
-node 115
-
-/\
-
-std.setb{addr=0x15D}
-/\ lit.hex18{value=0x115}
-/\ f18a.astore
+node 115 { a=0x115, b=0x15D }
 
 /\
 
@@ -2034,13 +1906,7 @@ label{name=done_no_stim}
 -- Load: A=up, B=down, P=9(auto)
 -- 215 (odd-x=15, odd-y=2): up=0x145, down=0x115
 
-node 215
-
-/\
-
-std.setb{addr=0x115}
-/\ lit.hex18{value=0x145}
-/\ f18a.astore
+node 215 { a=0x145, b=0x115 }
 
 /\
 
@@ -2164,13 +2030,7 @@ label{name=neg_wait_inner}
 -- Stack: 0x20000 0x30000 (repeated, for pin drive values)
 -- 317 (odd-x=17, odd-y=3): up=0x145, io=0x15D, right=0x1D5
 
-node 317
-
-/\
-
-std.setb{addr=0x15D}
-/\ lit.hex18{value=0x145}
-/\ f18a.astore
+node 317 { a=0x145, b=0x15D }
 
 /\
 
@@ -2416,13 +2276,7 @@ label{name=go_417}
 -- Load: A=right, B=left, P=right (port execute from 109)
 -- 108 (even-x=8, even-y=1): right=0x1D5, left=0x175
 
-node 108
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x1D5}
-/\ f18a.astore
+node 108 { a=0x1D5, b=0x175 }
 
 /\
 
@@ -2476,13 +2330,7 @@ label{name=inc_108}
 -- Load: A=left, B=right, P=left (port execute from 110)
 -- 109 (odd-x=9, odd-y=1): left=0x175, right=0x1D5
 
-node 109
-
-/\
-
-std.setb{addr=0x1D5}
-/\ lit.hex18{value=0x175}
-/\ f18a.astore
+node 109 { a=0x175, b=0x1D5 }
 
 /\
 
@@ -2572,13 +2420,7 @@ label{name=stm_109}
 -- Load: A=down, B=left, P=0x15(-dma)
 -- 110 (even-x=10, even-y=1): down=0x115, left=0x175, right=0x1D5
 
-node 110
-
-/\
-
-std.setb{addr=0x175}
-/\ lit.hex18{value=0x115}
-/\ f18a.astore
+node 110 { a=0x115, b=0x175 }
 
 /\
 

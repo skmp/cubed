@@ -149,16 +149,6 @@ export function emitBuiltin(
       return emitLabelDirective(builder, argMappings);
     case 'f18a.insn':
       return emitF18aInsn(builder, argMappings);
-    case 'f18a.reg.a':
-      if (ctx.regA === undefined) ctx.regA = argMappings.get('addr')?.literal;
-      else ctx.regA = argMappings.get('addr')?.literal;
-      return true;
-    case 'f18a.reg.b':
-      ctx.regB = argMappings.get('addr')?.literal;
-      return true;
-    case 'f18a.reg.p':
-      ctx.regP = argMappings.get('addr')?.literal;
-      return true;
     case 'f18a.org':
       builder.setLocationCounter(argMappings.get('addr')?.literal ?? 0);
       return true;

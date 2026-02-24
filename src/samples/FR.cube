@@ -72,11 +72,7 @@ std.loop{n=480}
 -- R = 0 for blue stripe, max for white + red stripes.
 -- Split into 3 fills to match green feeder's 3 fills per row.
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -91,11 +87,7 @@ std.loop{n=480}
 -- ============================================================
 -- G = 0 for blue stripe, max for white, 0 for red.
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 
@@ -111,11 +103,7 @@ std.loop{n=480}
 -- B = max for blue + white stripes, 0 for red.
 -- Split into 3 fills to match green feeder's 3 fills per row.
 
-node 716
-
-/\
-
-std.setb{addr=0x1D5}
+node 716 { b=0x1D5 }
 
 /\
 

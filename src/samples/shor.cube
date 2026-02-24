@@ -92,11 +92,7 @@ std.loop{n=480}
 -- Factor band: R = 0 (green only).
 -- 4 period bands of 96 rows + 1 factor std.band of 96 rows = 480.
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -138,11 +134,7 @@ std.loop{n=96}
 -- ============================================================
 -- Yellow bands: G = same as R. Factor band: G = max.
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 

@@ -94,10 +94,7 @@ const BUILTIN_PARAMS: Record<string, string[]> = {
   'lit.utf8':   ['s'],                 // emit UTF-8 bytes packed into 18-bit words
   // Raw instruction word assembly
   'f18a.insn':  ['s0', 's1', 's2', 's3', 'd', 'a'],  // emit one instruction word with explicit slots + optional data/address
-  // Node metadata (register/boot descriptor settings — no code emitted)
-  'f18a.reg.a': ['addr'],                             // set initial A register (boot descriptor)
-  'f18a.reg.b': ['addr'],                             // set initial B register (boot descriptor)
-  'f18a.reg.p': ['addr'],                             // set initial P (start address, boot descriptor)
+  // Node metadata (no code emitted)
   'f18a.org':   ['addr'],                             // set code origin (location counter)
   'f18a.cy':    ['enable'],                           // set extended arithmetic mode bit (0x200 in jump addresses)
   'f18a.data':  ['value'],                            // emit raw data word (NOT XOR-encoded)

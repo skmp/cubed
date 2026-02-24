@@ -77,11 +77,7 @@ std.loop{n=480}
 -- Decorative VGA bands showing modular exponentiation concept.
 -- Same pattern as shor.cube (a=7 precomputed values).
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -122,11 +118,7 @@ std.loop{n=96}
 -- GREEN FEEDER (node 616)
 -- ============================================================
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 

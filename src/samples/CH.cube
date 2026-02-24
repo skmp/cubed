@@ -85,11 +85,7 @@ std.loop{n=480}
 -- ============================================================
 -- R = max (0x0AA) for entire 256x256 flag, zero (0x155) elsewhere.
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -119,11 +115,7 @@ std.loop{n=112}
 -- ============================================================
 -- G = max (0x0AA) for white bar only, zero (0x155) elsewhere.
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 
@@ -153,11 +145,7 @@ std.loop{n=208}
 -- ============================================================
 -- B = same as G (white bar only).
 
-node 716
-
-/\
-
-std.setb{addr=0x1D5}
+node 716 { b=0x1D5 }
 
 /\
 

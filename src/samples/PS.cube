@@ -75,11 +75,7 @@ std.loop{n=480}
 -- White stripe: all max (triangle + white both have R=max).
 -- Green stripe: 64px red triangle, rest zero.
 
-node 116
-
-/\
-
-std.setb{addr=0x1D5}
+node 116 { b=0x1D5 }
 
 /\
 
@@ -112,11 +108,7 @@ std.loop{n=160}
 -- White stripe: 192px zero (triangle), 448px max (white).
 -- Green stripe: 64px zero (triangle), 576px max (green).
 
-node 616
-
-/\
-
-std.setb{addr=0x1D5}
+node 616 { b=0x1D5 }
 
 /\
 
@@ -149,11 +141,7 @@ std.loop{n=160}
 -- White stripe: 192px zero (triangle), 448px max (white).
 -- Green stripe: all zero (green + red triangle both have B=0).
 
-node 716
-
-/\
-
-std.setb{addr=0x1D5}
+node 716 { b=0x1D5 }
 
 /\
 
