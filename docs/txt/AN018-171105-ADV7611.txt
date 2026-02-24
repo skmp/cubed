@@ -1,0 +1,1670 @@
+[Derived from: ../../reference/greenarrays/AN018-171105-ADV7611.compact.html]
+GreenArrays®
+AN018 Controlling the ADV7611 HDMI Receiver
+Application Note AN018 Revised 11/05/17
+Controlling the ADV7611 HDMI Receiver
+
+The Analog Devices® ADV7611 is a chip designed to interface an audiovisual sink with an HDMI source. This paper describes controlling this chip (on an EVAL-ADV7611eb2z BOARD) to initialize the HDMI link, negotiate video format and produce a parallel RGB data stream for 1080p video. Does not support audio, HDCP decryption, repeater functions, Infoframes or CEC packets. The implementation complies with the mandatory parts of the standards below, which are adequate for 1080p video sinks at 60 Hz refresh. Reference documentation other than that of GreenArrays is as follows:
+HDMI Specification Version 1.3a (276 pp) VESA Extended Display Identification Data Standard, Release A, Revision 1 (32 pp) EIA/CEA Standard 861-B (A DTV Profile for Uncompressed High Speed Digital Interfaces) (134 pp) Analog Devices ADV7611 Low Power 165 MHz HDMI Receiver Data Sheet Rev D (16 pp) ADV7611 Eval Note Rev A (42 pp) ADV7611 Register Settings Recommendations Rev 1.5 (11 pp) ADV7611 Reference Manual UG-180 Rev C (184 pp) ADV7611 Software Manual (Documentation of Register Maps) Rev A (129 pp) I2C bus specification and user manual (NXP UM10204) (64 pp)
+This work was funded by Sunrise Systems, Inc., manufacturer of custom LED signage.
+
+Contents
+
+1.
+
+Test Platform......................................................................................... 2
+
+1.1
+
+Modifications to the AD Evaluation Board ......................................................................2
+
+1.2
+
+Connecting the AD Eval Board to an EVB001...................................................................3
+
+1.3
+
+Dual Chip IDE Operations ................................................................................................4
+
+2.
+
+Implementation .................................................................................... 5
+
+2.1
+
+Compilation Load Block and Boot Descriptors .................................................................5
+
+2.2
+
+Low Speed I2C Bus Mastering .......................................................................................... 5
+
+2.3
+
+Accessing Target Nodes from Host Chip .......................................................................... 7
+
+3.
+
+Reference .............................................................................................15
+
+3.1
+
+ADV7611 Registers........................................................................................................ 15
+
+3.2
+
+HDMI Negotiation......................................................................................................... 24
+
+3.3
+
+Video Received from HDMI Sources .............................................................................. 29
+
+4.
+
+Revision History ...................................................................................31
+
+AN018 Controlling the ADV7611 HDMI Receiver
+1. Test Platform
+For this exercise we began with an Analog Devices evaluation board P/N EVAL-ADV7611EB2Z and the most recent chip and board documentation from the AD website. As an initial sanity and integrity check we tried using the AD-provided PC software to talk to the ARM processor on the board; however it did not appear to work correctly and so we concluded that the effort to get that working properly would be better spent simply talking to the ADV7611 directly, without fighting through the battle of running video clear through the board to a monitor.
+1.1 Modifications to the AD Evaluation Board
+This turned out to be very simple. As delivered, the board had no jumpers inserted other than K1 and K2, both of which were in the "A" position. To give us complete control over the I2C bus, we simply inserted K8 (between the MCU xtal and MCU reset button, as shown in the photograph to the right). This holds the ARM in reset so that it does nothing to the I2C bus.
+All the signals required to control the ADV7611 are available on the 6-pin header P1, labeled I2C, as shown to the left with pin 1 on top. We will use pins 2 through 4:
+Pin 2 is -Global Reset Pin 3 is SCL Pin 4 is SDA Pin 5 is GND
+For probing, we then soldered single header pins into six test points as shown to the right:
+HPA_A (hot plug signal) adjacent to HDMI connector (Note that D2 is illuminated when this signal is high meaning cable in and active)
+INT1 (Interrupt signal for selected state changes) near top of Y1 VS (Vertical Sync) to right of stakes labeled ALSB HS (Horizontal Sync) adjacent to VS DE (Data Enable) adjacent to HS LLC (Pixel Clock) to right of the ADV7611.
+
+2
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+1.2 Connecting the AD Eval Board to an EVB001
+The ADV7611 runs its I2C bus with VCC of 3.3V. Initially, we planned to simply drive the clock and data lines through 1k series current limiting resistors, enabling us to drive the lines to [0.6..2.4V] which is at least 200 mV outside the [0.8..2.0V] VIL to VIH range for the ADV7611. Accordingly we soldered headers into J32 and J36 of the eval board, added headers in the prototyping area and used them to connect a cable from P1.2 thru P1.5 of the AD Eval Board to Target 10708.15 (SCL), 10708.1 (SDA) and 10517.17 (-RST) through 1k resistors, as shown to the right.
+We then built a simple cable connecting these three signals to the AD Eval board using twisted pairs, as shown to the right.
+As it turned out this was marginal, with data-dependent timing problems. We concluded this was electrical and so after trying TI TXS010x bidirectional level shifters (which turned out to be magnificent bidirectional noise amplifiers and oscillators) we wound up with a 3-pin interface using the simple RS232 drivers output for level shifting. This allowed us to observe that the I2C interface on the ADV7611 does not actually comply with the NXP I2C spec (UM10204), assuming things such as consistent clock low time and data hold times that aren't in the spec. So we had to re-do our I2C procedures relative to what worked fine with the TI SensorTag of AN012. The result is stable but it does suggest that the original, minimal interface might have worked with the ADV7611 timing requirement adaptation. It is possible that the new timing would have worked with the simpler electrical interface and its weaker voltage margins; that exercise would be left to the reader.
+1.2.1 The improved interface
+Per the photo to the right, we used the simple RS232 transmitters as level shifters from 1.8 to 3.3V. The 3.3V supply from the Analog Devices board is brought to DB9 pin 4 of both connectors J52 and J58 (jumpered on back side of the EVB001.) Clock from 705.17 is connected from J32.1 to J59.2 and the shifted signal from J58.2 to the Analog Devices SCL signal. Data out from 705.5 is connected from J32.2 to J54.2 and the shifted signal from J52.2 to the Analog Devices SDA signal; that signal is connected in turn through a 1k current limiting resistor to the data input pin 705.1 at J32.4.
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+3
+
+AN018 Controlling the ADV7611 HDMI Receiver
+1.3 Dual Chip IDE Operations
+For manual verification of connections to the target chip, and later for booting the two-chip platform, we use the standard dual-chip IDE capabilities built into arrayForth.
+bridge load compiles a version configured for two chips with a default path 0 that can reach all nodes of the Target chip, with or without the polyFORTH virtual machine present on the Host chip. Extended node numbering is supported in the form cyyxx where c is zero-relative chip number; thus nodes 000 through 717 are on the Host chip, while nodes 10000 through 10717 are on the Target chip.
+talk is then used to reset the host chip and program its node 708 for IDE operations.
+span resets the Target chip and builds a transparent bridge in node 300 of each chip for carrying port communications between the chips, dedicating those nodes to this purpose until next reset.
+With the port bridges installed, the up ports of node 400 on each chip are logically connected as though they were a simple COM port. Port read/write communications, such as IDE, are basically transparent across this connection except that data transfers take 100 or more times longer, no flow control is supported, and polling of io by node 400 has limited usefulness. Node 300 will seem to be writing when a word sent by the other chip is waiting to be read, it will seem to be neither reading nor writing during serial data transmission in either direction, and it will seem to be reading at all other times regardless of the state of node 400 in the other chip. Path 2 is redefined to access most of the Host chip without interfering with the top row or left edge down to node 300, Path 0 is redefined to access all nodes of the Target chip, and path 1 is available for programmer use as needed.
+424 load boots both chips using a fast serial boot stream, leaving the IDE operational as in the above environment.
+
+4
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+2. Implementation
+This is a simple application of resetting and configuring the ADV7611 chip for autonomous operation. The code for this project was compiled in blocks 840ff of the arrayForth system. This section provides a walk-through of this software.
+
+2.1 Compilation Load Block and Boot Descriptors
+Block 844 is loaded from 200 as part of compile . The Boot Descriptors in 846 are loaded before the clock and ethernet nodes in the polyFORTH load descriptors, block 362. Note that this pre-fills the target chip with Mark 2 Ganglia.
+844 list i2c testing reclaim, ,..slow i2c bus 850 load, ....ops 852 load, , , 846 list - sunrise load descrs, l, nn dup +node 100 /mod 1 and 2* swap 1 and + 1714 + push 32 32 pop /part warm A9 /p ; ganglia nns for i -1 143 + n-nn l, next ; nd abpn dup +node /ram /p /b /a ;, , slo-i2c 0 io warm down 10705 nd hi-z 0 /io, ..ops up down warm up 10605 nd, ,
+
+2.2 Low Speed I2C Bus Mastering
+Node 705 controls the I2C bus used to communicate with the ADV7611, using three of its four pins to drive the 3.3V bus on that chip. Pin 705.17 drives open drain SCL using one of the the simple RS232 transmit circuits on the EVB001. Pin 705.5 drives open drain SDA using the other of these circuits. Because the transmit circuit is always "hot" we must use another pin to read the SDA line; this is 705.1 with a 1k series current limiting resistor.
+
+i2c bus drive using micronext loops for timing ..17 is scl out only. 1 sda in 5 sda out., ..assumes use of open drain level shift out., ..using minimal rs232s for both lvl shifters., ..timing adjusted to make adv7611 happy., , set sets pins then waits 1/2 bit time. c+d+ c+d- etc set bus state and delay. any, ..clock rise !hi may be stretched. w1 xmit bit16 i1 rcv bit1 both shift left. w8 xmit/shift bits 15-8, ret nak bit1. w16 xmits bits 15-0. r8 shifts byte into bits 8-1. strt or restart chip a;*stop ends frame., , port executable functions..., ....all of these require port execution, ....help to deliver args and results., @regs starts burst read of chip a reg i, ..@w+ reads 16 bits msb first into bits 16-1, ..@w. @b. read final word/byte to 8-1 !af starts reg write., ..use w8 w16 as needed then stop.
+
+850 list 10705 simple i2c reclaim 10705 node 0 org, set n 00 !b 1200 400 600 for unext ; !hi n 03 dup begin over set, ..drop @b -until drop drop ; c+d- 07 30020 !hi ;*c-d+*c-d* 09 20030 set ; c-d- 0B 20020 set ;*c+d+*c+d* 0D 30030 !hi ;, , w1 n-n' 0F 2* -if*wnak c-d+ c+d+ c-d+ ;, ..*wack then c-d- c+d- c-d- ; w16 leap*w8 h.l-l.s then 7 for 2* w1 2/ next, ..*i1 n-n+ c-d* c+d* @b 2 and or c-d* ; rest a.x-x.nk 20 c-d+*strt c+d+ c+d- c-d- w8 ; stop 25 wack c+d+ c-d- c+d- c+d* ; !af a.i-s 28 strt w8 ; r8 -n 2A 7 for 2* i1 next ; zr8+ -n 2F dup dup or*r8+ n-n 30 r8 wack ; @regs a.i-ss 32 dup 100 or, ..push !af pop rest ; @w+ -n 36 zr8+ r8+ ; @w. -n 38 zr8+*@b. n-n' 39 r8 wnak stop ;, 3C reclaim exit
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+5
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Timing is generated by a unext loop in this node and is well below the "fast" I2C rate supported by the ADV7611. The algorithm and factoring differs from the code in AN012 (SensorTag) because the ADV7611 seems to care about SDA hold time past trailing edge of SCL, and also seems to measure clock periods and use that measurement to time its own assertion of SDA for ACK/NAK signaling, thus creating interoperability problems (neither of these practices complies with the Standards but that is, as they say, life.)
+Node 605 provides high level primitives for register operations. These are designed to be performed using ganglion exchages.
+
+605 performs read/write burst primitives as, ..commanded by ganglion exchanges from 505., the protocol is a call to @nw or !nw, followed ..by a.i and n, a 1-relative byte count., after this 3-word command, n+1/2 words are, ..moved in or out as required. for writing a, ..null inbound word is required by ganglia., , a points to up,505; b to down,705., , @r; burst read on chip a register i @nb bursts n bytes with msb in first reg. !w; burst write on chip a register i !nb bursts n bytes with msb in first reg.
+
+852 list 10605 i2c ops reclaim 10605 node 2 org, 1w+ -n 02 @p !b .. @w+ .. @p !b @b ; .. 2/ !p 1w. -n 06 @p !b .. @w. .. @p !b @b ; .. 2/ !p 1b. -n 0A @p !b .. @b. .. @p !b @b ; .., ..2* 2* 2* !p @r;; 0E @p !b a.i @ .. @p @regs @nb 10 a.i !b, ..n @ dup 1 and push -1 . + 2/ push, ..begin zif pop if 1b. 2* 2* 2* 2* ! ;, ....then 1w. ! ; then 1w+ ! end, , w8+ n 1E @p !b !b ; .. @p w8 .. w16+ n 20 @p !b !b ; .. @p w16 .. stop. 22 @p !b ! ; .. stop .. !r;; 24 @p !b a.i @ .. @p !af !nb 26 a.i !b, ..n @ dup 1 and push -1 . + 2/ push, ..begin zif pop if @ w8+ stop. ;, ....then @ w16+ stop. ; then @ w16+ end, , 33 0 org @r; 00 a.i,n @r;; ; !r; 01 a.i,n !r;; ;, 02 reclaim exit
+
+The primitives are stream reads and writes of one or more consecutive registers starting at a given register in a given device. Because there is no shortage of space in this node, the interface to polyFORTH code is simplified by providing fixed start addresses of 00 and 01 for the two routines.
+No code is needed in node 517, whose pin 17 is used to reset the circuitry on the ADV7611 board. We simply control this signal by using port execution to write io in node 517 with ganglion transactions.
+
+6
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+2.3 Accessing Target Nodes from Host Chip
+polyFORTH code may exchange data with the I/O support nodes on the Target chip using the Snorkel and Mark 2 Ganglia. The initial path for such transactions goes North one from Node 307, West 7 to Node 400, and South 1 which brings us to node 10400 in the Target chip using the transparent bridge. From there the path depends on which node is to be accessed.
+The diagram below shows the Port Bridge being dynamically accessed via Snorkel and Ganglion (the dotted line) to perform operations on the Target Chip:
+
+701 sd
+
+705.17 531
+
+708.17
+
+708.1
+
+709.ai ao
+
+713.ai ao
+
+715.17
+
+716.ai ao
+
+700
+
+701
+
+702
+
+703
+
+704
+
+705
+
+706
+
+707
+
+708
+
+709
+
+710
+
+711
+
+712
+
+713
+
+714
+
+715
+
+716
+
+717
+
+SPI
+
+I/O
+
+600.17 600
+
+601
+
+602
+
+603
+
+604
+
+605
+
+606
+
+607
+
+608
+
+609
+
+610
+
+611
+
+612
+
+613
+
+614
+
+615
+
+616
+
+617 617.ai
+
+617.ao
+
+500.17 500
+
+501
+
+502
+
+503
+
+504
+
+505
+
+506
+
+507
+
+508
+
+509
+
+510
+
+511
+
+512
+
+513
+
+514
+
+515
+
+516
+
+517
+
+517.17
+
+400
+
+401
+
+402
+
+403
+
+404
+
+405
+
+406
+
+407
+
+408
+
+409
+
+410
+
+411
+
+412
+
+413
+
+414
+
+415
+
+416
+
+417 417.17
+
+TO 300
+
+301
+
+302
+
+303
+
+304
+
+305
+
+306
+
+307
+
+308
+
+309
+
+310
+
+311
+
+312
+
+313
+
+314
+
+315
+
+316
+
+317 317.17
+
+TARGET
+
+sync port
+
+bridge
+
+200
+
+201
+
+202
+
+203
+
+204
+
+205
+
+206
+
+207
+
+208
+
+209
+
+210
+
+211
+
+212
+
+213
+
+214
+
+215
+
+216
+
+217 217.17
+
+term
+
+optiona l
+
+optiona l
+
+snorkel
+
+FTDI Rx
+
+app coproc
+
+app coproc
+
+960
+
+kbaud
+
+serial
+
+To PC 100
+
+101
+
+term
+
+102
+
+103
+
+104
+
+105
+
+106
+
+107
+
+108
+
+109
+
+term
+
+bitsy
+
+stack
+
+SRAM
+
+optiona l
+
+110
+
+111
+
+112
+
+113
+
+114
+
+115
+
+116
+
+117 117.ai
+
+Tx
+
+ctl
+
+control
+
+app
+
+coproc
+
+117.ao
+
+000
+
+001
+
+002
+
+003
+
+004
+
+005
+
+006
+
+007
+
+008
+
+009
+
+010
+
+011
+
+012
+
+013
+
+014
+
+015
+
+016
+
+017
+
+co proc
+
+co proc
+
+SRAM
+
+SRAM
+
+SRAM
+
+data
+
+ctl
+
+addr
+
+bus
+
+lines
+
+bus
+
+PH
+
+PH
+
+001 sd
+
+007 bus 18
+
+008.17 531
+
+009 bus 18
+
+GA144 Host comm for Target / ADV7611
+
+A similar procedure is used when booting from flash. The polyFORTH code for this project is in 300ff; here's an index of the active blocks.
+
+300.( ADV7611 Control) 301 ( I2C Transaction 302 ( I2C Ops) 303. ( Reset / 517.17) 304 ( ADV7611) HEX 305 ( ADV7611 reg cha 306. ( Mfgr Mandatory) 307 ( More control) 308 ( EDID ops) HEX 309. ( EDID Structures 310 ( Interrupts) D
+
+312.( Chip status) HEX 313 ( Hdmi block) H 314 ( CP block) HEX 315. ( Chip status)
+
+321.Undefined 322 Undefined 323 Gamut Metadata Packe 324.HDMI cable +5V is de 325 New Gamut Metadata h 326 HDMI Source has upda 327.CEC Transmitter has
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+7
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+First we have the load block and I2C Operations:
+
+2700 0 Exercise to support the Analog Devices ADV7611 HDMI receiver. 1 This code configures the chip to receive 1080p RGB data and 2 to drive that as RGB onto its parallel pixel bus. 3 4 Node 10705 drives the I2C bus and 10605 supports our primitives 5 for transfers. 6 7 +ADCHIP resets the ADV7611 hardware and 8 9
+10 11 12 13 14 15
+2701 0 Node 10605 supports primitives to write and read strings, doing 1 the operations as words or bytes as appropriate. 2 3 Protocol 10605.up: call a.i n <data out for write, in for read> 4 n is in octets, 1-relative. 5 6 ~r and ~w are Ganglion Mark 2 messages. 7 8 ~R and ~W are the corresponding Snorkel programs 9
+10 11 12 13 14 15
+2702 0 @I2C and !I2C are the two primitives supported by node 605 1 for stream reads/writes on n registers starting at a.i 2 3 R@ and R! read and write single registers. 4 WR@ and WR! read and write pairs as 16-bit values. 5 6 7 8 9
+10 11 12 13 14 15
+2703 0 Pin 517.17 is connected to board global reset- thru 1k resistor 1 2 After reset, hot plug detect is deasserted (ground) and all the 3 internal registers are set to their default values. 4 5 !RESET controls the line 1=hi 0=low 6 7 -ADCHIP is prescribed reset procedure & timing. 8 9
+10 11 12 13 14 15
+
+300 0 ( ADV7611 Control) EMPTY DECIMAL 1 : .XX. ( n w) BASE @ >R HEX .X. R> BASE ! ; 2 ( Ops) 1 FH 3 FH THRU 3 ( ADV7611) 4 FH 10 FH THRU 4 5 : +ADCHIP -ADCHIP !BASES !ADIr +PWR +VIDPRM +PBUS 6 /EDID 0 E-SEG !EDID +EDID 7 /INTS +INTS 8 @ALL !BASELINE ; 9
+10 ( Display) 12 FH LOAD 11 12 13 14 15
+
+301
+
+0 ( I2C Transactions) HEX VARIABLE wxx
+
+1 CREATE ~r :DOWN 2, 1.2034 2, ( #io) HERE 1+ 0 W, 2 W,
+
+2
+
+( 10605) 1 +N 7 +W 1 +S 1 +N 5 +E 0 +N deliv
+
+3 ( pay) 1.2000 2, HERE 1+ 0 W, 0 W, HERE ~r - 2/ 1-
+
+4 CONSTANT /~r CONSTANT a.ir CONSTANT #ri
+
+5
+
+6 CREATE ~w :DOWN 2, 1.2034 2, ( #io) 0 W, HERE 1+ 2 W,
+
+7
+
+( 10605) 1 +N 7 +W 1 +S 1 +N 5 +E 0 +N deliv
+
+8 ( pay) 1.2001 2, HERE 1+ 0 W, 0 W, HERE ~w - 2/ 1-
+
+9 CONSTANT /~w CONSTANT a.iw CONSTANT #wo
+
+10
+
+11 CREATE ~R :DOWN 2, o18 , /~r W, ~r W, i16 , 0 W, 0 W,
+
+12 HERE FIN , CONSTANT ~Rfin
+
+13
+
+14 CREATE ~W :DOWN 2, o18 , /~w W, ~w W, o16 , 0 W, 0 W,
+
+15 i16 , 0 W, wxx W, HERE FIN , CONSTANT ~Wfin
+
+302 0 ( I2C Ops) 1 : @I2C ( a.i a n) DUP a.ir 2 + ! ( wds) 1+ 2/ 12 DUP #ri ! ~R 9 + ! ~R 11 + ! ( SWAP >< +) a.ir ! 3 ~R ~Rfin +SNORK sDONE ; 4 5 : !I2C ( a.i a n) DUP a.iw 2 + ! ( wds) 1+ 2/ 6 DUP 2 + #wo ! 1- ~W 9 + ! ~W 11 + ! ( SWAP >< +) a.iw ! 7 ~W ~Wfin +SNORK sDONE ; 8 9 VARIABLE one
+10 : R@ ( a.i - c) one 1 @I2C one @ >< ; 11 : WR@ ( a.i - c) one 2 @I2C one @ ; 12 : R! ( c a.i) SWAP >< one ! one 1 !I2C ; 13 : WR! ( n a.i) SWAP one ! one 2 !I2C ; 14 15
+
+303
+
+0 ( Reset / 517.17) HEX
+
+1 CREATE io517 :DOWN 2, 1.2034 2, ( #io) 0 W, 3 W,
+
+2
+
+( 10517) 1 +N 7 +W 1 +S 1 +N 10 +E deliv
+
+3 ( @p b! @p dup) 4B13 W, ( io) 15D W, ( val) HERE 0 W,
+
+4
+
+( !b !p ;) 9955 W, HERE io517 - 2/ 1- CONSTANT /io517
+
+5 CONSTANT v517 VARIABLE junk
+
+6
+
+7 CREATE IO517 :DOWN 2, o18 , /io517 W, io517 W,
+
+8 i16 , 0 W, junk W, HERE FIN , CONSTANT ioFIN
+
+9
+
+10 : !RESET ( t) NOT 2 B* v517 ! IO517 ioFIN +SNORK sDONE ;
+
+11
+
+12 DECIMAL
+
+13 : -ADCHIP 0 !RESET 10 MS 1 !RESET 10 MS ;
+
+14
+
+15
+
+8
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+The next section of code facilitates access to the extensive register space within the ADV7611, including basic operations and initialization procedures. Several tools are included for diagnostic examination of the device.
+
+2704 0 The Dev words compose a.i values for the given register in 1 the named device. 2 3 .DEV and .io temporarily show real time values of a device's 4 registers. 5 6 !BASES sets the base address registers for all the devices 7 other than io which is always 98. 8 9
+10 11 12 13 14 15
+2705 0 This section is mainly useful for documenting which registers 1 change state as different things are done witihin the chip or 2 by the HDMI source. 3 4 @ALL reads the entire chip into the REG table. 5 !BASELINE copies the most recent REG content into WERE . 6 7 DELTA compares current REG content with WERE and for each 8 difference displays device/reg old new 9
+10 11 12 13 14 15
+2706 0 DMP defines dumpers for I2C devices from most recently fetched 1 REG array. 2 3 ADIr is a table of a.i, c for ADI recommended initialization 4 settings (from Recomended Settings rev 1.5) 5 6 !ADIr makes these recommended settings. Note that some of the 7 statements in "Recommended Settings" manual are self contra8 dictory, and many of the registers and/or bits they require 9 changing are not documented in the Reference or SW manuals.
+10 Further, there are many crucial things that have to be done 11 in order to get the chip running, but are not even mentioned 12 in that manual. 13 14 15
+2707 0 +PWR powers up the chip sections we are going to use. For now 1 the CEC is left down. Enables termination of TDMS clock line 2 and equalizer dynamic mode before doing so. 3 4 +PBUS enables pixel output with 4x driver on LLC. 5 6 +VIDPRM sets our video parameters for 1080p only: 7 Freerun uses explicit params; 1080p 60 Hz component; 8 RGB_OUT; 24-bit 4:4:4 SDR; No AV codes in output; 9 VS/HS positive going; freerun if bad video standard;
+10 11 -VIDPRM sets reset defaults. 12 13 14 15
+
+304
+
+0 ( ADV7611) HEX
+
+1 : Dev ( a) >< CONSTANT DOES> ( i - a.i) @ + ;
+
+2 98 Dev io 4C Dev dpll 68 Dev hdmi 6C Dev edid 80 Dev cec
+
+3 44 Dev cp 64 Dev ksv 7C Dev info
+
+4
+
+5 CREATE reg 80 ALLOT
+
+6 : .DEV ( a.i) reg 100 @I2C reg 0 D2* 100 XD ;
+
+7 : .io 0 io .DEV ;
+
+8
+
+9 0 2ARRAY BASES
+
+0F4 io , 0 cec , 0F5 io , 0 info ,
+
+10 0F8 io , 0 dpll , 0F9 io , 0 ksv , 0FA io , 0 edid ,
+
+11 0FB io , 0 hdmi , 0FD io , 0 cp , 000 io , 0 io ,
+
+12 : !BASES 6 FOR I BASES 2@ SWAP >< SWAP R! NEXT ;
+
+13
+
+14
+
+15
+
+305
+
+0 ( ADV7611 reg changes) HEX
+
+1 80 8 * DUP TABLE REG TABLE WERE
+
+2 : @ALL 7 FOR I BASES 1+ @ I 80 * REG + 100 @I2C
+
+3 : !BASELINE REG WERE 80 8 * MOVE ;
+
+4
+
+5 8 SARRAY devnam 0 S{ cec} 1 S{ info} 2 S{ dpll}
+
+6 4 S{ edid} 5 S{ hdmi} 6 S{ cp} 7 S{ io}
+
+7 : .AI ( a.i) 100 /MOD devnam TYPE ." /" 2 .XX. ;
+
+8 : .DEL ( n n i - n n) C# @ 40 > IF CR THEN .AI
+
+9 DUP 2 .XX. OVER 2 .XX. SPACE ;
+
+10
+
+11 : DELTA CR @ALL REG 2* WERE 2* 800 0 DO
+
+12
+
+OVER I + C@ OVER I + C@ 2DUP - IF I .DEL
+
+13 THEN 2DROP LOOP 2DROP ;
+
+14
+
+15
+
+NEXT ; 3 S{ ksv}
+
+306 0 ( Mfgr Mandatory) HEX 1 : DMP ( n) 80 * CONSTANT DOES> @ REG + 2* 0 100 XD ; 2 0 DMP .CEC 1 DMP .INFO 2 DMP .DPLL 3 DMP .KSV 3 4 DMP .EDID 5 DMP .HDMI 6 DMP .CP 7 DMP .IO 4 5 CREATE ADIr 6C cp , 0 , 9B hdmi , 3 , 6F hdmi , 8 , 6 85 hdmi , 1F , 87 hdmi , 70 , 57 hdmi , 0DA , 7 58 hdmi , 1 , 3 hdmi , 98 , 4C hdmi , 44 , 8D hdmi , 4 , 8 8E hdmi , 1E , 9 HERE ADIr - 2/ 1- CONSTANT /ADIr
+10 11 : !ADIr ADIr /ADIr FOR DUP 2@ R! 2 + NEXT DROP 12 0C1 hdmi 0B FOR 1 OVER R! 1+ NEXT DROP ; 13 14 15
+
+307 0 ( More control) HEX 1 : +PWR 1 1 hdmi R! 1 96 hdmi R! 2 42 0C io R! ( 3F 2A cec R!) ; 3 : +PBUS B0 15 io R! 6E 14 io R! ; 4 : -PBUS 0BE 15 io R! 6A 14 io R! ; 5 6 : +VIDPRM 2D C9 cp R! 1E 0 io R! 5 1 io R! F2 2 io R! 7 40 3 io R! 28 5 io R! A6 6 io R! 3 0BA cp R! ; 8 9 : -VIDPRM 2C C9 cp R! 8 0 io R! 6 1 io R! F0 2 io R!
+10 0 3 io R! 2C 5 io R! A0 6 io R! 1 0BA cp R! ; 11 12 13 14 15
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+9
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+We then have a section that builds the EDID structure and operates on it:
+
+2708 0 /EDID resets the EDID section. According to the manual this is 1 also what happens when source is powered down. 2 3 +EDID enables access to EDID on port A. 4 E-SEG selects EDID segment 0 (blocks 0/1) or 1 (blocks 2/3). 5 6 7 8 9
+10 11 12 13 14 15
+2709 0 OurEDID is an HDMI 1.3a-compliant EDID block 0 with CEC extens 1 that basically demands 1080p video at 60 Hz. See AN018 for 2 details about the values in this block. 3 4 !EDID writes the edid section in 1-byte hunks. This is nec 5 because the chip hangs if we try just bursting the whole thing 6 in, stops after 24 bytes interestingly enough. NOTE that this 7 would probably work with the new I2C timing. 8 9
+10 11 12 13 14 15
+
+308 0 ( EDID ops) HEX 1 : /EDID 8 5A hdmi R! ; 2 3 : +EDID 1 74 ksv R! ; 4 : -EDID 0 74 ksv R! ; 5 : E-SEG ( n) 4 + 7A ksv R! ; 6 7 : ," ( _") 22 WORD COUNT >R HERE 2* I CMOVE 8 R> 1+ CELL ALLOT ; 9
+10 11 12 13 14 15
+
+309
+
+0 ( EDID Structures) HEX
+
+1 CREATE OurEDID 0FF , -1 , -1 , FF00 , ( GAC) 1C23 , 0042 ,
+
+2 0 , 0 , ( date) 2D19 , ( ver) 0103 , 8100 , 0096 ,
+
+3 ( Feat) 0FEE , 91A3 , 544C , 9926 , 0F50 , 5400 , 0 ,
+
+4 ( Std Tim) D1C0 , 101 , 101 , 101 , 101 , 101 , 101 , 101 ,
+
+5 ( Det) 023A , 8018 , 7138 , 2D40 , 582C , 4500 , 0 , 0 , 1E ,
+
+6 ( Ser) 0 , 0FF , ," *GACYSproto001"
+
+7 ( Rng) 0 , 0FD , 003B , 3D43 , 4495 , 000A , ,"
+
+"
+
+8 ( Nam) 0 , 0FC , ," *Sunrise Mega1" ( Exts) 0100 ,
+
+9 ( CEA Vs) 0203 , 1201 , 6B00 , 0C03 , 1000 , 21 , 8000 , FF00 ,
+
+10 ( Vid) 4190 , OurEDID 80 + HERE - table
+
+11 ( Fixup) OurEDID 2* 0 OVER 4C + C! 0 SWAP 70 + C!
+
+12
+
+13 : !EDID OurEDID 2* 100 0 DO 1 MS DUP C@ I edid R!
+
+14
+
+1+ LOOP DROP ;
+
+15
+
+A final operational section controls and displays interrupts:
+
+2710 0 .INTS displays and interprets all 1-bits in interrupt raw src 1 registers. 2 3 +INTS enables INT1 pin and sets it for high active which may 4 not work with the ARM on the board. 5 6 /INTS resets all possible interrupt signals 7 8 9
+10 11 12 13 14 15
+
+310
+
+0 ( Interrupts) DECIMAL
+
+1 : .iTXT ( n) 64 1024 */MOD 321 + BLOCK 2* +
+
+2
+
+64 -TRAILING TYPE SPACE ; HEX
+
+3
+
+4 0 ARRAY iREG 42 , 47 , 5B , 60 , 65 , 6A , 6F , 79 ,
+
+5 7E , 83 , 88 , 8D , 92 , 97 ,
+
+6 : .INT1 ( i m n) 8 * >R OVER io R@ AND 8 0 DO
+
+7
+
+DUP 1 AND IF CR OVER 700 + .AI I . SPACE J I + .iTXT
+
+8 THEN 2/ LOOP 2DROP R> DROP ;
+
+9 : .INTS 0E 0 DO I iREG @ 0FF I .INT1 LOOP ;
+
+10
+
+11 : +INTS E2 40 io R! ;
+
+12 : /INTS 0E 0 DO 0FF I iREG @ 2 + io R! LOOP ;
+
+13
+
+14
+
+15
+
+10
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Because of the long access time of the Analog Devices documentation, it proved worthwhile to write some code that interprets the details of the device's status:
+
+2712 0 This section of code displays detailed status of the ADV7611. 1 2 3 4 5 6 7 8 9
+10 11 12 13 14 15
+
+2713 0 .HD 1 2 3 4 5 6 7 8 9
+10 11 12 13 14 15
+
+detailed display of
+
+hdmi
+
+section status.
+
+2714 0 .CPP detailed display of the cp section. 1 2 3 4 5 6 7 8 9
+10 11 12 13 14 15
+
+2715 0 .AD 1 2 3 4 5 6 7 8 9
+10 11 12 13 14 15
+
+shows complete status of the ADV7611.
+
+312 0 ( Chip status) HEX 1 : .YN ( t) IF ." YES. " ELSE ." NO. " THEN ; 2 : ?YN ( a.i m) SWAP R@ AND .YN ; 3 : .XX ( n) SPACE 2 .XX. SPACE ; 4 5 : .ints CR ." INT1" 3F io 2 ?YN ." STDI valid" 42 io 10 ?YN ; 6 7 ( More) 1 FH 3 FH THRU 8 9
+10 11 12 13 14 15
+
+313
+
+0 ( Hdmi block) HEX
+
+1 : .HD CR ." HDMI section mode " 5 hdmi R@ 80 AND IF ." HDMI"
+
+2
+
+ELSE ." DVI" THEN ." HS,VS high " 5 hdmi R@ 30 AND
+
+3
+
+2/ DUP 8 / OR 11 AND 2 .XX.
+
+4 ." X=" 7 hdmi WR@ 1FFF AND . ." Y=" 9 hdmi WR@ 1FFF AND .
+
+5 CR ." Bits/gun=" 0B hdmi R@ DUP C0 AND 20 / 8 + .
+
+6 20 AND ." Interlaced" .YN ." FIFO locked" 1C hdmi 8 ?YN
+
+7 CR ." Line wid " 1E hdmi WR@ . ." Front " 20 hdmi
+
+8 WR@ . ." HS " 22 hdmi WR@ . ." Back " 24 hdmi WR@ .
+
+9 CR ." Fld hght " 26 hdmi WR@ 2/ . ." Front " 2A hdmi WR@
+
+10 2/ . ." VS " 2E hdmi WR@ 2/ . ." Back " 32 hdmi WR@ 2/ .
+
+11 CR ." TDMS " 51 hdmi WR@ 0 3E8 80 M*/ D. ." kHz. "
+
+12 ." Input colors " 53 hdmi R@ 1 .XX. ." (0=RGB, 1=full) " ;
+
+13
+
+14
+
+15
+
+314
+
+0 ( CP block) HEX
+
+1 4 SARRAY frstat 0 S{ ning w/mode&std.} 1 S{ buff locked.}
+
+2 2 S{ ning w/buffered params.} 3 S{ Undefined!}
+
+3
+
+4 : .CPP CR ." CP section CSC " F4 cp R@ 10 / ?DUP IF 1 .XX.
+
+5
+
+ELSE ." BYPASS. " THEN
+
+6 ." STDI valid" B1 cp 80 ?YN ." Lines/frm=" A3 cp WR@ .
+
+7 CR ." Laced" B1 cp 40 ?YN ." Xtal/8Lin=" B1 cp WR@ 3FFF AND .
+
+8 ." Vsync=" B3 cp R@ 8 / . ." Xtal/fld=" B8 cp WR@ .
+
+9 CR ." CP Free-run" E0 cp R@ 10 / 3 AND frstat TYPE
+
+10 ." CP Free-running:" 0FF cp 10 ?YN ;
+
+11
+
+12
+
+13
+
+14
+
+15
+
+315
+
+0 ( Chip status) HEX
+
+1 : .AD CR 0EA io WR@ ." Chip " 4 .XX.
+
+2 ." HDMI 5V" 6F io 1 ?YN ." Assert HPA" 21 io 8 ?YN
+
+3 ." TDMS clk detect" 6A io 10 ?YN
+
+4 CR ." TDMS PLL locked" 6A io 40 ?YN ." VS Lock" 6A io 2 ?YN
+
+5
+
+." DE Lock" 6A io 1 ?YN ." HDMI PLL Lock" 4 hdmi 2 ?YN
+
+6 CR ." STDI laced" 12 io 10 ?YN
+
+7 ." CP proc lace" 12 io 8 ?YN
+
+8 ." Lace conflicts" 12 io R@ 6 AND 4 XOR .YN
+
+9 .HD .CPP .ints .INTS ;
+
+10
+
+11
+
+12
+
+13
+
+14
+
+15
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+11
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Lastly, blocks 321..327 are a table of text strings stating the meaning of each raw 1-bit in the interrupt registers:
+
+2721 0 These blocks have a text string for the meaning of 1 in each bit 1 of the raw interrupt status registers. 2 3 First 8 lines of this block are x42 bits 0..7 4 5 6 7 8 x47 bits 0..7 9
+10 11 12 13 14 15
+2722 0 x5B bits 0..7 1 2 3 4 5 6 7 8 x60 bits 0..7 9
+10 11 12 13 14 15
+2723 0 x65 bits 0..7 1 2 3 4 5 6 7 8 x6A bits 0..7 9
+10 11 12 13 14 15
+2724 0 x6F bits 0..7 1 2 3 4 5 6 7 8 x79 bits 0..7 9
+10 11 12 13 14 15
+2725 0 x7E bits 0..7 1 2 3 4 5 6 7 8 x83 bits 0..7 9
+10 11 12 13 14 15
+
+321 0 Undefined 1 Undefined 2 CP Locked 3 CP Unlocked 4 STDI Data Valid 5 Undefined 6 Undefined 7 Undefined 8 Undefined 9 Undefined
+10 Undefined 11 Undefined 12 Undefined 13 Undefined 14 Undefined 15 Manual forced interrupt signal
+322 0 Undefined 1 STDI Data is valid for sync channel 1 2 CP input has changed from locked to unlocked 3 CP input has changed from unlocked to locked 4 Undefined 5 Undefined 6 Undefined 7 Undefined 8 AVI Infoframe in last 7 VSYNC 9 AUdio Infoframe in last 3 VSYNC
+10 SPD Infoframe has been received 11 MPEG Infoframe in last 3 VSYNC 12 Vendor specific Infoframe has been received 13 ACP Packet in last 600 ms 14 ISRC1 Packet has been received 15 ISRC2 Packet has been received
+323 0 Gamut Metadata Packet in last frame 1 Audio clock regeneration packet has been received 2 General control packet has been received 3 HDMI (vs DVI) is being received 4 8-channel audio is being received 5 AV Mute received 6 Audio is muted 7 Channel status data is valid 8 DE Regeneration is locked to incoming DE signal 9 VS Filter has locked and vertical sync params are valid
+10 Video 3D detected 11 Undefined 12 TDMS Clock is detected 13 Undefined 14 TDMS PLL is locked to incoming clock 15 Undefined
+324 0 HDMI cable +5V is detected 1 Undefined 2 Current HDMI frame received is encrypted 3 Undefined 4 Undefined 5 Undefined 6 Undefined 7 Undefined 8 New AVI Infoframe has been received 9 New Audio Infoframe has been received
+10 New SPD Infoframe has been received 11 New MPEG Source Infoframe has been received 12 New Vendor Specific Infoframe has been received 13 New ACP Packet has been received 14 New ISRC1 Packet has been received 15 New ISRC2 Packet has been received
+325 0 New Gamut Metadata has been received 1 Audio Packet has been received with uncorrectable error 2 Any packet has been received with uncorrectable error 3 Status of ACR N value has changed 4 Status of ACR CTS value exceded CTS_CHANGE_THRESHOLD 5 Audio FIFO Overflow has occurred 6 Audio FIFO Underflow has occurred 7 Audio FIFO has nearly overflowed 8 Audio FIFO has nearly underflowed 9 TDMS Freq has changed by more than FREQTOLERANCE
+10 Audio Flat Line has been received 11 Audio Sampling Frequency has changed 12 Audio Parity Error has been received 13 Type of Audio packet received has changed 14 Irregular or missing pulses have been detected in TDMS clock 15 A change in the deep color mode has been detected
+
+12
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+2726 0 x88 bits 0..7 1 2 3 4 5 6 7 8 x8D bits 0..7 9
+10 11 12 13 14 15
+2727 0 x92 bits 0..7 1 2 3 4 5 6 7 8 x97 bits 0..7 9
+10 11 12 13 14 15
+
+AN018 Controlling the ADV7611 HDMI Receiver
+326 0 HDMI Source has updated AKSV in HDCP registers 1 Undefined 2 HDCP cipher Ri value has expired 3 Undefined 4 AVI Infoframe Checksum Error has been detected 5 Audio Infoframe Checksum Error has been detected 6 SPD Infoframe Checksum Error has been detected 7 MPEG Source Infoframe Checksum Error has been detected 8 Vendor Specific Infoframe Checksum Error has been detected 9 Undefined
+10 Undefined 11 Undefined 12 Undefined 13 Undefined 14 Undefined 15 Undefined
+327 0 CEC Transmitter has successfully sent a message 1 CEC TX has lost arbitration to another TX 2 CEC Transmitter Retry timeout has expired 3 CEC has received and buffer 0 ready to examine 4 CEC has received and buffer 1 ready to examine 5 CEC has received and buffer 2 ready to examine 6 Undefined 7 Undefined 8 CEC Opcode 1 received 9 CEC Opcode 2 received
+10 CEC Opcode 3 received 11 CEC Opcode 4 received 12 CEC Opcode 5 received 13 CEC Opcode 6 received 14 CEC Opcode 7 received 15 CEC Opcode 8 received
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+13
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3. Reference
+Things to revisit:
+· CEC enable? Do we comply without doing it? · Drive strength page 17? · Output sync options page 17? · Full or limited [16..235] RGB range? INP_COLOR_SPACE, OP_656_RANGE, which best for Sunrise modules? · LLC is flimsy! Triangle wave [0.4..2.8] volts even with 4x drivers.
+
+3.1 ADV7611 Registers
+The ADV7611 presents eight sections of registers to the I2C interface. This section documents the reset state of each of these registers along with notations and commentary on those that are relevant to this application.
+Tables show values found in the chip after reset (with HDMI source plugged in) in top position, and our normal setting (if different) in the second line. Colors are used to indicate the relevancy of each register:
+
+white grey yellow green orange pink
+
+Not checked or studied. Not defined in manual. Checked per manual, irrelevant. Checked and studied, default is fine. Changed one time on initialization, to lower value. Dynamic for interactive reading or writing, see notes
+
+Each of the eight sections of the chip has a separate I2C device address. The main section, io, is always at 9A unless a pin has been jumpered and a special procedure used. The rest are disabled at reset and enabled by storing their device addresses into io registers after reset. We use the conventional addresses to avoid conflicts with other chips on the ADV7611 evaluation board.
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+15
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.1.1 The IO Section (98)
+
+000 08 06 F0 00 62 2C A0 40 14 00 90 44 62 1E 0F 1E
+
+1E 05 F2 40
+
+28 A6
+
+42
+
+010 00 00 C0 0D 6A BE 43 5A 34 00 02 00 00 00 00 00
+
+81
+
+6E B0
+
+020 F0 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00
+
+030 88 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+040 20 30 04 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+E2
+
+08
+
+050 00 00 00 00 00 00 00 00 00 00 00 08 00 00 00 00
+
+04
+
+060 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00
+
+070 00 00 00 00 00 00 00 00 00 01 02 00 00 00 80 ??
+
+00 00
+
+00 00
+
+080 00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00
+
+00
+
+090 00 00 00 10 00 00 00 00 02 00 00 00 00 00 00 00
+
+00
+
+00
+
+0A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0B0 00 00 00 00 00 00 00 43 E0 00 00 08 0F FF 00 00
+
+0C0 00 0E 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0D0 00 0D F0 7D 5? FE 00 00 2D 15 F1 5F 00 00 00 00
+
+02 0F FF FF FF FF
+
+0E0 00 00 04 00 01 00 00 00 04 00 20 51 00 00 00 00
+
+0F0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+80 7C
+
+4C 64 6C 68
+
+44
+
+00 defaults to VGA 640x480 (gfx) video std. Set x1E for 1080p. 01 defaults to 60 Hz, HDMI-graphic video mode. Set x05 for 60 Hz HDMI-component. 02 defaults to input color space reported by HDMI block, no alt gamma conversion, full output range, YPbPr (not RGB)
+color space output, data saturator mode automatic. Set to xF2 for RGB_OUT. 03 defaults to data format / pixel bus configuration 8-bit SDR ITU-656 mode. Set to x40 for 24-bit 4:4:4 SDR (RGB) 04 defaults to R,G,B in [23..0] of pixel port, and for 28.63636 MHz xtal. All good. 05 defaults to DE not field output, blank data during horizontal/vertical blanking periods, insert AV codes in data
+stream, replicated on all channels, don't swap Cr and Cb on pixel buses. Set x28 for no AV codes. 06 defaults to negative VS/HS polarity. Set xA6 for positive VS/HS. 0B defaults to powering CP and XTAL buffer up. 0C defaults to powering chip down, no power save mode. Set x42 to power up. 12 Status, CP state info. Changes to x81 (Undocumented) when powered up. 14 defaults to 3x drive strengths all outputs. Set x6E for 4x on LLC. 15 Set to B0 to enable all the pixel bus outputs. 19 DLL disabled for LLC output frequency/phase adjustment 20 Manual HPA output control, passive. 21 Status, is 8 if we are driving HPA high. 33 DLL does not drive LLC pin. 3F Status, INT1|INT2 pins in LSBs. 40..9B Interrupts raw, latched, masks, resets for all existing registers. 40 Defaults x20 INT1 pulse, open drain. Set xE0 for level, xE2 level high active. 41 Defaults x30 INT2 disabled, CP_LOCK and STDI_VALID int on any change. 42,43,44,45,46 Raw, latched, clear and INT2/INT1 masks for STDI valid, CP unlocked, CP locked. 47,48,49,4A,4B Raw, latched, clear and INT2/INT1 masks for manual forced interrupt. 5B,5C,5D,53,5F Raw, latched,clear and INT2/INT1 masks for CP to locked, CP to unlocked and STDI data valid.
+
+16
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+60,61,62,63,64 Raw, latched,clear and INT2/INT1 masks for Infoframe packet detects. 65,66,67,68,69 Raw, latched,clear and INT2/INT1 masks for channel, AV, packets. 6A,6B,6C,6D,6E Raw, latched,clear and INT2/INT1 masks for tdms, VSync, DE regen. 6F,70,71,72,73 Raw, latched,clear and INT2/INT1 masks for crypto, cable detect. 79,7A,7B,7C,7D Raw, latched,clear and INT2/INT1 masks for infoframes. 7E,7F,80,81,82 Raw, latched,clear and INT2/INT1 masks for audio, gamut. 83,84,85,86,87 Raw, latched,clear and INT2/INT1 masks for tdms details. 88,89,8A,8B,8C Raw, latched,clear and INT2/INT1 masks for audio & various other infoframes. 8D,8E,8F,90,91 Raw, latched,clear and INT2/INT1 masks for vendor specific infoframe. 92,93,94,95,96 Raw, latched,clear and INT2/INT1 masks for CEC events. 97,98,99,9A,9B Raw, latched,clear and INT2/INT1 masks for CEC ops. D0 D1 D2 D3 D4 D5 Change as shown when powered up. Not documented. D6,D7,DD Pin checker and output clock selection. EA,EB Chip ID (ADV7611). F4, 5, 8, 9, A, B, D are base addresses for CEC, INFO, DPLL, KSV, EDID, HDMI and CP sections. We use the same
+recommended values to avoid conflicts with other chips on the evaluation board. FF lies; it resets some, but not all, registers to default values. NOT same as powering chip up, resetting and reading.
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.1.2 The HDMI Section (68)
+
+000 00 00 00 18 00 00 00 00 00 1F FF 1F FF 04 8F 1F hdmi
+
+01
+
+98 23 30 94 A7 80 04 38 04 38
+
+010 25 7D 02 7F 3F FF FF 00 00 00 80 18 00 00 00 01
+
+0B 07 08 98
+
+020 00 00 00 01 00 00 00 00 00 00 00 0B 00 0B 00 03
+
+58
+
+2C
+
+94 08 CA 08 CA
+
+08
+
+08
+
+0A
+
+030 00 03 3F F3 3F F3 00 00 00 00 00 00 02 00 39 63
+
+0A 00 48 00 48
+
+040 00 40 00 0F 05 00 0F 00 00 00 00 00 40 00 3B 63
+
+00
+
+44
+
+050 00 00 00 00 00 00 58 90 01 A3 00 00 00 00 00 00
+
+4A 3E
+
+DA 01
+
+060 0F 0F 00 00 00 00 00 00 00 00 00 00 A2 00 04 00
+
+08
+
+070 02 00 04 00 00 00 00 00 00 00 00 07 FF 00 00 00
+
+03
+
+080 00 00 00 FF 00 1E 00 00 04 0B 20 0F A3 0B 20 0F
+
+1F
+
+70
+
+04 1E
+
+090 0B 20 0F 0B 20 0F 00 C0 FF A3 FF 0B 00 02 00 00
+
+01
+
+03
+
+0A0 00 07 00 00 16 16 16 00 00 F0 00 F0 00 F0 00 00
+
+0B0 00 00 00 00 00 00 00 00 00 00 02 00 00 02 C0 00
+
+C3
+
+0C0 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+01 01 01 01 01 01 01 01 01 01 01 01
+
+0D0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0E0 00 00 00 00 00 01 00 00 00 01 00 00 00 00 00 82
+
+0F0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+Reset by default if HDMI 5V pin goes away. 00 Port selection, defaults single link port A. 01 Audio etc. Set x01 for automatic TDMS clock and data termination. 03 Audio I2S. Set x98 for ADI req / I2S zeroing. 04 Changes to x20 when powered up (successful OTP read). Bit 1 turns on when TDMS PLL locked to TDMS clock. 05 Video changes to x30 (HS, VS active hi; 1x pixel reps). 07,08 Video changes to xA780 (VS lock, DE lock, Line width 1920). 09,0A Video changes to x0438 (Field 0 height 1080). 0B,0C Video changes to x0438 (8 bits/chan, progressive, irrelevant field 1 1080). 0D is tolerance in MHz for new TDMS frequency detection. 0F,10,11,12,13,14,15,16 are audio controls. 18,19 are audio status. 1A is an audio control. 1B controls video FIFO behavior on PLL unlocking. 1C status of video FIFO. 1D sets behavior in 4:2:2 to 4:4:4 conversion. 1E,1F Video changes to x0898 (Total line width 2200). 20,21 Video changes to x0058 (Front porch, 88). 22,23 Video changes to x002C (Pulse, 44). 24,25 Video changes to x0094 (Back porch, 148). 26,27,28,29 Video changes to x08CA (Field0/1 Total height, 2250 in half lines). 2A,2B,2C,2D Video changes to x0008 (Field0/1 Front porch, 8 in half lines).
+
+18
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+2E,2F,30,31 Video changes to x000A (Field0/1 Pulse width, 10 in half lines). 32,33,34,35 Video changes to x0048 (Field0/1 Back porch, 72 in half lines). 36..3A Audio readacks. 3C Audio control. 40 Sets deep color override. 41 Sets pixel repetition factor override. 47 Sets colorimetry overrides and storing infoframes with bad checksums. Set 6 to force full range RGB output? 48 specifies reset of HDMI section on loss of cable; clocks HDCP section with ring oscillator. May need to change. 4C ADI req enables NEW_VS_PARAM which is needed for low frame rate formats. 50 is gamut and audio copyright controls. 51,52 is measured TDMS frequency in MHz, times 128. 53 is input HDMI colorspace 0=RGB limited, 1=RGB full 56 is 5V detect filter ctl. 57 ADI req Not documented in any manual I have. 58 ADI req Not documented in any manual I have. 5A Various resets. Set to 8 to reset the EDID section (and disables it). Self-clearing. 5B..5F Readbacks for CTS and N values for audio clock generation. 6C is manual/auto hot plug assert and modes. May need to use. 6D,6E Audio controls. 6F ADI req Not documented in any manual I have. 73 Set 1 to power DDC pads down. 76 Changes to x03 when powered up. Not documented. 83 LSB disables TDMS clock termination when 01 set for manual. 85 ADI req Not documented in any manual I have. 87 ADI req Not documented in any manual I have. 8C Equalizer limits for range 1 (160 and 48 MHz) 8D,8E ADI req EQ settings for freq below lim1 [0..48[ MHz 90,91 EQ for freq between lim1 and lim2 [48..160[ MHz 93,94 EQ for freq above lim2 [160...] MHz 96 Set 1 to enable dynamic equalizer (this is recommended in register map) 9B ADI req Not documented in any manual I have. BE Changes to xC3 when powered up. Not documented. C1..CC ADI req Not documented in any manual I have.
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+19
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.1.3 The CP section (44)
+
+000 00 00 00 00 00 00 00 00 00 02 00 00 00 07 4C 99 cp
+
+010 29 64 08 00 7A B1 05 B9 27 08 00 20 B7 A7 FA 93
+
+020 20 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+030 00 00 00 00 00 00 00 00 00 00 80 80 00 00 00 00
+
+040 5C 02 3B D4 03 33 00 00 00 00 00 00 00 00 00 00
+
+050 C0 00 40 00 00 00 00 08 00 00 00 00 01 00 00 00
+
+060 00 00 20 00 00 00 00 00 F0 04 00 00 10 00 00 00
+
+00
+
+070 00 00 00 10 04 01 00 FF FF FF FF 05 C0 00 00 00
+
+080 00 C0 04 00 0C 03 0B 00 00 00 20 40 00 00 00 40
+
+090 00 40 00 00 00 00 00 F0 00 00 00 00 00 00 00 00
+
+??
+
+0A0 00 00 00 04 64 00 00 00 00 00 00 00 00 00 60 00
+
+0B0 00 00 00 00 00 F9 00 40 00 00 01 00 00 18 00 12
+
+8D 39 28
+
+07 48 03
+
+0C0 00 00 00 39 44 91 00 00 00 2C 00 60 7F 00 F0 00
+
+2D
+
+38
+
+E0
+
+0D0 00 00 00 00 00 00 00 00 00 00 00 19 64 12 C5 78
+
+0E0 80 20 80 00 00 00 8? 00 00 ?? 00 00 00 00 10 00
+
+53 00 00
+
+00
+
+80 00
+
+00
+
+0F0 82 40 04 D4 50 00 00 15 03 33 00 00 00 04 00 08
+
+40
+
+00
+
+80
+
+02 0D
+
+38
+
+2A,2B,2C,2D,2E,2F,30,31 irrelevant 3DTV override parameters. 36 controls handling of >8 bit precision in HDMI mode, not mentioned in UG-180. 3A Contrast adjust, 1.7 unsigned fraction. 3B Saturation adjust, 1.7 unsigned fraction 3C Brigtness adjust, 8-bit signed value, multiplied by 4 and added to luma. 3D Hue adjustment angle, 0.8 unsigned angle in revolutions. 3E Set x80 to enable the above adjustments. Other bits control YUV 4:2:2 output and pre-gain block. 40 is pre-gain setting (default bypassed in 3E). 52..66 conversion matrix coefficients. 68 Set zero for manual CP CSC configuration. 69 Set 14 to manually force CP CSC to be enabled. 6C ADI required, manual clamp, mentioned in UG180 but not s/w manual. 77 High 2 bits not 1s overrides implied output data precision. 7B AV code overrides. 7C xC0 + MSBs of HSync adjustments. 7D LSBs of HS trailing edge adjustment 7E LSBs of HS leading edge adjustment 7F VS leading & trailing edge adjustments 80 FIELD signal even, odd start adjustments 86 Sets triggering of STDI auto-sync detection, default is continuous operation. 8B MSBs of horizontal DE adjustment 8C LSBs of horizontal DE trailing edge adjustment 8D LSBs of horizontal DE leading edge adjustment 8E Vertical DE leading & traling edge adjustments 8F,90 Free run line length target will be determined by primary mode and video standard. 91 x40 means Set CP Core to expect interlaced video. Set 0 for progressive?. A3,A4 Status, lines per frame measured by STDI.
+
+20
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+AB,AC Free run line count target will be calculated from our video mode. B1,B2 8000 STDI Valid, 4000 STDI Interlaced, rest 8 line block length in xtal cycles. (cycles/10 looks like). BE STDI measured lines per VS pulse *8. B8,B9 STDI measured cycles per frame or 1/256 of frame. BA Default 1, enables free run in HDMI but only if no TDMS. Set x03 to free run if no good video standard. BE,BF Sets pixel delays, hcount offset, generate default color blue during free run, and 1 forces CP core to free run. C0,C1,C2 The default color channels A, B, C. C9 Set 2D to disable buffered video parameters on free run. CB Sets locking time of filter used for buffering of timing parameters in HDMI free run. CC Changes to xC3 when powered up. Not documented. CE Changes to xE0 when powered up. Not documented. E0 CP lock status. 23 when free running (No lock to HDMI core sync; free running per HDMI buffered parameters) and
+53 when getting good video (Locked to sync from HDMI core, timing buffer filter is locked to HDMI input.) E1, E2, E6, E8, E9, EE Change when powered up. Not documented. F2 Sets CGMS data validation. F3 Default free-run tolerance codes. F0 Changes when powered up. Not documented. F4 Status, default 50 is conversion RGB to '601. 0=Bypassed. F5 Sets update criteria for three of the STDI measurement registers above. F0, FA, FC, FD Change when powered up. Not documented. FF Changes to x38 (Not documented) when powered up. Bit 4 (x10) turns on when CP is free running.
+3.1.4 The EDID Section (6C)
+This section presents 256 bytes of memory containing two 128-byte EDID structures, of which the last byte is a checksum calculated by the chip. There are
+XX is poop
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+21
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.1.5 The KSV (Repeater) section (64)
+
+000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ksv
+
+FE 01 FF FF FF
+
+010 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+020 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+030 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+040 83 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+050 00 00 10 00 00 00 10 00 00 00 10 00 00 00 10 00
+
+060 00 F0 00 F0 00 F0 00 F0 00 F0 00 F0 00 F0 00 F0
+
+070 00 00 01 00 00 00 00 00 00 88 04 00 00 00 00 00
+
+01
+
+01
+
+080 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+090 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0D0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0F0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+Irrelevant registers are all involved with the repeater functions we don't need. 74 Set 1 to enable E-EDID on port A. Zero when EDID reset. Computes checksums when set. 76 Status 1 if E-EDID is enabled ... read only. 7A Set for auto enable of internal E-DID when part comes out of power-down mode 0. LSB is segment pointer, 0
+when EDID reset. 80.FF KSV list (5 128-byte segments)
+3.1.6 The DPLL Section (4C)
+000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 dpll 010 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 020 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 030 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 040 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 050 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 060 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 070 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 080 80 20 80 02 02 0A 0A 0A F8 66 FC 13 F8 15 DE 86 090 C1 91 82 70 00 00 00 00 FF 0F FF 00 00 00 00 00 0A0 00 02 02 FF FF FF F8 66 FC 13 F8 15 DE 86 C1 91 0B0 82 70 FF 0F FF 01 00 00 00 00 00 00 00 6F 00 FA
+02 0C0 C0 98 80 00 30 02 03 00 00 00 00 00 40 0A 96 00 0D0 25 23 E1 AE FF E1 05 00 00 1B 04 00 00 00 00 00 0E0 00 00 00 00 06 06 00 00 00 00 00 00 00 00 00 00 0F0 00 00 00 00 00 00 00 00 00 0D F8 0F E1 00 00 00
+
+A0 specifies auto F(ref) as close as possible to 384 MHz. B5 is set for MCLK at 256fs. BE Changes to x02 (Undocumented) when powered up and 13 when CP locks.
+
+22
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+3.1.7 The CEC Section (80)
+000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 cec 010 00 00 13 57 00 00 00 00 00 00 00 00 00 00 00 00 020 00 00 00 00 00 00 00 00 FF 0F 3E 07 00 0F BB 0E 030 AE 10 C7 0C EF 0B E2 0D FB 08 64 06 D1 09 F6 02 040 19 05 3E 06 4B 03 AC 0C 96 02 00 E0 00 01 0C 03 050 25 04 32 00 00 00 00 00 00 00 00 00 00 00 00 00 060 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 070 00 00 00 00 00 00 00 00 6D 8F 82 04 0D 70 42 41 080 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 090 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0D0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0F0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00..0F is transmitted frame. 2A Set 3F to power the CEC module up (IF WE WISH TO) 54..64 is receive frame buffer 1 and length. 65..75 is receive frame buffer 2 and length.
+Many of these registers (4D, 4F, 50, 78, 79, 7C, 7F) have been seen to change state after enabling the pixel output bus even though no HDMI cable is plugged in. Hmmm.
+3.1.8 The INFO section (7C)
+000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 info 010 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 020 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 030 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 040 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 050 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 060 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 070 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 080 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 090 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0D0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0E0 82 00 00 84 00 00 83 00 00 85 00 00 81 00 00 04 0F0 00 00 05 00 00 06 00 00 0A 00 00 00 00 00 00 00
+00..DF Text of 9 infoframe types, laid out consecutively E0..FA ID, Version, Length for each of the 9 types.
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+23
+
+AN018 Controlling the ADV7611 HDMI Receiver
+3.2 HDMI Negotiation
+Assuming one has successfully fought his way through the documentation, the making, breaking, and negotiating of links with HDMI sources is straightforward and automatic.
+Because we specify, via the EDID, only one video mode as being supported and describe it in full detail, things are much simpler than they could be if we permitted multiple formats.
+When there has been no video input at all we have the chip generate free-running video at 1080p with prescribed content (initially, a full field of blue.)
+Once the chip has seen video near enough what we specified to fall within the STDI filters, we lock onto it and copy the RGB incoming video out to the display.
+If the incoming video later deviates from the prescribed timing, or vanishes altogether, we have the chip free-run using the video timing it received most recently from the HDMI source.
+3.2.1 Important Details Learned
+Some surprises gained in exercising the ADV7611:
+· Apparently the circuit on the evaluation board applies very little leakage to the 5V line on the HDMI connector because io/6F.0 has remained high for literally days after unplugging cable from the source device end, and we have consequently been driving HPA high all that time. I can short that line to ground to turn it off, but from inside the chip all we can do is force it low or else reset the EDID section with /EDID . It looks to me as though the reason for this is the 1k resistor R49 between HDMI +5V and the HPA line at the connector... in effect we pull that 5V line up ourselves when the circuit is open. One wonders how the Hell that is supposed to work!
+· By default the ADV7611 resets to a state in which many things must be done before the chip can do anything useful. Most of these things are not mentioned in the recommended register settings document. For example, the TDMS inputs are not terminated and nothing can be received until they are, the pixel bus is not driven, and the TDMS adaptive equalizers are disabled.
+· The Analog Devices board seems to have no termination at all on the pixel bus, nor on its LLC, VS, HS or DE signals. We see evidence of reflections on the scope traces. It is not clear whether this practice is actually condoned by Analog Devices.
+
+24
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+3.2.2 EDID Structure
+Our goal is to persuade the HDMI source to send us proper 1080p video at 60 Hz and nothing else. The timing we want is based on this diagram from EIA/CEA-861-B:
+
+By this timing, a frame is 2200x1125 pixel clocks. At 60 Hz this is pixel clock of 148.500 MHz or 6.734 ns, and the horizontal rate is 67.5 kHz or 14.81 µs. At 59.94 Hz the pixel clock is 148.351 MHz or 6.741 ns, and the horizontal rate is 67.43 kHz or 14.83 µs.
+
+We provide the minimum required information in the EDID structures, with the goal of compelling the source to provide us with 1080p video as per the above. EDID block is zero is mandatory:
+
+Ofs
+00-07
+08-09 0A-0B 0C-0F 10 11 12-13 14 15-16 17
+
+Hex
+0FFFFFFF FFFFFF00
+1C29 0042 00000000 2D 19 0103
+81 0000 96
+
+Interp
+GAC
+2 Nov 2015 1.3 Digital No size 2.5
+
+18
+
+0F
+
+19-1A EE91
+
+RGB sRGB Pref Timing GTF sRGB std
+
+Comments
+Header
+EISA/PNP Vendor/Mfr ID for GreenArrays Product Code (Nonzero for diagSs only) Serial number (not required) Week number Year (relative to 1990) EDID Structure Version / Revision
+Max size in X,Y; zero means unspecified. Gamma (must be set for display) Display type. Color space; Chromaticity must match Required; first detailed must be preferred VESA General Timing Formula IS supported Red/green Low bits
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+25
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Ofs 1B-1C 1D-1E 1F-20 21-22
+23-25
+26-27
+28-35
+36-37
+38 39 3A 3B 3C 3D 3E 3F 40 41 42 43 44 45 46
+47
+48-49 4A-4B 4C
+4D-59
+5A-5B 5C-5D 5E 5F 60 61 62 63 64
+65-6B
+
+Hex A354 4C99 260F 5054
+000000
+D1C0
+0101 x7
+023A
+80 18 71 38 2D 40 58 2C 45 00 00 00 00 00 00 0-------00-------11-------11-------0 1E 0000 00FF 00 47414359 5370726F 746F3030 31 0000 00FD 00 3B 3D 43 44 95 00 0A2020 20202020
+
+Interp sRGB std sRGB std sRGB std sRGB std
+None
+1920 = 209 (xD1) 1080 (16x9 = C0) 60 Hz (0) Unused
+148.50 MHz (14850)
+1920 = x780 280 = x118 7:1 1080 = x438 45 = x02D 4:0 88 = x058 44 = x2C 4=x04, 5=x05 All MSBs zero Unspec = 0 Unspec = 0 Unspec = 0 None None Non-interlaced No stereoscopic Digital separate Sync pos, pos Don't care stereo Assembled Must be zero Monitor Serial Must be zero GACY| Spro| to00| 1| Must be zero Monitor Range Must be zero 59 = x3B 61 = x3D 67 = x43 68 = x44 148.5 = 149 = x95 None supported
+
+Comments Red x,y (0.64,0.33) Green x,y (0.30,0.60) blue x,y (0.15,0.06) white x,y (0.3127,0.3290) VESA Established (low res) Timings supported
+Standard Timing ID 1 (1080p/60 Hz)
+STIDs 2..8 Detailed Timing 1. Pixel clock / 10000 in little-endian order. Hor active, LSB Hor blank, LSB Hor act:blank MSBs Ver active, LSB Ver blank, LSB Ver act:blank MSB HS ofs pixels from start blank LSB HS pulse width pixels LSB VS ofs:VS pulse wid lines, 4 LSB each HSofs:HSpw:VSofs:VSpw 2 MSB each Hor size mm (assume zero means unspec) Ver size mm (assume zero means unspec) Hor:Ver size mm MSBs Horizontal border (sides, pixels) Vertical border (top/bottom, pixels)
+Flags
+Descriptor Type Tag Reserved
+13 bytes ASCII
+Descriptor Type Tag Reserved Min Vertical Rate Hz Max Vertical Rate Hz Min Horiz Rate kHz Max Horiz Rate kHz Max Pix Clock MHz/10 round UP if rem NZ Secondary timing formula support
+Prescribed values when no secondary.
+
+26
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Ofs 6C-6D 6E-6F 70
+71-7D
+7E
+
+Hex
+0000 00FC 00 53756E72 69736520 4D656761 31
+01
+
+Interp
+Must be zero Monitor Name Must be zero Sunr| ise | Mega| 1|
+1 extension block
+
+Comments Descriptor Type Tag Reserved
+13 bytes ASCII
+Number of extension blocks
+
+Note that by EIA-CEA-861-B section 5.2, the RGB color space for 1080p video is prescribed as [16..235] coding with values 0 and 255 reserved and not considered video.
+
+3.2.3 CEC Requirements
+HDMI 1.3a requires that the first E-EDID extension must be a CEA Extension version 3 from CEA-861-D section 7.5. "The first CEA Extension shall include an HDMI Vendor Specific Data Block as defined in HDMI 8.3.2." Careful reading of the CEA standard argues that video formats listed in the base EDID block need not be reiterated here. Just in case we go ahead and provide the short descriptor but no detail.
+
+Ofs 00-01 02
+03
+04 05-07 08-09
+0A
+0B
+0C
+0D 0E 0F 10 11 12-7E
+
+Hex 0203 12
+01
+6B
+000C03 1000 0-------0-------0-------0-------0-------00-------0 21 1-------0-------000000 80 00 FF 00
+41
+90
+All 00
+
+Interp
+CEA Timing Ext v3
+No underscan No audio No YCbCr One native format
+Vendor-specific (3) 11 = x0B + x60 HDMI Licensing, LLC We are (G)root No No No No No Must be zero No 165 MHz = 33 x21 Vid, aud present Interlace absent RMBZ Assembled Unknown No Audio Pad
+Video (2) 1 = 1 + x40 Native 1080p/60 Hz 16 x10
+Pad
+
+Comments Header Offset to byte after reserved data block
+Summary info
+Data Block Tag top 3 bits Bytes following this IEEE Vendor ID Address discovery for our source Supports ACP, ISRC1 or ISRC2 packets Deep 48 Deep 36 Deep 30 YCbCr 4:4:4 in deep modes Reserved Dual DVI Max TMDS Clock MHz/5 (per ADV7611 data)
+Latency Fields
+Video Latency Audio Latency
+Data Block Tag top 3 bits Bytes following this CEA Short Video Descriptor Native bit, CEA Video ID Code
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+27
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.2.4 EDID Memory as Written
+The string OurEDID is written to the edid section as follows:
+000 00 FF FF FF FF FF FF 00 1C 23 00 42 00 00 00 00 010 2D 19 01 03 81 00 00 96 0F EE 91 A3 54 4C 99 26 020 0F 50 54 00 00 00 D1 C0 01 01 01 01 01 01 01 01 030 01 01 01 01 01 01 02 3A 80 18 71 38 2D 40 58 2C 040 45 00 00 00 00 00 00 1E 00 00 00 FF 00 47 41 43 050 59 53 70 72 6F 74 6F 30 30 31 00 00 00 FD 00 3B 060 3D 43 44 95 00 0A 20 20 20 20 20 20 00 00 00 FC 070 00 53 75 6E 72 69 73 65 20 4D 65 67 61 31 01 00 080 02 03 12 01 6B 00 0C 03 10 00 00 21 80 00 FF 00 090 41 90 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0D0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 0F0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+|_________#_B____|
+
+|-________n_#TL_&|
+
+|_PT___Q@________|
+
+|_______:__q8-@X,|
+
+|E____________GAC|
+
+|YSproto001___}_;|
+
+|=CD___
+
+___||
+
+|_Sunrise Mega1__|
+
+|____k______!____|
+
+|A_______________|
+
+|________________|
+
+|________________|
+
+|_______________ _|
+
+|________________|
+
+|________________|
+
+|________________|
+
+28
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+3.3 Video Received from HDMI Sources
+
+Both sources (Integrated Intel graphics in a notebook, and a Samsung BluRay disk player giving us a 1080p movie) accept our EDID structure and give us exactly what we asked for. The ADV7611 measures a difference on the order of 0.1% (100 PPM) in pixel clock frequency; our Tek TDS794D scope, not calibrated in the past 8 years or so and with measurements made using visually aligned cursors, differs by more than that as this table indicates (bold are base values used to derive the rest in specs):
+
+Item
+Pixel Clock HS Pulse (44 clocks) HS Period (2200 clocks) DE blank per HS (280 cks) VS Pulse (5 lines) VS Period (1125 lines) DE vert blank (45 lines)
+
+Time Spec
+6.734 ns 296.3 ns 14.81 us 1.886 us 74.07 us 16.67 ms 666.7 us
+
+Freq Spec 148.5 MHz 67.50 kHz
+60.00 Hz
+
+Time Meas
+6.76 ns 296 ns 14.8 us 1.89 us 73.6 us 16.64 ms 670 us
+
+Freq Meas 147.9 MHz 67.57 kHz
+60.10 Hz
+
+For practical purposes the values calculated from the spec are probably more accurate and should be used in designing anything that will receive video from us.
+Our display of status from the ADV7611 looks like this:
+.AD Chip 2051 HDMI 5V YES. Assert HPA YES. TDMS clk detect YES.
+TDMS PLL locked YES. VS Lock YES. DE Lock YES. HDMI PLL Lock YES. STDI laced NO. CP proc lace NO. Lace conflicts YES. HDMI section mode DVI HS,VS high 11 X=1920 Y=1080 Bits/gun=8 Interlaced NO. FIFO locked YES. Line wid 2200 Front 88 HS 44 Back 148 Fld hght 1125 Front 4 VS 5 Back 36 TDMS 148343 kHz. Input colors 0 (0=RGB, 1=full) CP section CSC BYPASS. STDI valid YES. Lines/frm=1124 Laced NO. Xtal/8Lin=3389 Vsync=5 Xtal/fld=1866 CP Free-run buff locked. CP Free-running: NO. INT1 NO. STDI valid YES. io/42 2 CP Locked io/42 4 STDI Data Valid io/5B 1 STDI Data is valid for sync channel 1 io/5B 3 CP input has changed from unlocked to locked io/65 6 Audio is muted io/6A 0 DE Regeneration is locked to incoming DE signal io/6A 1 VS Filter has locked and vertical sync params are valid io/6A 4 TDMS Clock is detected io/6A 6 TDMS PLL is locked to incoming clock io/6F 0 HDMI cable +5V is detected ok
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+29
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+HS Pulse meas. with 44 Pixel Clocks
+
+HS with DE Blanking measured
+
+HS Period (with aliased pixel clock)
+
+VS Pulse meas. with 5 HS Periods
+
+VS with DE Blanking measured
+
+HS Period (with asliased HS pulses)
+
+LLC Period with HS Leading Edge
+
+DE Leading Edge Blanking with LLC
+
+DE Trailing Edge Blanking with LLC
+
+The above images show the output signals on the ADV7611 evaluation board as measured by a Tektronix TDS794D scope using P6243 active probes; the ringing is probably real, due to unterminated signal traces.
+
+30
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+4. Revision History
+
+REVISION 151115 160320 171105
+
+DESCRIPTION First Draft. Minor text corrections. Release for Publication
+
+AN018 Controlling the ADV7611 HDMI Receiver
+
+Copyright© 2010-2015 GreenArrays, Inc. 11/05/17
+
+31
+
+GreenArrays®
+Application Note AN012 Revised 11/05/17
+IMPORTANT NOTICE
+GreenArrays Incorporated (GAI) reserves the right to make corrections, modifications, enhancements, improvements, and other changes to its products and services at any time and to discontinue any product or service without notice. Customers should obtain the latest relevant information before placing orders and should verify that such information is current and complete. All products are sold subject to GAI's terms and conditions of sale supplied at the time of order acknowledgment.
+GAI disclaims any express or implied warranty relating to the sale and/or use of GAI products, including liability or warranties relating to fitness for a particular purpose, merchantability, or infringement of any patent, copyright, or other intellectual property right.
+GAI assumes no liability for applications assistance or customer product design. Customers are responsible for their products and applications using GAI components. To minimize the risks associated with customer products and applications, customers should provide adequate design and operating safeguards.
+GAI does not warrant or represent that any license, either express or implied, is granted under any GAI patent right, copyright, mask work right, or other GAI intellectual property right relating to any combination, machine, or process in which GAI products or services are used. Information published by GAI regarding third-party products or services does not constitute a license from GAI to use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party under the patents or other intellectual property of the third party, or a license from GAI under the patents or other intellectual property of GAI.
+Reproduction of GAI information in GAI data books or data sheets is permissible only if reproduction is without alteration and is accompanied by all associated warranties, conditions, limitations, and notices. Reproduction of this information with alteration is an unfair and deceptive business practice. GAI is not responsible or liable for such altered documentation. Information of third parties may be subject to additional restrictions.
+Resale of GAI products or services with statements different from or beyond the parameters stated by GAI for that product or service voids all express and any implied warranties for the associated GAI product or service and is an unfair and deceptive business practice. GAI is not responsible or liable for any such statements.
+GAI products are not authorized for use in safety-critical applications (such as life support) where a failure of the GAI product would reasonably be expected to cause severe personal injury or death, unless officers of the parties have executed an agreement specifically governing such use. Buyers represent that they have all necessary expertise in the safety and regulatory ramifications of their applications, and acknowledge and agree that they are solely responsible for all legal, regulatory and safetyrelated requirements concerning their products and any use of GAI products in such safety-critical applications, notwithstanding any applications-related information or support that may be provided by GAI. Further, Buyers must fully indemnify GAI and its representatives against any damages arising out of the use of GAI products in such safety-critical applications.
+GAI products are neither designed nor intended for use in military/aerospace applications or environments unless the GAI products are specifically designated by GAI as military-grade or "enhanced plastic." Only products designated by GAI as militarygrade meet military specifications. Buyers acknowledge and agree that any such use of GAI products which GAI has not designated as military-grade is solely at the Buyer's risk, and that they are solely responsible for compliance with all legal and regulatory requirements in connection with such use.
+GAI products are neither designed nor intended for use in automotive applications or environments unless the specific GAI products are designated by GAI as compliant with ISO/TS 16949 requirements. Buyers acknowledge and agree that, if they use any non-designated products in automotive applications, GAI will not be responsible for any failure to meet such requirements.
+The following are trademarks or registered trademarks of GreenArrays, Inc., a Wyoming Corporation: GreenArrays, GreenArray Chips, arrayForth, and the GreenArrays logo. polyFORTH is a registered trademark of FORTH, Inc. (www.forth.com) and is used by permission. All other trademarks or registered trademarks are the property of their respective owners.
+For current information on GreenArrays products and application solutions, see www.GreenArrayChips.com
+Mailing Address: GreenArrays, Inc., 821 East 17th Street, Cheyenne, Wyoming 82001 Printed in the United States of America
+Phone (775) 298-4748 fax (775) 548-8547 email Sales@GreenArrayChips.com Copyright © 2010-2017, GreenArrays, Incorporated
+
+

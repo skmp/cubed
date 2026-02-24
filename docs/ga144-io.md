@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/DB001-221113-F18A.txt,txt/PB004-110412-F18A-IO.txt,txt/PB006-100501-F18B-IO.txt,txt/WP001-090805-noise.txt -->
 # GA144 I/O Register & Pin Reference
 
 ## The `io` Register
@@ -182,7 +183,7 @@ right a!    \ Point A to the right port
 
 ## References
 
-- [PB004 - F18A I/O Facilities](../reference/greenarrays/pdfs/PB004-110412-F18A-IO.txt) — Software-defined I/O, GPIO, analog I/O, SERDES, io control register
-- [PB006 - F18B I/O Facilities](../reference/greenarrays/pdfs/PB006-100501-F18B-IO.txt) — F18B I/O enhancements: improved DAC, ADC multiplexor, pin wakeup
-- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — I/O register bit fields and port handshake protocol
-- [WP001 - Noise Reduction in ADC](../reference/greenarrays/pdfs/WP001-090805-noise.txt) — Analysis of VCO-based A/D converter noise filtering characteristics
+- [PB004 - F18A I/O Facilities](txt/PB004-110412-F18A-IO.txt) — Software-defined I/O, GPIO, analog I/O, SERDES, io control register
+- [PB006 - F18B I/O Facilities](txt/PB006-100501-F18B-IO.txt) — F18B I/O enhancements: improved DAC, ADC multiplexor, pin wakeup
+- [DB001 - F18A Technology Reference (2022)](txt/DB001-221113-F18A.txt) — I/O register bit fields and port handshake protocol
+- [WP001 - Noise Reduction in ADC](txt/WP001-090805-noise.txt) — Analysis of VCO-based A/D converter noise filtering characteristics

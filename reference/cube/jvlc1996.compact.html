@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+		
+	 
+</head>
+	<body>
+		<div id="page_0">
+			
+			<div>
+				<div>
+					<div><span>Journal of Visual Languages and Computing </span><span>(1996) </span><span>7, </span><span>219–242 &nbsp;</span></div>
+					<div><span>Programming in Three Dimensions &nbsp;</span></div>
+					<div><span>M </span><span>A R C </span><span>A </span><span>. </span><span>N </span><span>A J O R K &nbsp;</span></div>
+					<div><span>Digital Equipment Corporation, Systems Research Center, 130 Lytton Avenue, Palo Alto, &nbsp;</span></div>
+					<div><span>CA 94301, U.S.A. najork</span><span>ê </span><span>src.dec.com &nbsp;</span></div>
+					<div><span>Received 4 May 1995; revised 7 December 1995, 26 January 1996; accepted 26 January 1996 &nbsp;</span></div>
+					<div><span>Cube is a three-dimensional</span><span>, </span><span>visual</span><span>, </span><span>statically typed</span><span>, </span><span>higher-order logic programming &nbsp;</span></div>
+					<div><span>language</span><span>, </span><span>designed to be used in a virtual-reality-based programming environment</span><span>. </span><span>In &nbsp;</span></div>
+					<div><span>this paper</span><span>, </span><span>we give an informal overview of the language and describe a prototype &nbsp;</span></div>
+					<div><span>implementation</span><span>. &nbsp;</span></div>
+					<div><span>÷ </span><span>1996 Academic Press Limited &nbsp;</span></div>
+					<div><span>1. Introduction &nbsp;</span></div>
+					<div><span>P </span><span>ROGRAMMING </span><span>is the activity of describing an algorithm in a formal notation—a &nbsp;</span></div>
+					<div><span>programming language—for the purpose of executing it on a computer</span><span>. </span><span>The vast &nbsp;</span></div>
+					<div><span>majority of programming languages are textual in nature; that is</span><span>, </span><span>programs are &nbsp;</span></div>
+					<div><span>described by an essentially one-dimensional string of characters</span><span>. &nbsp;</span></div>
+					<div><span>Visual programming languages</span><span>, </span><span>in contrast</span><span>, </span><span>use a predominantly graphical notation &nbsp;</span></div>
+					<div><span>to encode an algorithm</span><span>. </span><span>The central argument in favor of visual languages is that &nbsp;</span></div>
+					<div><span>humans are known to process pictures easier and faster than text</span><span>. </span><span>According to &nbsp;</span></div>
+					<div><span>Raeder</span><span>, </span><span>‘it is commonly acknowledged that people acquire information at a &nbsp;</span></div>
+					<div><span>signiﬁcantly higher rate by discovering graphical relationships in complex pictures &nbsp;</span></div>
+					<div><span>than by reading text’ [29]</span><span>. &nbsp;</span></div>
+					<div><span>One of the reasons for this phenomenon is that the human sensory system is set up &nbsp;</span></div>
+					<div><span>for real-time image processing</span><span>. </span><span>Two- or three-dimensional pictures can be accessed &nbsp;</span></div>
+					<div><span>and decoded more rapidly than linear text</span><span>. </span><span>So</span><span>, </span><span>using a visual notation allows us to &nbsp;</span></div>
+					<div><span>shift part of the user’s cognitive load from the conscious level to the visual cortex</span><span>. </span><span>A &nbsp;</span></div>
+					<div><span>related aspect is that text is sequential in nature</span><span>, </span><span>while pictorial representations &nbsp;</span></div>
+					<div><span>provide random access to any part of the picture</span><span>, </span><span>as well as detailed and overall views</span><span>. &nbsp;</span></div>
+					<div><span>A second important reason is that visual representations provide a syntactically rich &nbsp;</span></div>
+					<div><span>language</span><span>. </span><span>Text is essentially one-dimensional</span><span>, </span><span>while visual representations can employ &nbsp;</span></div>
+					<div><span>two or three spatial dimensions as well as other properties such as color</span><span>. &nbsp;</span></div>
+					<div><span>The ﬁrst visual programming system was implemented in 1966 by William &nbsp;</span></div>
+					<div><span>Sutherland [38]</span><span>. </span><span>Since then</span><span>, </span><span>a multitude of visual languages have been developed</span><span>. &nbsp;</span></div>
+					<div><span>Overviews of the ﬁeld can be found in [3] and [11]</span><span>. &nbsp;</span></div>
+					<div><span>This paper describes Cube [23</span><span>, </span><span>25]</span><span>, </span><span>the ﬁrst visual language to employ a &nbsp;</span></div>
+					<div><span>three-dimensional (3D) notation</span><span>. </span><span>Apart from its novel syntax</span><span>, </span><span>Cube is innovative in &nbsp;</span></div>
+					<div><span>other aspects: it is the ﬁrst visual language to apply the dataﬂow paradigm to logic &nbsp;</span></div>
+					<div><span>programming; it is among the ﬁrst visual languages with a static polymorphic type &nbsp;</span></div>
+					<div><span>system</span><span>, </span><span>and guarantees the absence of run-time type errors; and it is a higher-order &nbsp;</span></div>
+					<div><span>language</span><span>, </span><span>meaning that it treats predicates as ﬁrst-class values</span><span>. </span><span>The main part of the &nbsp;</span></div>
+					<div><span>1045-926X 96 020219</span><span>&nbsp;</span><span>ϩ </span><span>24 $18</span><span>. </span><span>00 0 &nbsp;</span></div>
+					<div><span>/ / &nbsp;</span></div>
+					<div><span>÷ </span><span>1996 Academic Press Limited &nbsp;</span></div>
+					<div><span>/</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_1">
+			
+			<div>
+				<div>
+					<div><span>220 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>paper elaborates on these innovations</span><span>. </span><span>At this point</span><span>, </span><span>however</span><span>, </span><span>we would like to &nbsp;</span></div>
+					<div><span>motivate Cube’s most obvious innovation</span><span>, </span><span>the use of a 3D syntax</span><span>. &nbsp;</span></div>
+					<div><span>The possibility for using a 3D notation has been realized for quite a while</span><span>. </span><span>In his &nbsp;</span></div>
+					<div><span>1987 paper ‘Out of Flatland: Towards 3-D Visual Programming’</span><span>, </span><span>Ephraim Glinert &nbsp;</span></div>
+					<div><span>argued that the time is ripe for exploring the possibilities of 3D notations: ‘But ﬁrst</span><span>, &nbsp;</span></div>
+					<div><span>why do we advocate programming in three dimensions?</span><span>&nbsp;</span><span>. . . </span><span>It is time for computer &nbsp;</span></div>
+					<div><span>science to begin exploring revolutionary rather than evolutionary means of program- &nbsp;</span></div>
+					<div><span>ming</span><span>, </span><span>in the hope that the tools will be ready when required</span><span>. </span><span>’ [10] &nbsp;</span></div>
+					<div><span>We have identiﬁed four potential beneﬁts of using a 3D notation: it can alleviate the &nbsp;</span></div>
+					<div><span>screen space problem; it allows for better graph layout; it can convey additional &nbsp;</span></div>
+					<div><span>semantic information; and it can facilitate new interaction environments</span><span>. </span><span>Let’s look at &nbsp;</span></div>
+					<div><span>these four points in more detail: &nbsp;</span></div>
+					<div><span>$ </span><span>One common criticism against visual languages is that they use the precious &nbsp;</span></div>
+					<div><span>screen real estate less efﬁciently than textual languages</span><span>. </span><span>This phenomenon is &nbsp;</span></div>
+					<div><span>commonly called the </span><span>screen space problem. </span><span>It is not particular to visual languages &nbsp;</span></div>
+					<div><span>but also known in other domains such as visualization</span><span>. </span><span>In many of these &nbsp;</span></div>
+					<div><span>domains</span><span>, </span><span>3D has been used to alleviate the screen space problem</span><span>. </span><span>A good &nbsp;</span></div>
+					<div><span>example is the Xerox PARC Information Visualizer [32]</span><span>, </span><span>which uses a multitude &nbsp;</span></div>
+					<div><span>of 3D representations of abstract structures (trees</span><span>, </span><span>tables</span><span>, </span><span>etc) to make more &nbsp;</span></div>
+					<div><span>effective use of available screen space</span><span>. </span><span>Using 3D provides us with a larger design &nbsp;</span></div>
+					<div><span>space: the additional depth dimension allows us to squeeze more information into &nbsp;</span></div>
+					<div><span>the same screen real estate</span><span>, </span><span>and interactive rotation of the scene allows us to &nbsp;</span></div>
+					<div><span>retrieve different parts of this information</span><span>. </span><span>To quote Robertson </span><span>et al., </span><span>‘it seems &nbsp;</span></div>
+					<div><span>plausible (but not yet proven) that 3D can be used to maximize effective use of &nbsp;</span></div>
+					<div><span>screen space’ [32]</span><span>. &nbsp;</span></div>
+					<div><span>$ </span><span>A second advantage of a 3D notation is that it is easier to lay out graph structures &nbsp;</span></div>
+					<div><span>in 3D than in 2D (since it is always possible to avoid overlapping arcs in 3D)</span><span>, </span><span>and &nbsp;</span></div>
+					<div><span>that graph structures are more easily comprehended when being displayed in 3D</span><span>. &nbsp;</span></div>
+					<div><span>This is particularly relevant to visual languages because a large fraction of them &nbsp;</span></div>
+					<div><span>(including Cube) use a dataﬂow notation</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>are essentially represented as &nbsp;</span></div>
+					<div><span>graphs</span><span>. </span><span>Ware and Franck have performed an empirical study on user comprehen- &nbsp;</span></div>
+					<div><span>sion of graph structures and found that users can extract three times as much &nbsp;</span></div>
+					<div><span>information from a graph that is displayed in 3D (using a stereo display and head &nbsp;</span></div>
+					<div><span>coupled perspective) than from a graph that is displayed in 2D [40]</span><span>. &nbsp;</span></div>
+					<div><span>$ </span><span>In his seminal survey of graphical programming techniques [29]</span><span>, </span><span>Raeder argues &nbsp;</span></div>
+					<div><span>that text is an essentially one-dimensional stream of words</span><span>. </span><span>Pictures</span><span>, </span><span>on the other &nbsp;</span></div>
+					<div><span>hand</span><span>, </span><span>provide several spatial dimensions along which to lay out information</span><span>, &nbsp;</span></div>
+					<div><span>together with a host of other properties</span><span>, </span><span>such as color</span><span>, </span><span>texture</span><span>, </span><span>shape</span><span>, </span><span>etc</span><span>. </span><span>Visual &nbsp;</span></div>
+					<div><span>languages are therefore syntactically ‘richer’ than textual languages</span><span>. </span><span>By this &nbsp;</span></div>
+					<div><span>argument</span><span>, </span><span>3D languages are richer than 2D languages</span><span>. </span><span>The extra spatial &nbsp;</span></div>
+					<div><span>dimension that 3D offers also provides us with an extra dimension of expression</span><span>. &nbsp;</span></div>
+					<div><span>Of course</span><span>, </span><span>this is true only if the third dimension is actually used to encode &nbsp;</span></div>
+					<div><span>additional information</span><span>. </span><span>(As we shall see</span><span>, </span><span>Cube uses dimensional extent to express &nbsp;</span></div>
+					<div><span>logical operations</span><span>, </span><span>e </span><span>. </span><span>g </span><span>. </span><span>conjunction and disjunction</span><span>. </span><span>) &nbsp;</span></div>
+					<div><span>$ </span><span>A ﬁnal potential reason for visual languages to adopt a 3D notation is that such a &nbsp;</span></div>
+					<div><span>notation naturally complements a Virtual Reality (VR) environment</span><span>. </span><span>Virtual &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_2">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>221 &nbsp;</span></div>
+					<div><span>Realities have potential as comfortable programming environments due to their &nbsp;</span></div>
+					<div><span>very direct and intuitive mode of interaction</span><span>. </span><span>Instead of moving a mouse in order &nbsp;</span></div>
+					<div><span>to manipulate an object in the scene</span><span>, </span><span>the user can manipulate the object directly</span><span>. &nbsp;</span></div>
+					<div><span>VR environments also promise to alleviate the screen space problem even further</span><span>, &nbsp;</span></div>
+					<div><span>by coupling the viewpoint and perspective to the user’s head position and &nbsp;</span></div>
+					<div><span>orientation and thereby providing tight and intuitive control over what part of &nbsp;</span></div>
+					<div><span>the design space is visible</span><span>. </span><span>Another reason why one might want to program in a &nbsp;</span></div>
+					<div><span>VR environment is for developing VR software</span><span>. </span><span>This was the motivation for the &nbsp;</span></div>
+					<div><span>work on Lingua Graphica [37]</span><span>, </span><span>a 3D visual language developed at Lockheed’s AI &nbsp;</span></div>
+					<div><span>Center</span><span>. </span><span>The key idea is that developing VR software within a VR programming &nbsp;</span></div>
+					<div><span>environment shortens the edit–compile–debug cycle</span><span>. &nbsp;</span></div>
+					<div><span>The remainder of the paper is structured as follows: First</span><span>, </span><span>we give an informal &nbsp;</span></div>
+					<div><span>overview of Cube</span><span>, </span><span>based on a number of examples</span><span>. </span><span>(For a formal deﬁnition</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>reader is referred to [25]</span><span>. </span><span>) Then</span><span>, </span><span>we describe a prototype implementation of a Cube &nbsp;</span></div>
+					<div><span>interpreter and programming environment</span><span>. </span><span>We review some of our language design &nbsp;</span></div>
+					<div><span>choices</span><span>, </span><span>compare Cube to related work and ﬁnally offer some concluding remarks</span><span>. &nbsp;</span></div>
+					<div><span>2. The Cube Language &nbsp;</span></div>
+					<div><span>Semantically</span><span>, </span><span>Cube is a logic programming language</span><span>, </span><span>similar to Prolog [5]</span><span>. </span><span>Prolog</span><span>, &nbsp;</span></div>
+					<div><span>however</span><span>, </span><span>is a ﬁrst-order language</span><span>, </span><span>while Cube is higher-order</span><span>, </span><span>meaning that &nbsp;</span></div>
+					<div><span>predicates are ﬁrst-class values and can be passed as arguments to other predicates</span><span>. &nbsp;</span></div>
+					<div><span>The expressive power of higher-order languages is well-known</span><span>. </span><span>Higher-order features &nbsp;</span></div>
+					<div><span>are standard in functional languages and have been incorporated into a few (textual) &nbsp;</span></div>
+					<div><span>logic languages as well</span><span>, </span><span>such as </span><span>ꢀ </span><span>Prolog [21] and HiLog [4]</span><span>. &nbsp;</span></div>
+					<div><span>A second difference between Prolog and Cube is that Prolog is an untyped &nbsp;</span></div>
+					<div><span>language</span><span>, </span><span>whereas Cube has a static polymorphic type system</span><span>. </span><span>The Cube system uses &nbsp;</span></div>
+					<div><span>a variant of the Hindley-Milner type inference algorithm [7] to ensure that programs &nbsp;</span></div>
+					<div><span>are well-typed; such well-typed programs are guaranteed to never encounter a &nbsp;</span></div>
+					<div><span>run-time type error</span><span>. &nbsp;</span></div>
+					<div><span>The remainder of this section describes Cube informally</span><span>, </span><span>based on a number of &nbsp;</span></div>
+					<div><span>graduated examples</span><span>. &nbsp;</span></div>
+					<div><span>2.1. The Dataﬂow Metaphor &nbsp;</span></div>
+					<div><span>Consider the simple program shown in Figure 1</span><span>. </span><span>It consists of two transparent cubes &nbsp;</span></div>
+					<div><span>that are connected by a </span><span>pipe. </span><span>The transparent cubes are called </span><span>holder cubes</span><span>; they may &nbsp;</span></div>
+					<div><span>contain terms (which are represented by cubes as well)</span><span>, </span><span>and thus correspond quite &nbsp;</span></div>
+					<div><span>closely to variables in a textual language</span><span>. &nbsp;</span></div>
+					<div><span>The left holder cube contains a term: an opaque cube with the icon ‘1’ on its top &nbsp;</span></div>
+					<div><span>side</span><span>. </span><span>This cube is called an </span><span>integer cube, </span><span>and represents the integer 1</span><span>. </span><span>The two holder &nbsp;</span></div>
+					<div><span>cubes are connected by a </span><span>pipe </span><span>which serves as a ‘conduit’ for values</span><span>. </span><span>The metaphor we &nbsp;</span></div>
+					<div><span>use here is the dataﬂow metaphor: during evaluation</span><span>, </span><span>a value contained in a holder &nbsp;</span></div>
+					<div><span>cube ﬂows to all the other holder cubes connected to it</span><span>. </span><span>If a holder cube receiving a &nbsp;</span></div>
+					<div><span>value is empty</span><span>, </span><span>it will be ﬁlled with this value</span><span>, </span><span>if it already contains a value</span><span>, </span><span>the two &nbsp;</span></div>
+					<div><span>values must be </span><span>uniﬁable</span><span>; both holder cubes will then contain the same value</span><span>, </span><span>namely</span><span>, &nbsp;</span></div>
+					<div><span>the most general uniﬁer of the two values</span><span>. </span><span>If this is not possible</span><span>, </span><span>the dataﬂow </span><span>fails. &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_3">
+			
+			<div>
+				<div>
+					<div><span>222 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Pipes have no particular directionality: data can ﬂow through them in either &nbsp;</span></div>
+					<div><span>direction</span><span>, </span><span>in fact it can ﬂow in both directions at once</span><span>. </span><span>It should also be noted that the &nbsp;</span></div>
+					<div><span>value contained in a holder cube never gets changed but only reﬁned</span><span>. &nbsp;</span></div>
+					<div><span>We can extend the analogy we have drawn between Cube and textual languages: &nbsp;</span></div>
+					<div><span>Holder cubes correspond to </span><span>logic variables, </span><span>and connecting two holder cubes by a &nbsp;</span></div>
+					<div><span>pipe corresponds to unifying two logic variables</span><span>. </span><span>Furthermore</span><span>, </span><span>a holder cube &nbsp;</span></div>
+					<div><span>containing a term cube (such as an integer cube) corresponds to a logic variable &nbsp;</span></div>
+					<div><span>uniﬁed with a term</span><span>. &nbsp;</span></div>
+					<div><span>In the textual framework</span><span>, </span><span>a uniﬁcation is a special case of an atomic formula</span><span>. </span><span>A &nbsp;</span></div>
+					<div><span>Cube program (i</span><span>. </span><span>e </span><span>. </span><span>the entire ‘virtual space’ in which Cube expressions are located) &nbsp;</span></div>
+					<div><span>corresponds to a query in a textual logic language</span><span>, </span><span>that is</span><span>, </span><span>a conjunction of all the &nbsp;</span></div>
+					<div><span>atomic formulas</span><span>. &nbsp;</span></div>
+					<div><span>Figure 2 shows the Cube program of Figure 1 after evaluation</span><span>. </span><span>The integer cube 1 &nbsp;</span></div>
+					<div><span>has ﬂown from the left to the right holder cube (intuitive interpretation); or the left &nbsp;</span></div>
+					<div><span>holder cube was uniﬁed with 1 and with the right one</span><span>, </span><span>leaving both instantiated to 1 &nbsp;</span></div>
+					<div><span>(logic interpretation)</span><span>. &nbsp;</span></div>
+					<div><span>Some Cube queries do not have any solutions</span><span>. </span><span>For example</span><span>, </span><span>if the right holder cube &nbsp;</span></div>
+					<div><span>in Figure 1 contained a value other than 1</span><span>, </span><span>say 2</span><span>, </span><span>the dataﬂow between the two holder &nbsp;</span></div>
+					<div><span>cubes would fail because 1 and 2 are not uniﬁable</span><span>, </span><span>thereby causing the entire &nbsp;</span></div>
+					<div><span>computation to fail</span><span>. &nbsp;</span></div>
+					<div><span>2.2. A First Glimpse at Types &nbsp;</span></div>
+					<div><span>We have mentioned before that Cube is a statically typed language and uses a type &nbsp;</span></div>
+					<div><span>inference system</span><span>. </span><span>The user can trigger the type inference; the Cube system will then &nbsp;</span></div>
+					<div><span>determine if the program is well-typed and</span><span>, </span><span>if so</span><span>, </span><span>will indicate the type of every &nbsp;</span></div>
+					<div><span>empty holder cube by placing a </span><span>type cube </span><span>inside it</span><span>. </span><span>A type cube is an opaque grey &nbsp;</span></div>
+					<div><span>cube with an icon on its top that identiﬁes the type</span><span>. </span><span>There are three predeﬁned base &nbsp;</span></div>
+					<div><span>types: integers</span><span>, </span><span>ﬂoating-point numbers and propositions</span><span>. </span><span>Cube also allows the user to &nbsp;</span></div>
+					<div><span>deﬁne new types</span><span>, </span><span>such as characters</span><span>, </span><span>strings</span><span>, </span><span>lists</span><span>, </span><span>or trees</span><span>. &nbsp;</span></div>
+					<div><span>Given the program from Figure 1</span><span>, </span><span>Cube will infer that 1 is an integer</span><span>, </span><span>so the left &nbsp;</span></div>
+					<div><span>holder cube contains an integer</span><span>, </span><span>and therefore the right holder cube must contain an &nbsp;</span></div>
+					<div><span>integer as well</span><span>. </span><span>It will thus ﬁll the right holder cube with a type cube with the icon ‘Z’ &nbsp;</span></div>
+					<div><span>on its top</span><span>, </span><span>representing the integer type (see Figure 3)</span><span>. &nbsp;</span></div>
+					<div><span>What happens if Cube cannot determine the type of a holder cube? In other words</span><span>, &nbsp;</span></div>
+					<div><span>how do we represent uninstantiated type variables? An uninstantiated type variable is &nbsp;</span></div>
+					<div><span>shown as a grey type cube with a unique index in the northwest corner of its top side</span><span>. &nbsp;</span></div>
+					<div><span>The same concept is used for uninstantiated variables: a variable of type </span><span>τ </span><span>is shown as &nbsp;</span></div>
+					<div><span>τ </span><span>’s type cube with a unique index in the southeast corner of its top side; the cube is &nbsp;</span></div>
+					<div><span>green because it represents a value</span><span>. </span><span>(Figure 17</span><span>, </span><span>appearing in a subsequent section</span><span>, &nbsp;</span></div>
+					<div><span>gives an example of uninstantiated variables and uninstantiated type variables</span><span>. </span><span>) &nbsp;</span></div>
+					<div><span>2.3. Predicate Applications &nbsp;</span></div>
+					<div><span>A </span><span>predicate cube </span><span>is represented by an opaque green cube with an icon on its top that &nbsp;</span></div>
+					<div><span>identiﬁes the predicate</span><span>. </span><span>A predicate cube typically also has a number of ‘holes’ in its &nbsp;</span></div>
+					<div><span>sides: cubic intrusions with a transparent cover on the outside and an icon on top of &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_4">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>223 &nbsp;</span></div>
+					<div><span>Figure 1.</span><span>&nbsp;</span><span>Value 1 ﬂowing into empty holder cube &nbsp;</span></div>
+					<div><span>Figure 2. </span><span>Value 1 has ﬂowed into empty holder &nbsp;</span></div>
+					<div><span>cube &nbsp;</span></div>
+					<div><span>Figure 3.</span><span>&nbsp;</span><span>Program from Figure 1 after type inference &nbsp;</span></div>
+					<div><span>it</span><span>. </span><span>The ‘holes’ are called </span><span>ports </span><span>and serve as arguments to the predicate</span><span>. </span><span>They may be &nbsp;</span></div>
+					<div><span>moved around freely over all six sides of the predicate cube; thus</span><span>, </span><span>an icon is needed to &nbsp;</span></div>
+					<div><span>identify each port</span><span>. </span><span>A port is a special case of a holder cube (hence the transparent &nbsp;</span></div>
+					<div><span>cover)</span><span>, </span><span>and as such it can be connected to pipes and can be ﬁlled with a value</span><span>. &nbsp;</span></div>
+					<div><span>So how can we apply predicate cubes? Assume we want to build a program to &nbsp;</span></div>
+					<div><span>convert temperatures between the Celsius and Fahrenheit scale</span><span>, </span><span>which are related by &nbsp;</span></div>
+					<div><span>the formula </span><span>F </span><span>ϭ </span><span>1 </span><span>и </span><span>8 </span><span>C </span><span>ϩ </span><span>32</span><span>. </span><span>The program shown in Figure 4 is the Cube representa- &nbsp;</span></div>
+					<div><span>tion of this relation</span><span>. </span><span>It consists of two empty holder cubes (corresponding to </span><span>C </span><span>and &nbsp;</span></div>
+					<div><span>F </span><span>) and two holder cubes ﬁlled with ﬂoating-point values 1</span><span>и </span><span>8 and 32</span><span>и </span><span>0 </span><span>, </span><span>respectively</span><span>. </span><span>It &nbsp;</span></div>
+					<div><span>also contains a predicate cube referring to the ﬂoating-point multiplication predicate</span><span>, &nbsp;</span></div>
+					<div><span>and another predicate cube referring to the ﬂoating-point addition predicate</span><span>. </span><span>Both &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_5">
+			
+			<div>
+				<div>
+					<div><span>224 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Figure 4.</span><span>&nbsp;</span><span>Temperature conversion &nbsp;</span></div>
+					<div><span>predicate cubes have three ports each</span><span>, </span><span>since in a logic programming context</span><span>, </span><span>addition &nbsp;</span></div>
+					<div><span>and multiplication are viewed as ternary predicates</span><span>. </span><span>The ﬁrst port of the multiplica- &nbsp;</span></div>
+					<div><span>tion predicate is connected by a pipe to the leftmost empty holder cube</span><span>, </span><span>the second &nbsp;</span></div>
+					<div><span>one is connected to the holder cube containing the value 1</span><span>и </span><span>8 </span><span>, </span><span>and the third one (the &nbsp;</span></div>
+					<div><span>‘result’) is connected to the ﬁrst port of the addition predicate</span><span>. &nbsp;</span></div>
+					<div><span>Thus</span><span>, </span><span>if the user puts a value into the leftmost holder cube</span><span>, </span><span>the multiplication &nbsp;</span></div>
+					<div><span>predicate will receive this value</span><span>, </span><span>will multiply it by 1</span><span>и </span><span>8 </span><span>, </span><span>and transfer the result to the &nbsp;</span></div>
+					<div><span>addition predicate</span><span>, </span><span>which then adds 32</span><span>и </span><span>0 to it</span><span>, </span><span>and transfers the result to the rightmost &nbsp;</span></div>
+					<div><span>holder cube</span><span>. &nbsp;</span></div>
+					<div><span>Alternatively</span><span>, </span><span>if the user puts a value into the rightmost holder cube</span><span>, </span><span>it will ﬂow &nbsp;</span></div>
+					<div><span>into the ‘result’ port of the addition predicate cube</span><span>, </span><span>which will now </span><span>subtract </span><span>32</span><span>и </span><span>0 &nbsp;</span></div>
+					<div><span>from it</span><span>, </span><span>and transfer the result of this subtraction to the ‘result’ port of the &nbsp;</span></div>
+					<div><span>multiplication predicate cube</span><span>. </span><span>This cube will </span><span>divide </span><span>the result of the subtraction by &nbsp;</span></div>
+					<div><span>1 </span><span>и </span><span>8 </span><span>, </span><span>and transfer the result of this division to the left holder cube</span><span>. &nbsp;</span></div>
+					<div><span>This example demonstrates that arithmetic predicates work in either direction</span><span>. &nbsp;</span></div>
+					<div><span>Addition</span><span>, </span><span>for instance</span><span>, </span><span>can use the ﬁrst two arguments to produce the third one</span><span>, </span><span>or &nbsp;</span></div>
+					<div><span>the last two to produce the ﬁrst one</span><span>. </span><span>The ‘multidirectionality’ of predicate &nbsp;</span></div>
+					<div><span>applications complements the bidirectionality of dataﬂow in Cube</span><span>. &nbsp;</span></div>
+					<div><span>In general</span><span>, </span><span>the addition predicate needs to know at least two values to determine &nbsp;</span></div>
+					<div><span>the third one; otherwise</span><span>, </span><span>evaluation of the predicate is suspended until sufﬁcient &nbsp;</span></div>
+					<div><span>information is available</span><span>. </span><span>There are Cube programs which cannot be ‘solved’ because &nbsp;</span></div>
+					<div><span>not enough information is available</span><span>. </span><span>The temperature conversion program</span><span>, </span><span>with &nbsp;</span></div>
+					<div><span>neither a Celsius- nor a Fahrenheit-value supplied to it</span><span>, </span><span>is such a program</span><span>. </span><span>If we try to &nbsp;</span></div>
+					<div><span>evaluate it</span><span>, </span><span>the system reports that it is unable to decide whether the query is &nbsp;</span></div>
+					<div><span>satisﬁable or not</span><span>. &nbsp;</span></div>
+					<div><span>2.4. Predicate Deﬁnitions &nbsp;</span></div>
+					<div><span>Cube also allows us to deﬁne new predicates</span><span>, </span><span>thereby providing a mechanism for &nbsp;</span></div>
+					<div><span>‘procedural abstraction’</span><span>. </span><span>Moreover</span><span>, </span><span>these predicates may be recursive (that is</span><span>, </span><span>they &nbsp;</span></div>
+					<div><span>may refer to themselves)</span><span>, </span><span>which allows us to describe potentially unbounded &nbsp;</span></div>
+					<div><span>computations</span><span>. &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_6">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>225 &nbsp;</span></div>
+					<div><span>Figure 5.</span><span>&nbsp;</span><span>A natural number generator &nbsp;</span></div>
+					<div><span>Figure 6.</span><span>&nbsp;</span><span>Program computing all natural numbers &nbsp;</span></div>
+					<div><span>Assume we want to deﬁne a predicate that generates all the natural numbers</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>the &nbsp;</span></div>
+					<div><span>integers greater than or equal to 1</span><span>. </span><span>The natural numbers can be recursively deﬁned as &nbsp;</span></div>
+					<div><span>follows: (a) 1 is a natural number</span><span>, </span><span>and (b) if </span><span>n </span><span>is a natural number</span><span>, </span><span>then so is </span><span>n </span><span>ϩ </span><span>1 </span><span>. &nbsp;</span></div>
+					<div><span>Figure 5 shows the Cube deﬁnition of this predicate</span><span>. </span><span>The outer cube</span><span>, </span><span>called a &nbsp;</span></div>
+					<div><span>predicate deﬁnition cube, </span><span>is a transparent green cube with an icon on its top</span><span>. </span><span>This icon &nbsp;</span></div>
+					<div><span>provides a name for the new predicate</span><span>. </span><span>The small transparent cube set into the center &nbsp;</span></div>
+					<div><span>of the front side of the deﬁnition cube is a </span><span>port</span><span>; it represents the formal parameter of &nbsp;</span></div>
+					<div><span>the predicate under deﬁnition</span><span>. </span><span>The icon on its outer side identiﬁes the port</span><span>. &nbsp;</span></div>
+					<div><span>Inside the predicate deﬁnition cube are transparent boxes called </span><span>planes. </span><span>Planes are &nbsp;</span></div>
+					<div><span>stacked vertically; in Cube</span><span>, </span><span>vertical arrangement (in the value world) indicates &nbsp;</span></div>
+					<div><span>disjunction</span><span>, </span><span>while horizontal arrangement indicates conjunction</span><span>. </span><span>To draw the analogy &nbsp;</span></div>
+					<div><span>to Prolog</span><span>, </span><span>each plane corresponds to a clause of a Prolog program</span><span>. &nbsp;</span></div>
+					<div><span>Predicate deﬁnition cubes and planes may contain local predicate deﬁnition cubes</span><span>. &nbsp;</span></div>
+					<div><span>Predicate deﬁnitions occurring at the top level are visible to the entire program &nbsp;</span></div>
+					<div><span>(including each other)</span><span>, </span><span>predicate deﬁnitions local to another predicate deﬁnition cube &nbsp;</span></div>
+					<div><span>are visible to all objects inside this cube</span><span>, </span><span>and predicate deﬁnitions local to a plane are &nbsp;</span></div>
+					<div><span>visible to all objects inside the plane</span><span>. &nbsp;</span></div>
+					<div><span>The lower plane forms the base case of the recursive deﬁnition</span><span>. </span><span>It contains a holder &nbsp;</span></div>
+					<div><span>cube</span><span>, </span><span>ﬁlled with the value 1</span><span>, </span><span>which is connected by a pipe to the port representing the &nbsp;</span></div>
+					<div><span>formal parameter</span><span>. &nbsp;</span></div>
+					<div><span>The upper plane forms the recursive case of the deﬁnition</span><span>. </span><span>It contains an addition &nbsp;</span></div>
+					<div><span>predicate cube whose ﬁrst argument is connected to a recursive application of the &nbsp;</span></div>
+					<div><span>natural-number predicate</span><span>, </span><span>while the second port is connected to a holder cube &nbsp;</span></div>
+					<div><span>containing the value 1</span><span>, </span><span>and the third argument is connected to the port representing &nbsp;</span></div>
+					<div><span>the formal parameter</span><span>. </span><span>Note that the recursive case of the natural-number predicate is &nbsp;</span></div>
+					<div><span>represented by an opaque cube</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>a predicate cube</span><span>. </span><span>The icon on its top indicates &nbsp;</span></div>
+					<div><span>which deﬁnition cube it refers to—in this case</span><span>, </span><span>the surrounding deﬁnition cube</span><span>. </span><span>The &nbsp;</span></div>
+					<div><span>port in its side carries the same icon as the port of the surrounding deﬁnition cube; &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_7">
+			
+			<div>
+				<div>
+					<div><span>226 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>for predicate cubes with several parameters</span><span>, </span><span>these icons are used to match up actual &nbsp;</span></div>
+					<div><span>with formal parameters</span><span>. </span><span>Since predicate cubes refer to predicate deﬁnitions</span><span>, </span><span>they are &nbsp;</span></div>
+					<div><span>also known as </span><span>reference cubes. &nbsp;</span></div>
+					<div><span>The intuitive meaning of a predicate reference cube is that we would replace it by &nbsp;</span></div>
+					<div><span>its corresponding deﬁnition cube (after moving the ports around to match them up)</span><span>. &nbsp;</span></div>
+					<div><span>This intuition corresponds exactly to what is known as call-by-name semantics in &nbsp;</span></div>
+					<div><span>textual programming languages</span><span>. &nbsp;</span></div>
+					<div><span>If we pose a query like the one shown in Figure 6</span><span>, </span><span>we can imagine that the large &nbsp;</span></div>
+					<div><span>reference cube referring to the natural-number predicate gets replaced by (‘expanded &nbsp;</span></div>
+					<div><span>to’) the corresponding predicate deﬁnition cube</span><span>. </span><span>(In the actual implementation</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>reference cube remains opaque</span><span>. </span><span>) The value 1 then ﬂows from the holder cube in the &nbsp;</span></div>
+					<div><span>lower plane of the expanded reference cube through the pipe into the port and from &nbsp;</span></div>
+					<div><span>there out of the expanded reference cube and into the large empty holder cube</span><span>. </span><span>This &nbsp;</span></div>
+					<div><span>constitutes the ﬁrst solution to our query</span><span>. &nbsp;</span></div>
+					<div><span>We can also imagine that not only the large reference cube was replaced by the &nbsp;</span></div>
+					<div><span>deﬁnition cube</span><span>, </span><span>but that at the same time the recursive reference cube inside the top &nbsp;</span></div>
+					<div><span>plane of the expanded reference cube was replaced by the deﬁnition cube as well (and &nbsp;</span></div>
+					<div><span>the recursive reference cube inside </span><span>this </span><span>cube as well</span><span>, </span><span>and so on </span><span>ad inﬁnitum</span><span>) </span><span>. </span><span>So</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>value 1 ﬂows from the holder cube of this second-level expanded reference cube &nbsp;</span></div>
+					<div><span>through its port out into a pipe inside the upper plane of the ﬁrst-level expansion &nbsp;</span></div>
+					<div><span>which takes it to the addition predicate</span><span>. </span><span>The addition predicate receives the constant &nbsp;</span></div>
+					<div><span>value 1 as a second argument</span><span>, </span><span>and returns the value 2</span><span>, </span><span>which ﬂows out of its ‘result’ &nbsp;</span></div>
+					<div><span>port and through a pipe to the port of the ﬁrst-level expanded reference cube</span><span>, </span><span>and &nbsp;</span></div>
+					<div><span>from there into the large holder cube</span><span>. </span><span>This constitutes the second solution to the &nbsp;</span></div>
+					<div><span>query</span><span>. </span><span>It is easy to see how the expansion process can be continued</span><span>, </span><span>leading to an &nbsp;</span></div>
+					<div><span>inﬁnite number of solutions</span><span>. </span><span>Figure 20</span><span>, </span><span>contained in the next section</span><span>, </span><span>shows the &nbsp;</span></div>
+					<div><span>evaluation of this query in progress</span><span>. </span><span>Note that all solutions are computed in parallel</span><span>, &nbsp;</span></div>
+					<div><span>so a single evaluation returns a set of solutions</span><span>. </span><span>The Cube user interface allows the &nbsp;</span></div>
+					<div><span>user to then browse through the set of solutions (even as they are being computed)</span><span>, &nbsp;</span></div>
+					<div><span>viewing them one at a time</span><span>. &nbsp;</span></div>
+					<div><span>In summary</span><span>, </span><span>this example illustrates two key points</span><span>. </span><span>One of them is that a Cube &nbsp;</span></div>
+					<div><span>query can have multiple solutions</span><span>, </span><span>just like a Prolog query</span><span>. </span><span>Cube</span><span>, </span><span>however</span><span>, </span><span>unlike &nbsp;</span></div>
+					<div><span>Prolog</span><span>, </span><span>explores the paths leading to the various solutions in parallel</span><span>, </span><span>and is &nbsp;</span></div>
+					<div><span>guaranteed to ﬁnd every solution that can be found in ﬁnite time (i</span><span>. </span><span>e </span><span>. </span><span>by a ﬁnite &nbsp;</span></div>
+					<div><span>number of ‘expansions’)</span><span>. </span><span>The second key aspect is that the logical notion of a &nbsp;</span></div>
+					<div><span>resolution step—replacing a goal by the subgoals of a matching clause—has an &nbsp;</span></div>
+					<div><span>intuitive visual counterpart</span><span>, </span><span>namely replacing a reference cube by the corresponding &nbsp;</span></div>
+					<div><span>deﬁnition cube</span><span>. &nbsp;</span></div>
+					<div><span>2.5. A Factorial Predicate &nbsp;</span></div>
+					<div><span>Figure 7 shows another example of a predicate deﬁnition cube</span><span>. </span><span>This cube deﬁnes the &nbsp;</span></div>
+					<div><span>factorial predicate</span><span>. </span><span>Again</span><span>, </span><span>it consists of a transparent green cube</span><span>, </span><span>with an icon ‘!’ on &nbsp;</span></div>
+					<div><span>its top to name the predicate</span><span>. </span><span>Its two ports are set into the left and the right side of &nbsp;</span></div>
+					<div><span>the outer cube</span><span>, </span><span>and are labeled ‘n’ and ‘n!’</span><span>. </span><span>It contains two planes</span><span>, </span><span>the upper one &nbsp;</span></div>
+					<div><span>representing the base case and the lower one the recursive case</span><span>. &nbsp;</span></div>
+					<div><span>The upper plane contains two holder cubes</span><span>. </span><span>The left one is ﬁlled with the value 0 &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_8">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>227 &nbsp;</span></div>
+					<div><span>Figure 7.</span><span>&nbsp;</span><span>Deﬁnition of the factorial predicate &nbsp;</span></div>
+					<div><span>Figure 8.</span><span>&nbsp;</span><span>Close-up on the lower plane of Figure 7 &nbsp;</span></div>
+					<div><span>and connected by a pipe to the left port (‘n’); the right one is ﬁlled with the value 1 &nbsp;</span></div>
+					<div><span>and connected to the right port (‘n!’)</span><span>. &nbsp;</span></div>
+					<div><span>The lower plane (shown by itself in Figure 8) contains a comparison predicate &nbsp;</span></div>
+					<div><span>whose two arguments are connected by pipes to the left port (‘n’) and to a holder &nbsp;</span></div>
+					<div><span>cube which contains the value 0</span><span>. </span><span>It also contains a subtraction predicate cube whose &nbsp;</span></div>
+					<div><span>two ‘input’ arguments are connected to the left port (‘n’) and to a holder cube &nbsp;</span></div>
+					<div><span>containing the value 1</span><span>, </span><span>and whose ‘output’ port is connected by a pipe to the ‘input’ &nbsp;</span></div>
+					<div><span>port of a predicate cube which recursively refers to the factorial predicate</span><span>. </span><span>The &nbsp;</span></div>
+					<div><span>‘output’ port of the factorial predicate cube is connected to one of the ‘input’ ports of &nbsp;</span></div>
+					<div><span>a multiplication predicate cube</span><span>, </span><span>whose other ‘input’ port is connected to the left port &nbsp;</span></div>
+					<div><span>(‘n’)</span><span>, </span><span>while its ‘output’ port is connected to the right port of the deﬁnition cube (‘n!’)</span><span>. &nbsp;</span></div>
+					<div><span>Now consider the query shown in Figure 9</span><span>, </span><span>which contains a predicate cube &nbsp;</span></div>
+					<div><span>referring to this deﬁnition</span><span>, </span><span>and where the user supplies a value</span><span>, </span><span>say </span><span>v, </span><span>to the left port &nbsp;</span></div>
+					<div><span>of the deﬁnition cube (‘n’) of the factorial predicate</span><span>. </span><span>Again</span><span>, </span><span>we can imagine that the &nbsp;</span></div>
+					<div><span>opaque reference cube gets replaced by (‘expanded to’) the transparent deﬁnition &nbsp;</span></div>
+					<div><span>cube</span><span>. </span><span>The value </span><span>v </span><span>ﬂows into the left port where it splits up</span><span>, </span><span>one copy of </span><span>v </span><span>ﬂowing &nbsp;</span></div>
+					<div><span>through a pipe into the upper plane and the other copy ﬂowing through the other &nbsp;</span></div>
+					<div><span>pipe into the lower plane</span><span>. &nbsp;</span></div>
+					<div><span>The copy of </span><span>v </span><span>which goes to the upper plane ﬂows into a holder cube which &nbsp;</span></div>
+					<div><span>already contains the value 0</span><span>. </span><span>If </span><span>v </span><span>does not unify with 0</span><span>, </span><span>then the dataﬂow fails and &nbsp;</span></div>
+					<div><span>with it the entire upper plane</span><span>. </span><span>One can imagine that it is simply taken out of the &nbsp;</span></div>
+					<div><span>computation</span><span>. </span><span>Otherwise</span><span>, </span><span>the value 1 contained in the right holder cube ﬂows out &nbsp;</span></div>
+					<div><span>through a pipe and into the right port of the expanded reference cube (and possibly &nbsp;</span></div>
+					<div><span>into an attached empty holder cube)</span><span>, </span><span>thereby constituting a solution to the query</span><span>. &nbsp;</span></div>
+					<div><span>The above description is intuitive but might mislead you into believing that the &nbsp;</span></div>
+					<div><span>various dataﬂow operations are performed in some particular sequence</span><span>, </span><span>and that data &nbsp;</span></div>
+					<div><span>ﬂows into some prescribed direction</span><span>. </span><span>This is not the case</span><span>. </span><span>All ﬂow of data takes place &nbsp;</span></div>
+					<div><span>simultaneously and continues to happen until the system is in equilibrium (has &nbsp;</span></div>
+					<div><span>reached a ﬁxed-point)</span><span>. </span><span>A nice analogy is pipes connecting containers with different &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_9">
+			
+			<div>
+				<div>
+					<div><span>228 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Figure 10.</span><span>&nbsp;</span><span>List type deﬁnition &nbsp;</span></div>
+					<div><span>Figure 9. </span><span>Program computing the factorial &nbsp;</span></div>
+					<div><span>of 3 &nbsp;</span></div>
+					<div><span>air pressures (different amounts of information) inside</span><span>. </span><span>Once the pipes are opened &nbsp;</span></div>
+					<div><span>(evaluation is started)</span><span>, </span><span>air will ﬂow through them until all connected containers have &nbsp;</span></div>
+					<div><span>equal pressures</span><span>. </span><span>The same equilibrium is reached regardless of the sequence in which &nbsp;</span></div>
+					<div><span>the pipes are opened</span><span>, </span><span>and the direction of air ﬂow in a pipe is determined only by the &nbsp;</span></div>
+					<div><span>pressure difference between two containers</span><span>. &nbsp;</span></div>
+					<div><span>The second point that should be emphasized is that the result of a uniﬁcation affects &nbsp;</span></div>
+					<div><span>only the computation that happens</span><span>, </span><span>logically speaking</span><span>, </span><span>within the same conjunction</span><span>. &nbsp;</span></div>
+					<div><span>When the value </span><span>v </span><span>entered the port of the expanded reference cube</span><span>, </span><span>it was split up into &nbsp;</span></div>
+					<div><span>two copies; one went to the upper</span><span>, </span><span>the other to the lower plane</span><span>. </span><span>A uniﬁcation that &nbsp;</span></div>
+					<div><span>reﬁnes </span><span>v </span><span>in the upper plane will not affect the copy of </span><span>v </span><span>in the lower plane</span><span>. &nbsp;</span></div>
+					<div><span>Let us return to our example</span><span>. </span><span>As we said before</span><span>, </span><span>one copy of the value </span><span>v </span><span>ﬂows &nbsp;</span></div>
+					<div><span>through a pipe leading into the lower plane</span><span>, </span><span>where the pipe branches</span><span>. </span><span>One of its ends &nbsp;</span></div>
+					<div><span>is connected to one port of a comparison predicate</span><span>, </span><span>whose other port receives the &nbsp;</span></div>
+					<div><span>value 0</span><span>. </span><span>If </span><span>v </span><span>is not greater than 0</span><span>, </span><span>the comparison fails and with it the entire plane</span><span>. &nbsp;</span></div>
+					<div><span>The second end of the branching pipe is connected to a subtraction predicate</span><span>, </span><span>so </span><span>v &nbsp;</span></div>
+					<div><span>ﬂows into the ﬁrst argument of this predicate</span><span>, </span><span>which receives the value 1 as its second &nbsp;</span></div>
+					<div><span>argument</span><span>. </span><span>The result of the subtraction</span><span>, </span><span>v </span><span>Ϫ </span><span>1 </span><span>, </span><span>ﬂows out of the third argument port &nbsp;</span></div>
+					<div><span>and into the port ‘n’ of a predicate cube recursively referring to the factorial predicate</span><span>. &nbsp;</span></div>
+					<div><span>The result of this computation</span><span>, </span><span>( </span><span>v </span><span>Ϫ </span><span>1)!</span><span>, </span><span>then ﬂows out of the ‘n!’ port and into one &nbsp;</span></div>
+					<div><span>of the two input ports of a multiplication predicate</span><span>, </span><span>whose other input port is &nbsp;</span></div>
+					<div><span>connected to the third end of the branching pipe which carries </span><span>v. </span><span>The result of the &nbsp;</span></div>
+					<div><span>multiplication</span><span>, </span><span>v </span><span>( </span><span>v </span><span>Ϫ </span><span>1)!</span><span>, </span><span>ﬁnally ﬂows out of the lower plane and into the port ‘n!’ of &nbsp;</span></div>
+					<div><span>the expanded reference cube (and from there possibly into an attached empty holder &nbsp;</span></div>
+					<div><span>cube)</span><span>. &nbsp;</span></div>
+					<div><span>2.6. Type Deﬁnitions &nbsp;</span></div>
+					<div><span>Most ML-like textual functional languages allow the programmer to deﬁne new types</span><span>. &nbsp;</span></div>
+					<div><span>The classical example is the deﬁnition of a polymorphic list type: &nbsp;</span></div>
+					<div><span>List </span><span>␣ </span><span>ϭ </span><span>ni</span><span>l</span><span>ϩ </span><span>cons </span><span>␣ </span><span>(List </span><span>␣ </span><span>) &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_10">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>229 &nbsp;</span></div>
+					<div><span>deﬁnes two new constructors</span><span>, </span><span>nil </span><span>and </span><span>cons</span><span>. </span><span>A </span><span>constructor </span><span>is an uninterpreted function &nbsp;</span></div>
+					<div><span>symbol</span><span>. </span><span>In this particular case</span><span>, </span><span>nil </span><span>is a nullary function (i</span><span>. </span><span>e </span><span>. </span><span>a simple value)</span><span>. </span><span>It is of &nbsp;</span></div>
+					<div><span>type ‘List of </span><span>␣ </span><span>’ </span><span>, </span><span>where </span><span>␣ </span><span>could be any type</span><span>. </span><span>cons </span><span>is a binary function</span><span>, </span><span>which takes a &nbsp;</span></div>
+					<div><span>value of type </span><span>␣ </span><span>as ﬁrst and a value of type ‘List of </span><span>␣ </span><span>’ as second argument</span><span>, </span><span>and returns &nbsp;</span></div>
+					<div><span>a new ‘List of </span><span>␣ </span><span>’ </span><span>. </span><span>Again</span><span>, </span><span>␣ </span><span>ranges over all the types</span><span>. &nbsp;</span></div>
+					<div><span>Note that the </span><span>List </span><span>type is deﬁned in a recursive fashion: the </span><span>nil </span><span>constructor forms &nbsp;</span></div>
+					<div><span>the base case</span><span>, </span><span>the </span><span>cons </span><span>constructor is the recursive case</span><span>, </span><span>as it creates a list by using &nbsp;</span></div>
+					<div><span>another list</span><span>. </span><span>It is obvious that every ﬁnite list must be terminated by a </span><span>nil </span><span>constructor</span><span>. &nbsp;</span></div>
+					<div><span>The expression </span><span>nil </span><span>denotes the empty list</span><span>, </span><span>that is</span><span>, </span><span>a list with no elements</span><span>. </span><span>The &nbsp;</span></div>
+					<div><span>expression </span><span>cons </span><span>1 </span><span>nil </span><span>denotes a list whose head is 1 and whose tail is the empty list; or</span><span>, &nbsp;</span></div>
+					<div><span>putting it differently</span><span>, </span><span>a list that has one element</span><span>, </span><span>namely 1</span><span>. </span><span>Similarly</span><span>, </span><span>the expression &nbsp;</span></div>
+					<div><span>cons </span><span>1 (</span><span>cons </span><span>2 </span><span>nil</span><span>) denotes a two-element list with 1 as the ﬁrst and 2 as the second &nbsp;</span></div>
+					<div><span>element</span><span>. &nbsp;</span></div>
+					<div><span>List </span><span>is referred to as a </span><span>type constructor, </span><span>an uninterpreted function that takes </span><span>n </span><span>types &nbsp;</span></div>
+					<div><span>as arguments and returns a new type</span><span>. &nbsp;</span></div>
+					<div><span>How can this notation be carried over to Cube? Constructors are functions</span><span>, </span><span>and as &nbsp;</span></div>
+					<div><span>such they have arguments</span><span>. </span><span>In Cube</span><span>, </span><span>arguments (i</span><span>. </span><span>e </span><span>. </span><span>ports) are associated with icons</span><span>. &nbsp;</span></div>
+					<div><span>So</span><span>, </span><span>when deﬁning a constructor</span><span>, </span><span>we not only need to specify the types of its &nbsp;</span></div>
+					<div><span>arguments but also their icons</span><span>. </span><span>By symmetry</span><span>, </span><span>we also associate the arguments of type &nbsp;</span></div>
+					<div><span>constructors with icons</span><span>. &nbsp;</span></div>
+					<div><span>Figure 10 shows a </span><span>type deﬁnition cube </span><span>that deﬁnes the list type</span><span>. </span><span>It consists of a grey &nbsp;</span></div>
+					<div><span>transparent cube with an icon on its top</span><span>. </span><span>The color grey distinguishes types from &nbsp;</span></div>
+					<div><span>values</span><span>, </span><span>which are green</span><span>. </span><span>The icon names the type constructor that is to be deﬁned (</span><span>List &nbsp;</span></div>
+					<div><span>in the textual deﬁnition)</span><span>. &nbsp;</span></div>
+					<div><span>The type deﬁnition cube has a </span><span>port </span><span>on its top side</span><span>, </span><span>which represents the one formal &nbsp;</span></div>
+					<div><span>parameter of the type constructur (</span><span>␣ </span><span>in the textual deﬁnition)</span><span>. </span><span>The port carries an &nbsp;</span></div>
+					<div><span>icon on its outside which is used to distinguish it from other ports</span><span>. &nbsp;</span></div>
+					<div><span>Inside the type deﬁnition cube are two grey transparent boxes</span><span>, </span><span>called </span><span>type planes, &nbsp;</span></div>
+					<div><span>that represent the two constructors of the list type</span><span>. </span><span>The planes are stacked on top of &nbsp;</span></div>
+					<div><span>each other; in the context of types</span><span>, </span><span>vertical arrangement denotes a type sum</span><span>, </span><span>whereas &nbsp;</span></div>
+					<div><span>horizontal arrangement denotes a type product</span><span>. </span><span>Each plane carries an icon on its top</span><span>, &nbsp;</span></div>
+					<div><span>identifying the constructor</span><span>. </span><span>The upper plane</span><span>, </span><span>which represents the </span><span>nil </span><span>constructor</span><span>, </span><span>is &nbsp;</span></div>
+					<div><span>empty</span><span>, </span><span>as </span><span>nil </span><span>is a nullary constructor</span><span>. &nbsp;</span></div>
+					<div><span>The lower plane represents the </span><span>cons </span><span>constructor; it contains two type cubes</span><span>. </span><span>The &nbsp;</span></div>
+					<div><span>left type cube is a type reference cube that refers to the port of the enclosing &nbsp;</span></div>
+					<div><span>deﬁnition cube</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>to </span><span>␣ </span><span>. </span><span>Right above the cube</span><span>, </span><span>on the transparent wall of the &nbsp;</span></div>
+					<div><span>enclosing box</span><span>, </span><span>is the icon for the ﬁrst argument of </span><span>cons</span><span>. &nbsp;</span></div>
+					<div><span>The right type cube is a type constructor application</span><span>. </span><span>It consists of a type &nbsp;</span></div>
+					<div><span>constructor cube that has a port and a type contained inside the port</span><span>. </span><span>The type &nbsp;</span></div>
+					<div><span>constructor cube refers to the enclosing deﬁnition cube</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>List</span><span>, </span><span>and the type cube in &nbsp;</span></div>
+					<div><span>its port refers to the port of the enclosing deﬁnition cube</span><span>, </span><span>i </span><span>. </span><span>e </span><span>. </span><span>␣ </span><span>. </span><span>So</span><span>, </span><span>the entire type &nbsp;</span></div>
+					<div><span>constructor application denotes the type </span><span>List </span><span>␣ </span><span>. </span><span>Above the cube</span><span>, </span><span>on the transparent &nbsp;</span></div>
+					<div><span>wall of the surrounding box</span><span>, </span><span>is the icon for the second argument of </span><span>cons</span><span>. &nbsp;</span></div>
+					<div><span>Note the similarity between type deﬁnition cubes and predicate deﬁnition cubes</span><span>. &nbsp;</span></div>
+					<div><span>Both are represented as transparent cubes with an icon on their top that names the &nbsp;</span></div>
+					<div><span>object under deﬁnition</span><span>. </span><span>Ports on their side or top serve as formal parameters</span><span>. </span><span>Inside &nbsp;</span></div>
+					<div><span>the deﬁnition cube are vertically stacked planes</span><span>, </span><span>which denote clauses for predicates &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_11">
+			
+			<div>
+				<div>
+					<div><span>230 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Figure 11.</span><span>&nbsp;</span><span>The ‘</span><span>cons</span><span>’ constructor &nbsp;</span></div>
+					<div><span>Figure 12.</span><span>&nbsp;</span><span>The list [1</span><span>, </span><span>2 </span><span>, </span><span>3] &nbsp;</span></div>
+					<div><span>and variants for types</span><span>. </span><span>Vertical arrangement denotes ‘</span><span>∨ </span><span>’ for predicates and ‘</span><span>ϩ </span><span>’ for &nbsp;</span></div>
+					<div><span>types</span><span>, </span><span>while horizontal arrangement denotes ‘</span><span>∧ </span><span>’ for predicates and ‘</span><span>ϫ </span><span>’ for types</span><span>. &nbsp;</span></div>
+					<div><span>Type deﬁnition cubes can occur in a Cube program wherever predicate deﬁnition &nbsp;</span></div>
+					<div><span>cubes may occur</span><span>, </span><span>and their scope extends just as far</span><span>. </span><span>Within this scope</span><span>, </span><span>there may be &nbsp;</span></div>
+					<div><span>reference (i</span><span>. </span><span>e </span><span>. </span><span>term) cubes that refer to the constructors deﬁned by the type deﬁnition &nbsp;</span></div>
+					<div><span>cube</span><span>. </span><span>We call such reference cubes </span><span>constructor cubes. &nbsp;</span></div>
+					<div><span>Figure 11 shows a constructor cube referring to the </span><span>cons </span><span>constructor deﬁned by the &nbsp;</span></div>
+					<div><span>list type deﬁnition cube from Figure 10</span><span>. </span><span>Like all value reference cubes</span><span>, </span><span>it is &nbsp;</span></div>
+					<div><span>represented by an opaque green cube (colour not shown)</span><span>. </span><span>It carries the </span><span>cons </span><span>icon on &nbsp;</span></div>
+					<div><span>its top</span><span>, </span><span>the same icon that is on top of the lower plane of the type deﬁnition cube in &nbsp;</span></div>
+					<div><span>Figure 10</span><span>, </span><span>and it has two ports in its side which are labeled by the same two icons as &nbsp;</span></div>
+					<div><span>those which are hovering above the two type cubes in the lower plane</span><span>. </span><span>The left port &nbsp;</span></div>
+					<div><span>(called the ‘</span><span>head</span><span>’ port) can take an argument of any type</span><span>, </span><span>say </span><span>τ </span><span>, </span><span>and the right port &nbsp;</span></div>
+					<div><span>(called the ‘</span><span>tail</span><span>’ port) can take an argument of type ‘List of </span><span>τ </span><span>’ </span><span>. &nbsp;</span></div>
+					<div><span>Constructor cubes are ﬁrst-class values</span><span>, </span><span>hence they can be contained in holder &nbsp;</span></div>
+					<div><span>cubes</span><span>, </span><span>ﬂow through pipes</span><span>, </span><span>be passed as arguments to predicates or to other &nbsp;</span></div>
+					<div><span>constructors</span><span>, </span><span>etc</span><span>. </span><span>Their ports can be connected to pipes or be ﬁlled with values</span><span>. &nbsp;</span></div>
+					<div><span>Whenever we do the latter to build up complex structures</span><span>, </span><span>it is customary to move &nbsp;</span></div>
+					<div><span>each port so that the icon which labels it occupies the same position as it has in the &nbsp;</span></div>
+					<div><span>type plane deﬁning the constructor</span><span>. </span><span>The result is a visually pleasing representation of &nbsp;</span></div>
+					<div><span>recursive data structures</span><span>. </span><span>Figure 12 shows the list ‘[1</span><span>, </span><span>2 </span><span>, </span><span>3]’ enclosed in a holder cube</span><span>. &nbsp;</span></div>
+					<div><span>It shows that well-chosen constructor icons lead to a pleasing representation of &nbsp;</span></div>
+					<div><span>recursive structures</span><span>, </span><span>and it explains why we chose the particular icons for </span><span>nil </span><span>and &nbsp;</span></div>
+					<div><span>cons</span><span>. </span><span>We don’t provide any special mechanisms for visualizing large structures</span><span>, </span><span>but &nbsp;</span></div>
+					<div><span>rather rely on the user’s ability to zoom in on a substructure</span><span>. &nbsp;</span></div>
+					<div><span>Figure 13 shows how inferred list types are visualized</span><span>. </span><span>The program shows two &nbsp;</span></div>
+					<div><span>holder cubes connected by a pipe</span><span>. </span><span>The left holder cube contains a cube representing &nbsp;</span></div>
+					<div><span>the list ‘[1</span><span>, </span><span>2 </span><span>, </span><span>3]’; the right holder cube is initially empty</span><span>. </span><span>Upon type inference</span><span>, </span><span>the &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_12">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>231 &nbsp;</span></div>
+					<div><span>Figure 13.</span><span>&nbsp;</span><span>Interference of list types &nbsp;</span></div>
+					<div><span>Figure 14. </span><span>Predicate for computing the length of a &nbsp;</span></div>
+					<div><span>list &nbsp;</span></div>
+					<div><span>Cube system infers that</span><span>, </span><span>since the left holder cube contains a list of integers and the &nbsp;</span></div>
+					<div><span>two holder cubes are connected</span><span>, </span><span>the right holder cube is also restricted to lists of &nbsp;</span></div>
+					<div><span>integers</span><span>. </span><span>Therefore it ﬁlls the right holder cube with a type cube representing lists of &nbsp;</span></div>
+					<div><span>integers: a type reference cube referring to the list type constructor</span><span>, </span><span>whose port if &nbsp;</span></div>
+					<div><span>ﬁlled with a type reference cube referring to the integer type constructor</span><span>. &nbsp;</span></div>
+					<div><span>Constructors are used in Cube—just as in Prolog—both to construct terms and to &nbsp;</span></div>
+					<div><span>deconstruct them</span><span>. </span><span>We have just seen that we can ﬁll the ports of a constructor with &nbsp;</span></div>
+					<div><span>term cubes to construct a larger term</span><span>. </span><span>Alternatively</span><span>, </span><span>we can connect them to pipes &nbsp;</span></div>
+					<div><span>that supply them with values</span><span>. </span><span>The same technique is used for deconstruction</span><span>, </span><span>except &nbsp;</span></div>
+					<div><span>that now values of ﬂow </span><span>out of </span><span>the ports</span><span>. &nbsp;</span></div>
+					<div><span>The remainder of this section shows two more predicate deﬁnitions and typical &nbsp;</span></div>
+					<div><span>usages</span><span>. </span><span>In particular</span><span>, </span><span>we focus on ﬁrst- and higher-order predicates over lists</span><span>. &nbsp;</span></div>
+					<div><span>2.7. Determining the Length of a List &nbsp;</span></div>
+					<div><span>Consider the predicate deﬁnition cube shown in Figure 14</span><span>, </span><span>which takes two &nbsp;</span></div>
+					<div><span>arguments</span><span>, </span><span>a list </span><span>l </span><span>and an integer </span><span>n, </span><span>and holds if the length of </span><span>l </span><span>is </span><span>n. </span><span>In the following</span><span>, &nbsp;</span></div>
+					<div><span>we will refer to the left port (which takes </span><span>l </span><span>) as the ‘</span><span>list</span><span>’ port</span><span>, </span><span>and to the right port &nbsp;</span></div>
+					<div><span>(which takes </span><span>n </span><span>) as the ‘</span><span>len</span><span>’ port</span><span>. &nbsp;</span></div>
+					<div><span>The upper plane contains the base case of the deﬁnition: the length of the empty list &nbsp;</span></div>
+					<div><span>is 0</span><span>. </span><span>This is represented by connecting the left port to a holder cube which contains &nbsp;</span></div>
+					<div><span>the value </span><span>nil</span><span>, </span><span>and the right port to a holder cube which contains the value 0</span><span>. &nbsp;</span></div>
+					<div><span>The lower plane (also shown in Figure 15) contains the recursive case: the length of &nbsp;</span></div>
+					<div><span>a non-empty list is the length of its tail plus 1</span><span>. </span><span>This is expressed by connecting the left &nbsp;</span></div>
+					<div><span>port to a holder cube which contains a </span><span>cons </span><span>constructor</span><span>. </span><span>cons </span><span>is used here to &nbsp;</span></div>
+					<div><span>deconstruct the list</span><span>. </span><span>Its ‘</span><span>head</span><span>’ port is connected by a pipe to an empty holder cube</span><span>, &nbsp;</span></div>
+					<div><span>while its ‘</span><span>tail</span><span>’ port is connected by a pipe to the ‘</span><span>list</span><span>’ port of a recursive reference to &nbsp;</span></div>
+					<div><span>the length predicate</span><span>. </span><span>The ‘</span><span>len</span><span>’ port of the length predicate is connected by a pipe to &nbsp;</span></div>
+					<div><span>one of the input ports of an addition predicate</span><span>, </span><span>whose other input port receives the &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_13">
+			
+			<div>
+				<div>
+					<div><span>232 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Figure 15.</span><span>&nbsp;</span><span>Close-up of the lower plane of Figure 14 &nbsp;</span></div>
+					<div><span>value 1</span><span>, </span><span>and whose output port is connected by a pipe to the right port of the &nbsp;</span></div>
+					<div><span>enclosing deﬁnition cube</span><span>. &nbsp;</span></div>
+					<div><span>So</span><span>, </span><span>the </span><span>cons </span><span>constructor matches an incoming non-empty list</span><span>, </span><span>takes it apart</span><span>, &nbsp;</span></div>
+					<div><span>forwards its head to the empty holder cube (i</span><span>. </span><span>e </span><span>. </span><span>effectively discards it) and its tail to a &nbsp;</span></div>
+					<div><span>recursive invocation of the length predicate</span><span>, </span><span>which thus determines the length of the &nbsp;</span></div>
+					<div><span>tail of the incoming list</span><span>. </span><span>The addition predicate adds 1 to this length</span><span>, </span><span>yielding the &nbsp;</span></div>
+					<div><span>length of the whole incoming list</span><span>, </span><span>and sends this value to the right port</span><span>. &nbsp;</span></div>
+					<div><span>Figure 16 shows how this predicate can be used to compute the length of the list &nbsp;</span></div>
+					<div><span>‘[1</span><span>, </span><span>2 </span><span>, </span><span>3]’</span><span>. </span><span>Upon evaluation</span><span>, </span><span>the empty right holder cube will be ﬁlled with the value 3</span><span>. &nbsp;</span></div>
+					<div><span>Interestingly enough</span><span>, </span><span>the predicate can also be used with a reversed directionality</span><span>. &nbsp;</span></div>
+					<div><span>Instead of putting a list into the left holder cube and leaving the right one empty</span><span>, </span><span>we &nbsp;</span></div>
+					<div><span>can put an integer</span><span>, </span><span>say 3</span><span>, </span><span>into the right holder cube and leave the left one empty</span><span>. &nbsp;</span></div>
+					<div><span>Figure 17 shows a closeup of the solution to this query: a list with 3 elements</span><span>, </span><span>each &nbsp;</span></div>
+					<div><span>being a distinct uninstantiated variable</span><span>, </span><span>but all of them being of the same</span><span>, </span><span>however &nbsp;</span></div>
+					<div><span>unknown</span><span>, </span><span>type</span><span>. &nbsp;</span></div>
+					<div><span>2.8. Mapping a Predicate Over a List &nbsp;</span></div>
+					<div><span>This example shows the Cube deﬁnition of ‘</span><span>map</span><span>’ </span><span>, </span><span>a higher-order predicate that takes &nbsp;</span></div>
+					<div><span>a binary predicate (say </span><span>p </span><span>) and two lists (say [</span><span>s </span><sub><span>1 </span></sub><span>, . . . , s</span><sub><span>m</span></sub><span>] and [</span><span>t </span><sub><span>1 </span></sub><span>, . . . , t</span><sub><span>n</span></sub><span>])</span><span>, </span><span>and holds if &nbsp;</span></div>
+					<div><span>both lists are of equal length (i</span><span>. </span><span>e </span><span>. </span><span>if </span><span>m </span><span>ϭ </span><span>n </span><span>) and if the binary predicate holds when &nbsp;</span></div>
+					<div><span>applied to corresponding elements in the two lists (i</span><span>. </span><span>e </span><span>. </span><span>if </span><span>p </span><span>( </span><span>s </span><sub><span>i </span></sub><span>, t</span><sub><span>i</span></sub><span>) holds for all &nbsp;</span></div>
+					<div><span>1 </span><span>Յ </span><span>i </span><span>Յ </span><span>m </span><span>) </span><span>. &nbsp;</span></div>
+					<div><span>Figure 18 shows the deﬁnition cube for this predicate</span><span>. </span><span>The port for the lower-order &nbsp;</span></div>
+					<div><span>predicate is on the top of the predicate deﬁnition cube (which is the convention for &nbsp;</span></div>
+					<div><span>predicate arguments)</span><span>, </span><span>the ports for the two list arguments are on the left and the right</span><span>. &nbsp;</span></div>
+					<div><span>The lower plane represents the base case: mapping any predicate over the empty list &nbsp;</span></div>
+					<div><span>yields the empty list</span><span>. </span><span>This is expressed by connecting both ‘</span><span>list</span><span>’ ports to holder cubes &nbsp;</span></div>
+					<div><span>which contain the value </span><span>nil</span><span>. &nbsp;</span></div>
+					<div><span>The upper plane represents the recursive case: both lists are decomposed</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>lower-order predicate is applied to their heads</span><span>, </span><span>and </span><span>map </span><span>is applied recursively to their &nbsp;</span></div>
+					<div><span>tails</span><span>. </span><span>This is expressed by two holder cubes</span><span>, </span><span>one being connected to the left port</span><span>, </span><span>the &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_14">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>233 &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_15">
+			
+			<div>
+				<div>
+					<div><span>234 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_16">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>235 &nbsp;</span></div>
+					<div><span>other to the right port</span><span>, </span><span>and both being ﬁlled with a </span><span>cons </span><span>constructor</span><span>. </span><span>The ‘</span><span>head</span><span>’ and &nbsp;</span></div>
+					<div><span>the ‘</span><span>tail</span><span>’ ports of both constructors are connected to pipes</span><span>. </span><span>The two pipes attached to &nbsp;</span></div>
+					<div><span>the ‘</span><span>head</span><span>’ ports connect them to the two ports of a reference cube referring to the &nbsp;</span></div>
+					<div><span>lower-order predicate; the two pipes attached to the ‘</span><span>tail</span><span>’ ports connect them to the &nbsp;</span></div>
+					<div><span>two ‘</span><span>list</span><span>’ ports of a reference cube referring to </span><span>map </span><span>itself</span><span>, </span><span>the third port (the predicate &nbsp;</span></div>
+					<div><span>argument) of this reference cube is ﬁlled with a reference to the lower-order predicate</span><span>. &nbsp;</span></div>
+					<div><span>Figure 19 shows a query which uses the </span><span>map </span><span>predicate to map the successor &nbsp;</span></div>
+					<div><span>predicate (represented by the deﬁnition cube at the top right) over the list ‘[1</span><span>, </span><span>2 </span><span>, </span><span>3]’</span><span>. &nbsp;</span></div>
+					<div><span>Upon evaluation</span><span>, </span><span>the empty holder cube on the right will be ﬁlled with the list &nbsp;</span></div>
+					<div><span>‘[2</span><span>, </span><span>3 </span><span>, </span><span>4]’</span><span>. &nbsp;</span></div>
+					<div><span>The icons used inside the </span><span>map </span><span>predicate deﬁnition cube to identify the ports of the &nbsp;</span></div>
+					<div><span>lower-order predicate are not the same as the icons identifying the two ports of the &nbsp;</span></div>
+					<div><span>successor predicate</span><span>. </span><span>Hence</span><span>, </span><span>we need to ‘relabel’ the ports</span><span>. </span><span>This is done through a </span><span>port &nbsp;</span></div>
+					<div><span>renaming cube, </span><span>a transparent cube (not to be confused with a holder cube) which &nbsp;</span></div>
+					<div><span>surrounds a predicate cube or a constructor cube (</span><span>map </span><span>in this case) and carries the &nbsp;</span></div>
+					<div><span>new icon on its transparent hull right above the port with the old icon</span><span>. &nbsp;</span></div>
+					<div><span>The ‘predicate’ argument of </span><span>map </span><span>must always be completely ground; otherwise</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>evaluation of the recursive case in which it is used will suspend until the predicate is &nbsp;</span></div>
+					<div><span>ground</span><span>. </span><span>The allowable instantiation patterns of the two ‘</span><span>list</span><span>’ arguments</span><span>, </span><span>on the other &nbsp;</span></div>
+					<div><span>hand</span><span>, </span><span>depends only on the predicate argument</span><span>. </span><span>If we use a predicate argument which &nbsp;</span></div>
+					<div><span>expects both of its arguments to be gound (such as ‘</span><span>greater</span><span>’)</span><span>, </span><span>then both list arguments &nbsp;</span></div>
+					<div><span>of </span><span>map </span><span>have to be completely ground; otherwise</span><span>, </span><span>the evaluation suspends</span><span>. </span><span>If we use a &nbsp;</span></div>
+					<div><span>predicate argument which expects at least one of its arguments to be ground</span><span>, </span><span>then for &nbsp;</span></div>
+					<div><span>each two corresponding elements of the two lists at least one has to be ground</span><span>. &nbsp;</span></div>
+					<div><span>Finally</span><span>, </span><span>if we use a predicate argument which expects neither of its arguments to be &nbsp;</span></div>
+					<div><span>ground or even instantiated (such as ‘</span><span>equal</span><span>’)</span><span>, </span><span>then the two list arguments do not have &nbsp;</span></div>
+					<div><span>to be instantiated at all</span><span>. </span><span>Instead</span><span>, </span><span>map </span><span>will generate all possible solutions</span><span>. &nbsp;</span></div>
+					<div><span>3. The Cube System &nbsp;</span></div>
+					<div><span>The ﬁrst implementation of Cube</span><span>, </span><span>described in [24]</span><span>, </span><span>consisted of a renderer</span><span>, </span><span>written &nbsp;</span></div>
+					<div><span>in C</span><span>, </span><span>and an interpreter</span><span>, </span><span>written in Lazy ML</span><span>. </span><span>It served as a feasibility study and as a &nbsp;</span></div>
+					<div><span>testbed for reﬁning the syntax and semantics of Cube</span><span>. &nbsp;</span></div>
+					<div><span>The second and current implementation</span><span>, </span><span>which was used to generate the ﬁgures in &nbsp;</span></div>
+					<div><span>this paper</span><span>, </span><span>is written in Modula-3 [26]</span><span>, </span><span>a modern procedural language that supports &nbsp;</span></div>
+					<div><span>concurrency and provides garbage collection</span><span>. &nbsp;</span></div>
+					<div><span>We used FormsVBT</span><span>, </span><span>the standard Modula-3 widget set</span><span>, </span><span>to build the ‘traditional’ &nbsp;</span></div>
+					<div><span>parts of the user interface and wrote our own rendering engine for drawing 3D scenes</span><span>. &nbsp;</span></div>
+					<div><span>This renderer is written on top of X and does not require any 3D graphics hardware</span><span>. &nbsp;</span></div>
+					<div><span>When asked to redraw the scene</span><span>, </span><span>it performs a wireframe rendering of the scene</span><span>. </span><span>At &nbsp;</span></div>
+					<div><span>the same time</span><span>, </span><span>it signals a background thread to generate a high-quality view of the &nbsp;</span></div>
+					<div><span>scene</span><span>. </span><span>If the scene changes before the high-quality rendering is complete</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>background thread is interrupted and restarted; otherwise</span><span>, </span><span>the wireframe rendering is &nbsp;</span></div>
+					<div><span>replaced by the high-quality view</span><span>. </span><span>This approach ensures that the user can always &nbsp;</span></div>
+					<div><span>interact with the system</span><span>, </span><span>without ﬁrst having to wait for the high-quality rendering to &nbsp;</span></div>
+					<div><span>ﬁnish</span><span>. &nbsp;</span></div>
+					<div><span>Multi-threading is also used by the Cube interpreter to deal with inﬁnite &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_17">
+			
+			<div>
+				<div>
+					<div><span>236 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>Figure 20.</span><span>&nbsp;</span><span>An evaluation in progress &nbsp;</span></div>
+					<div><span>computations</span><span>. </span><span>When the user presses the </span><span>Eval </span><span>button</span><span>, </span><span>a separate thread is created to &nbsp;</span></div>
+					<div><span>perform the evaluation</span><span>. </span><span>At the same time</span><span>, </span><span>a control panel is popped up</span><span>, </span><span>which &nbsp;</span></div>
+					<div><span>informs the user how many solutions have been found so far and allows him to &nbsp;</span></div>
+					<div><span>interrupt the evaluation</span><span>. </span><span>In addition</span><span>, </span><span>this control panel allows him to browse through &nbsp;</span></div>
+					<div><span>the various solutions</span><span>, </span><span>even while the evaluation is in progress</span><span>. </span><span>Figure 20 shows the &nbsp;</span></div>
+					<div><span>program for generating all the natural numbers</span><span>. </span><span>The evaluation is in progress</span><span>, </span><span>the &nbsp;</span></div>
+					<div><span>system has found 316 solutions so far and the user is currently looking at solution 4</span><span>. &nbsp;</span></div>
+					<div><span>The current Cube system uses a mouse as the primary input device</span><span>. </span><span>This is &nbsp;</span></div>
+					<div><span>somewhat of a limitation; a 2D pointing device such as a mouse can only be used to &nbsp;</span></div>
+					<div><span>specify points in 2-space</span><span>, </span><span>which translates to a line rather than a point in 3-space</span><span>. </span><span>This &nbsp;</span></div>
+					<div><span>means that either the user must perform two pointing operations to completely &nbsp;</span></div>
+					<div><span>specify a point in 3-space</span><span>, </span><span>or that the system has to select a point on the line</span><span>, </span><span>possibly &nbsp;</span></div>
+					<div><span>based on the current context and on existing objects in the scene</span><span>. &nbsp;</span></div>
+					<div><span>Creating Cube programs and queries currently takes longer than it would take &nbsp;</span></div>
+					<div><span>using a high-level textual language</span><span>. </span><span>However</span><span>, </span><span>much of the tediousness of program &nbsp;</span></div>
+					<div><span>construction can be attributed to the fact that the system uses a 2D input device</span><span>. </span><span>A &nbsp;</span></div>
+					<div><span>more appropriate input device</span><span>, </span><span>such as a dataglove</span><span>, </span><span>would speed up the editing &nbsp;</span></div>
+					<div><span>process considerably</span><span>. &nbsp;</span></div>
+					<div><span>4. A Review of the Language Design Choices &nbsp;</span></div>
+					<div><span>This section reviews some of the language design choices we have made</span><span>. </span><span>Cube was &nbsp;</span></div>
+					<div><span>inspired by Kimura’s Show-and-Tell [16]</span><span>, </span><span>a functional language with a dataﬂow &nbsp;</span></div>
+					<div><span>syntax</span><span>. </span><span>Show-and-Tell introduced a novel feature to the traditional dataﬂow model: &nbsp;</span></div>
+					<div><span>inconsistency</span><span>. </span><span>Two conﬂicting values ﬂowing into the same box of a Show-and-Tell &nbsp;</span></div>
+					<div><span>dataﬂow diagram cause the box and its surroundings (delineated by a solid outline) to &nbsp;</span></div>
+					<div><span>become </span><span>inconsistent. </span><span>Inconsistent areas are greyed out in the diagram and are taken &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_18">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>237 &nbsp;</span></div>
+					<div><span>out of the computation</span><span>. </span><span>This is reminiscent of the notion of a </span><span>failed goal </span><span>in logic &nbsp;</span></div>
+					<div><span>programming</span><span>. &nbsp;</span></div>
+					<div><span>This observation prompted us to think about how Show-and-Tell would have to be &nbsp;</span></div>
+					<div><span>modiﬁed to become a ‘Visual Prolog’</span><span>. </span><span>In Prolog</span><span>, </span><span>a predicate deﬁnition consists of a &nbsp;</span></div>
+					<div><span>set of clauses</span><span>. </span><span>Each clause can be expressed visually as a 2D dataﬂow diagram</span><span>. </span><span>Rather &nbsp;</span></div>
+					<div><span>than using several disjoint 2D diagrams to express a predicate deﬁnition</span><span>, </span><span>we decided &nbsp;</span></div>
+					<div><span>to integrate them into a coherent 3D diagram</span><span>. </span><span>This approach frees the programmer &nbsp;</span></div>
+					<div><span>from having to mentally integrate several diagrams into a whole; thus</span><span>, </span><span>it moves &nbsp;</span></div>
+					<div><span>workload from the cognitive to the perceptual level</span><span>. &nbsp;</span></div>
+					<div><span>Stacking 2D dataﬂow diagrams on top of each other means that we use spatial &nbsp;</span></div>
+					<div><span>layout to encode semantic content: the </span><span>x </span><span>and </span><span>y </span><span>dimensions span up a plane for 2D &nbsp;</span></div>
+					<div><span>dataﬂow diagrams</span><span>, </span><span>the </span><span>z </span><span>dimension is used to stack multiple 2D dataﬂow diagrams</span><span>. </span><span>In &nbsp;</span></div>
+					<div><span>a logic programming sense</span><span>, </span><span>predicates that lie in the same plane are conjoint &nbsp;</span></div>
+					<div><span>(connected by AND)</span><span>, </span><span>whereas stacked planes are disjoint (connected by OR)</span><span>. &nbsp;</span></div>
+					<div><span>We use the same visual metaphor for expressing type deﬁnitions</span><span>. </span><span>Type cubes that &nbsp;</span></div>
+					<div><span>lie in the same </span><span>xy </span><span>plane are part of the same ‘record’ or ‘tuple’; in type-theoretic &nbsp;</span></div>
+					<div><span>terminology</span><span>, </span><span>they form a product type</span><span>. </span><span>Planes stacked in the </span><span>z </span><span>dimension are part of a &nbsp;</span></div>
+					<div><span>variant record (akin to a union in C); in type-theoretic terminology</span><span>, </span><span>they form a sum &nbsp;</span></div>
+					<div><span>type</span><span>. &nbsp;</span></div>
+					<div><span>Research in type theory has uncovered a correspondence</span><span>, </span><span>known as the Curry– &nbsp;</span></div>
+					<div><span>Howard isomorphism</span><span>, </span><span>between the logic operators AND and OR and the type &nbsp;</span></div>
+					<div><span>operators PRODUCT and SUM</span><span>. </span><span>The similarity between the visual representations of &nbsp;</span></div>
+					<div><span>predicate and type deﬁnitions matches the theoretic correspondence quite nicely</span><span>. &nbsp;</span></div>
+					<div><span>The decision to use cubes (as opposed to</span><span>, </span><span>say</span><span>, </span><span>spheres or tetrahedra) as the basic &nbsp;</span></div>
+					<div><span>shape was straightforward</span><span>. </span><span>Cubes are graphically simple: they are composed of six &nbsp;</span></div>
+					<div><span>polygons</span><span>, </span><span>and can therefore be rendered much more efﬁciently than spheres</span><span>. &nbsp;</span></div>
+					<div><span>Furthermore</span><span>, </span><span>cubes are symmetric along three orthogonal axes</span><span>. </span><span>Tetrahedra (which are &nbsp;</span></div>
+					<div><span>even easier to render) do not have this property</span><span>. </span><span>If we were to stack 2D diagrams &nbsp;</span></div>
+					<div><span>inside a tedrahedron</span><span>, </span><span>the topmost diagram would have to be much smaller than the &nbsp;</span></div>
+					<div><span>bottommost one</span><span>. &nbsp;</span></div>
+					<div><span>We decided to restrict ourselves to two basic colors: grey for type cubes and green &nbsp;</span></div>
+					<div><span>for value cubes</span><span>. </span><span>Our intention was to visually emphasize that numbers</span><span>, </span><span>constructors</span><span>, &nbsp;</span></div>
+					<div><span>and predicates are all ﬁrst-class values</span><span>. </span><span>This decision is nice from a language purist’s &nbsp;</span></div>
+					<div><span>point of view; on the other hand</span><span>, </span><span>a richer coloring scheme that distinguished</span><span>, </span><span>say</span><span>, &nbsp;</span></div>
+					<div><span>between predicates and constructors</span><span>, </span><span>might actually be more comprehensible</span><span>. &nbsp;</span></div>
+					<div><span>In textual languages</span><span>, </span><span>identiﬁers (e</span><span>. </span><span>g </span><span>. </span><span>procedure names or variables) provide the &nbsp;</span></div>
+					<div><span>‘plumbing’ for connecting operators and for relating deﬁnitions and uses of values</span><span>. &nbsp;</span></div>
+					<div><span>Cube offers two distinct mechanisms for this purpose: pipes and icons</span><span>. </span><span>Pipes (a &nbsp;</span></div>
+					<div><span>deﬁning feature of all dataﬂow languages) are used for connecting holder cubes and &nbsp;</span></div>
+					<div><span>ports</span><span>. </span><span>One important advantage over textual variables is that pipes alleviate the need &nbsp;</span></div>
+					<div><span>to come up with a new name or icon—they provide an implicit naming mechanism</span><span>. &nbsp;</span></div>
+					<div><span>Furthermore</span><span>, </span><span>given a pipe</span><span>, </span><span>one can see at a glance which operators it connects</span><span>, </span><span>while &nbsp;</span></div>
+					<div><span>it is much harder to ﬁnd all occurrences of a variable in a piece of textual code</span><span>. </span><span>This &nbsp;</span></div>
+					<div><span>advantage is most pronounced for short pipes; excessively long pipes lead to the visual &nbsp;</span></div>
+					<div><span>equivalent of ‘spaghetti code’ (pun intended)</span><span>. </span><span>In Cube</span><span>, </span><span>individual predicate deﬁnitions &nbsp;</span></div>
+					<div><span>are very compact so pipes are suitable to connect the objects inside a deﬁnition cube</span><span>. &nbsp;</span></div>
+					<div><span>However</span><span>, </span><span>predicate deﬁnitions can be far away from their uses</span><span>. </span><span>Therefore</span><span>, </span><span>we &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_19">
+			
+			<div>
+				<div>
+					<div><span>238 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>provide an explicit naming mechanism—icons—to relate them</span><span>. </span><span>A predicate deﬁnition &nbsp;</span></div>
+					<div><span>is represented by a transparent cube with an icon on its top; all opaque cubes in the &nbsp;</span></div>
+					<div><span>same scope that carry this icon refer to the deﬁnition</span><span>. &nbsp;</span></div>
+					<div><span>Enclosing diagrams with transparent cubes with superimposed icons makes &nbsp;</span></div>
+					<div><span>programs visually more complex</span><span>. </span><span>However</span><span>, </span><span>much of the ambiguity can be resolved &nbsp;</span></div>
+					<div><span>through motion parallax: interactively rotating the transparent cube helps the viewer &nbsp;</span></div>
+					<div><span>in discriminating enclosing from enclosed objects</span><span>. </span><span>Moreover</span><span>, </span><span>a judicious choice of the &nbsp;</span></div>
+					<div><span>transparency coefﬁcient improves the recognition of both transparent and opaque &nbsp;</span></div>
+					<div><span>structures</span><span>, </span><span>as a recent evaluation of transparent menus in 2D user interfaces suggests &nbsp;</span></div>
+					<div><span>[12]</span><span>. &nbsp;</span></div>
+					<div><span>Cube does not make any provisions for animating evaluations</span><span>. </span><span>As it turns out</span><span>, </span><span>few &nbsp;</span></div>
+					<div><span>if any animations would make sense</span><span>. </span><span>It is not sensible to animate dataﬂow by moving &nbsp;</span></div>
+					<div><span>value cubes through pipes because</span><span>, </span><span>in the general case</span><span>, </span><span>data can ﬂow in both &nbsp;</span></div>
+					<div><span>directions at the same time (to use logic programming terminology</span><span>, </span><span>unifying two &nbsp;</span></div>
+					<div><span>partially instantiated terms may reﬁne both terms)</span><span>. </span><span>Neither is it sensible to animate &nbsp;</span></div>
+					<div><span>how results (such as lists) get built up during an evaluation</span><span>, </span><span>since the evaluation of &nbsp;</span></div>
+					<div><span>each solution must be complete before we can be sure that it is indeed a solution</span><span>. &nbsp;</span></div>
+					<div><span>In summary</span><span>, </span><span>we believe that the following aspects of our visual notation improve &nbsp;</span></div>
+					<div><span>the comprehension of Cube programs: &nbsp;</span></div>
+					<div><span>$ </span><span>The use of the third dimension enables the integration of multiple 2D dataﬂow &nbsp;</span></div>
+					<div><span>diagrams into a coherent whole</span><span>, </span><span>thereby shifting the programmer’s mental &nbsp;</span></div>
+					<div><span>workload from the cognitive to the perceptual level</span><span>. &nbsp;</span></div>
+					<div><span>$ </span><span>Spatial layout is used to encode semantic information</span><span>. </span><span>Predicates that lie in the &nbsp;</span></div>
+					<div><span>same </span><span>xy </span><span>plane are connected by a logical AND; planes that are stacked in the </span><span>z &nbsp;</span></div>
+					<div><span>dimension are connected by a logical OR</span><span>. &nbsp;</span></div>
+					<div><span>$ </span><span>Color is used to distinguish types from values</span><span>. &nbsp;</span></div>
+					<div><span>$ </span><span>Pipes are used to connect objects that are spatially close; icons are used to relate &nbsp;</span></div>
+					<div><span>objects (such as predicate deﬁnitions and predicate uses) that are spatially farther &nbsp;</span></div>
+					<div><span>apart</span><span>. &nbsp;</span></div>
+					<div><span>Unfortunately</span><span>, </span><span>we did not verify the validity of these claims through any empirical &nbsp;</span></div>
+					<div><span>study</span><span>. </span><span>This was largely due to time constraints: a prerequisite for any empirical study &nbsp;</span></div>
+					<div><span>would be a much improved Cube editor</span><span>. </span><span>The existing editor is too primitive</span><span>, </span><span>both in &nbsp;</span></div>
+					<div><span>terms of functionality and of convenience</span><span>, </span><span>to be usable by anyone but the author</span><span>. </span><span>A &nbsp;</span></div>
+					<div><span>truly satisfactory editor would have to be freed from the constraints of a mouse-based &nbsp;</span></div>
+					<div><span>user interface</span><span>, </span><span>and presumably be virtual-reality based—a project exceeding the scope &nbsp;</span></div>
+					<div><span>of a PhD thesis</span><span>. &nbsp;</span></div>
+					<div><span>5. Related Work &nbsp;</span></div>
+					<div><span>The design of Cube was quite heavily inﬂuenced by Show-and-Tell [16]</span><span>, </span><span>a visual &nbsp;</span></div>
+					<div><span>language based on the dataﬂow paradigm</span><span>. </span><span>In Show-and-Tell</span><span>, </span><span>constants</span><span>, </span><span>variables and &nbsp;</span></div>
+					<div><span>operations are shown as </span><span>boxes. </span><span>Data ﬂows from boxes to other boxes through </span><span>pipes, &nbsp;</span></div>
+					<div><span>which are depicted as arrows</span><span>. </span><span>A picture composed of boxes and pipes is called a &nbsp;</span></div>
+					<div><span>puzzle. </span><span>Show-and-Tell tries to </span><span>complete </span><span>this puzzle by performing every possible &nbsp;</span></div>
+					<div><span>dataﬂow</span><span>. </span><span>If data ﬂows into a box already containing a different value</span><span>, </span><span>the box &nbsp;</span></div>
+					<div><span>becomes </span><span>inconsistent. </span><span>Inconsistency can be limited to a single box</span><span>, </span><span>or it can ‘ﬂow out’ &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_20">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>239 &nbsp;</span></div>
+					<div><span>of this box and turn its spatial environment inconsistent as well</span><span>. </span><span>Inconsistent areas are &nbsp;</span></div>
+					<div><span>shaded grey and are considered to be removed from the diagram</span><span>. </span><span>If a pipe leads &nbsp;</span></div>
+					<div><span>through an inconsistent area</span><span>, </span><span>no data can pass through it</span><span>. </span><span>This novel notion of &nbsp;</span></div>
+					<div><span>consistency can be utilized in many ways</span><span>, </span><span>in particular</span><span>, </span><span>it fulﬁlls the same purpose as &nbsp;</span></div>
+					<div><span>a conditional or selection function in traditional textual languages</span><span>. </span><span>Cube generalizes &nbsp;</span></div>
+					<div><span>the notions of completion and consistency to uniﬁcation and satisﬁability</span><span>, &nbsp;</span></div>
+					<div><span>respectively</span><span>. &nbsp;</span></div>
+					<div><span>There are a few visual languages that have an explicit notion of types</span><span>. </span><span>Fabrik [20] &nbsp;</span></div>
+					<div><span>and DataVis [13] use a type system that is similar to that of many procedural &nbsp;</span></div>
+					<div><span>languages</span><span>. </span><span>They have a rich set of predeﬁned types (records</span><span>, </span><span>arrays</span><span>, </span><span>etc)</span><span>, </span><span>but do not &nbsp;</span></div>
+					<div><span>allow the user to deﬁne new types</span><span>. </span><span>ESTL [22] was the ﬁrst visual language to use the &nbsp;</span></div>
+					<div><span>Hindley–Milner type system; variations of this system are used by VisaVis [28]</span><span>, </span><span>an &nbsp;</span></div>
+					<div><span>extension of Forms</span><span>&nbsp;</span><span>3 [2]</span><span>, </span><span>and Cube</span><span>. &nbsp;</span></div>
+					<div><span>/</span></div>
+					<div><span>ESTL also introduced higher-order functions to visual programming</span><span>. </span><span>Other &nbsp;</span></div>
+					<div><span>higher-order visual languages include DataVis [13]</span><span>, </span><span>VPL [18]</span><span>, </span><span>and </span><span>viz </span><span>[14]</span><span>. &nbsp;</span></div>
+					<div><span>There are a number of visual logic programming languages</span><span>. </span><span>The Transparent Prolog &nbsp;</span></div>
+					<div><span>Machine [8] and a system by Senay and Lazzeri [33] both use And-Or-Trees to &nbsp;</span></div>
+					<div><span>visualize Prolog programs and their execution</span><span>. </span><span>VPP [27] is a visual front-end for &nbsp;</span></div>
+					<div><span>Prolog which uses labeled directed graphs</span><span>. </span><span>Pictorial Janus [15] is a visual notation for &nbsp;</span></div>
+					<div><span>a concurrent constraint logic language</span><span>. </span><span>It uses diagram rewriting to animate the &nbsp;</span></div>
+					<div><span>execution of programs</span><span>, </span><span>that is</span><span>, </span><span>it transforms a diagram into another diagram</span><span>. </span><span>VLP [17] &nbsp;</span></div>
+					<div><span>is a visual logic programming language which represents clauses and literals as boxes</span><span>, &nbsp;</span></div>
+					<div><span>and uses spatial arrangement to denote conjunctions</span><span>, </span><span>disjunctions and implications</span><span>. </span><span>In &nbsp;</span></div>
+					<div><span>this respect</span><span>, </span><span>it is very similar to Cube</span><span>. </span><span>However</span><span>, </span><span>it is not based on a dataﬂow &nbsp;</span></div>
+					<div><span>notation but uses shared patterns to indicate shared variables</span><span>. </span><span>Finally</span><span>, </span><span>SPARCL [34] is &nbsp;</span></div>
+					<div><span>founded on both logic and set theory</span><span>. &nbsp;</span></div>
+					<div><span>Glinert suggested a decade ago that using a 3D syntax might increase the expressive &nbsp;</span></div>
+					<div><span>power of visual languages [10]</span><span>. </span><span>To our best knowledge</span><span>, </span><span>Cube was the ﬁrst visual &nbsp;</span></div>
+					<div><span>language to use a 3D notation</span><span>. </span><span>By now</span><span>, </span><span>there are at least four more such languages: &nbsp;</span></div>
+					<div><span>Lingua Graphica [37] provides a 3D syntax for C</span><span>ϩϩ </span><span>programs; CAEL-3D [30] &nbsp;</span></div>
+					<div><span>provides a 3D syntax for a subset of Pascal; SPARCL [34]</span><span>, </span><span>which is based on logic &nbsp;</span></div>
+					<div><span>and set theory</span><span>, </span><span>recently adopted a 3D notation [35]; and MAP [9] uses spatial &nbsp;</span></div>
+					<div><span>arrangements of nested cubes to represent data structures and execution order</span><span>. &nbsp;</span></div>
+					<div><span>3D has also been used in a number of program visualization systems</span><span>. </span><span>Lieberman &nbsp;</span></div>
+					<div><span>has built a system that uses 3D graphics to visualize the execution of Lisp programs &nbsp;</span></div>
+					<div><span>[19]</span><span>. </span><span>The Plum system [31] uses 3D for laying out the nodes of a program’s dynamic &nbsp;</span></div>
+					<div><span>call graph</span><span>. </span><span>Recently</span><span>, </span><span>a number of algorithm animation systems have used 3D graphics</span><span>, &nbsp;</span></div>
+					<div><span>among them Polka-3D [36]</span><span>, </span><span>Zeus3D [1]</span><span>, </span><span>Pavane [6] and GASP [39]</span><span>. &nbsp;</span></div>
+					<div><span>6. Conclusion &nbsp;</span></div>
+					<div><span>This article described Cube</span><span>, </span><span>a three-dimensional visual programming language with a &nbsp;</span></div>
+					<div><span>purely declarative</span><span>, </span><span>Horn-logic-based semantics</span><span>. </span><span>We gave an informal</span><span>, </span><span>example-driven &nbsp;</span></div>
+					<div><span>overview of the language</span><span>, </span><span>and described the prototype implementation of the Cube &nbsp;</span></div>
+					<div><span>interpreter and programming environment</span><span>. </span><span>Possible future research includes the &nbsp;</span></div>
+					<div><span>design and construction of a virtual-reality based Cube programming environment</span><span>. &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_21">
+			
+			<div>
+				<div>
+					<div><span>240 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>For additional information on Cube</span><span>, </span><span>visit the Cube World-Wide Web home page at &nbsp;</span></div>
+					<div><span>http: www</span><span>. </span><span>research</span><span>. </span><span>digital</span><span>. </span><span>com SRC personal najork cube</span><span>. </span><span>html</span><span>. &nbsp;</span></div>
+					<div><span>// &nbsp;</span></div>
+					<div><span>/</span></div>
+					<div><span>/</span></div>
+					<div><span>/</span></div>
+					<div><span>/</span></div>
+					<div><span>Acknowledgments &nbsp;</span></div>
+					<div><span>Simon Kaplan and Eric Golin inﬂuenced all the stages of the design of Cube</span><span>. </span><span>Marc &nbsp;</span></div>
+					<div><span>Brown and Allan Heydon provided helpful comments on various drafts of this paper</span><span>. &nbsp;</span></div>
+					<div><span>Thanks to all of them! &nbsp;</span></div>
+					<div><span>References &nbsp;</span></div>
+					<div><span>1 </span><span>. </span><span>M </span><span>. </span><span>H </span><span>. </span><span>Brown &amp; M</span><span>. </span><span>A </span><span>. </span><span>Najork (1993) Algorithm animation using 3D interactive graphics</span><span>. &nbsp;</span></div>
+					<div><span>In: </span><span>ACM Symposium on User Interface Software and Technology, </span><span>Altanta</span><span>, </span><span>GA</span><span>. </span><span>ACM &nbsp;</span></div>
+					<div><span>Press</span><span>, </span><span>New York pp</span><span>. </span><span>93–100</span><span>. &nbsp;</span></div>
+					<div><span>2 </span><span>. </span><span>M </span><span>. </span><span>Burnett (1993) Types and type inference in a visual programming language</span><span>. </span><span>In: </span><span>IEEE &nbsp;</span></div>
+					<div><span>Symposium on Visual Languages, </span><span>Bergen</span><span>, </span><span>Norway</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los &nbsp;</span></div>
+					<div><span>Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>238–243</span><span>. &nbsp;</span></div>
+					<div><span>3 </span><span>. </span><span>S </span><span>. </span><span>-K</span><span>. </span><span>Chang (ed</span><span>. </span><span>) (1990) </span><span>Visual Languages and Visual Programming </span><span>Plenum Press</span><span>, </span><span>New &nbsp;</span></div>
+					<div><span>York</span><span>. </span><span>340pp</span><span>. &nbsp;</span></div>
+					<div><span>4 </span><span>. </span><span>W </span><span>. </span><span>Chen</span><span>, </span><span>M </span><span>. </span><span>Kifer &amp; D</span><span>. </span><span>S </span><span>. </span><span>Warren (1989) HiLog: a ﬁrst-order semantics for higher-order &nbsp;</span></div>
+					<div><span>logic programming constructs</span><span>. </span><span>In: </span><span>Logic Programming: Proceedings of the North American &nbsp;</span></div>
+					<div><span>Conference 1989 </span><span>(E</span><span>. </span><span>L </span><span>. </span><span>Lusk &amp; R</span><span>. </span><span>A </span><span>. </span><span>Overbeck</span><span>, </span><span>eds) MIT Press</span><span>, </span><span>Cambridge</span><span>, </span><span>MA pp</span><span>. &nbsp;</span></div>
+					<div><span>1090–1114</span><span>. &nbsp;</span></div>
+					<div><span>5 </span><span>. </span><span>W </span><span>. </span><span>F </span><span>. </span><span>Clocksin &amp; C</span><span>. </span><span>F </span><span>. </span><span>Mellish (1991)</span><span>. </span><span>Programming in Prolog </span><span>Springer Verlag</span><span>, </span><span>Berlin</span><span>. &nbsp;</span></div>
+					<div><span>6 </span><span>. </span><span>K </span><span>. </span><span>C </span><span>. </span><span>Cox &amp; G</span><span>. </span><span>C </span><span>. </span><span>Roman (1992) Abstraction in algorithm animation</span><span>. </span><span>In: </span><span>IEEE Workshop &nbsp;</span></div>
+					<div><span>on Visual Languages, </span><span>Seattle</span><span>, </span><span>WA</span><span>. </span><span>IEEE Computers Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. &nbsp;</span></div>
+					<div><span>18–24</span><span>. &nbsp;</span></div>
+					<div><span>7 </span><span>. </span><span>L </span><span>. </span><span>Damas &amp; R</span><span>. </span><span>Milner (1982) Principal type schemes for functional programs</span><span>. </span><span>In: </span><span>9th ACM &nbsp;</span></div>
+					<div><span>Symposium on Principles of Programming Languages. </span><span>ACM Press</span><span>, </span><span>New York</span><span>, </span><span>pp</span><span>. &nbsp;</span></div>
+					<div><span>207–212</span><span>. &nbsp;</span></div>
+					<div><span>8 </span><span>. </span><span>M </span><span>. </span><span>Eisenstadt &amp; M</span><span>. </span><span>Brayshaw (1988) The transparent Prolog machine (TPM): an execution &nbsp;</span></div>
+					<div><span>model and graphical debugger for logic programming</span><span>. </span><span>Journal of Logic Programming </span><span>5, &nbsp;</span></div>
+					<div><span>227–342</span><span>. &nbsp;</span></div>
+					<div><span>9 </span><span>. </span><span>E </span><span>. </span><span>Freeman</span><span>, </span><span>D </span><span>. </span><span>Gelernter &amp; S</span><span>. </span><span>Jagannathan (1995) In search of a simple visual vocabulary</span><span>. &nbsp;</span></div>
+					<div><span>In: </span><span>1995 IEEE Symposium on Visual Languages, </span><span>Darmstadt</span><span>, </span><span>Germany</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>302–309</span><span>. &nbsp;</span></div>
+					<div><span>10</span><span>. </span><span>E </span><span>. </span><span>P </span><span>. </span><span>Glinert (1987) Out of Flatland: towards 3-D visual programming</span><span>. </span><span>In: </span><span>1987 Fall Joint &nbsp;</span></div>
+					<div><span>Computer Conference, </span><span>Dallas</span><span>, </span><span>TX</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA pp</span><span>. &nbsp;</span></div>
+					<div><span>292–299</span><span>. &nbsp;</span></div>
+					<div><span>11</span><span>. </span><span>E </span><span>. </span><span>P </span><span>. </span><span>Glinert (ed</span><span>. </span><span>) (1990) </span><span>Visual Programming Environments </span><span>(Volumes I and II) IEEE &nbsp;</span></div>
+					<div><span>Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>. &nbsp;</span></div>
+					<div><span>12</span><span>. </span><span>B </span><span>. </span><span>L </span><span>. </span><span>Harrison</span><span>, </span><span>G </span><span>. </span><span>Kurtenbach &amp; K</span><span>. </span><span>J </span><span>. </span><span>Vincente (1995) An experimental evaluation of &nbsp;</span></div>
+					<div><span>transparent user interface tools and information content</span><span>. </span><span>In: </span><span>ACM Symposium on User &nbsp;</span></div>
+					<div><span>Interface Software and Technology, </span><span>Pittsburgh</span><span>, </span><span>PA</span><span>. </span><span>ACM Press</span><span>, </span><span>New York</span><span>, </span><span>pp</span><span>. </span><span>81–90</span><span>. &nbsp;</span></div>
+					<div><span>13</span><span>. </span><span>D </span><span>. </span><span>D </span><span>. </span><span>Hils (1991) DataVis: a visual programming language for scientiﬁc visualization</span><span>. </span><span>In: &nbsp;</span></div>
+					<div><span>1991 ACM Computer Science Conference, </span><span>San Antonio</span><span>, </span><span>TX</span><span>. </span><span>ACM Press</span><span>, </span><span>New York</span><span>, </span><span>pp</span><span>. &nbsp;</span></div>
+					<div><span>439–448</span><span>. &nbsp;</span></div>
+					<div><span>14</span><span>. </span><span>C </span><span>. </span><span>M </span><span>. </span><span>Holt (1990) </span><span>vis</span><span>: a visual language based on functions</span><span>. </span><span>In: </span><span>1990 IEEE Workshop on &nbsp;</span></div>
+					<div><span>Visual Languages, </span><span>Skokie</span><span>, </span><span>IL</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. &nbsp;</span></div>
+					<div><span>221–226</span><span>. &nbsp;</span></div>
+					<div><span>15</span><span>. </span><span>K </span><span>. </span><span>M </span><span>. </span><span>Kahn &amp; V</span><span>. </span><span>A </span><span>. </span><span>Saraswat (1990) Complete visualizations of concurrent programs and &nbsp;</span></div>
+					<div><span>their executions</span><span>. </span><span>In </span><span>IEEE Workshop on Visual Languages, </span><span>Skokie</span><span>, </span><span>IL</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>7–15</span><span>. &nbsp;</span></div>
+					<div><span>16</span><span>. </span><span>T </span><span>. </span><span>D </span><span>. </span><span>Kimura</span><span>, </span><span>J </span><span>. </span><span>W </span><span>. </span><span>Choi &amp; J</span><span>. </span><span>M </span><span>. </span><span>Mack (1986) A visual language for keyboardless &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_22">
+			
+			<div>
+				<div>
+					<div><span>PROGRAMMING IN THREE DIMENSIONS &nbsp;</span></div>
+					<div><span>241 &nbsp;</span></div>
+					<div><span>programming</span><span>. </span><span>Technical Report WUCS-86-6</span><span>, </span><span>Department of Computer Science</span><span>, </span><span>Washing- &nbsp;</span></div>
+					<div><span>ton University</span><span>, </span><span>St</span><span>. </span><span>Louis</span><span>, </span><span>MO</span><span>. &nbsp;</span></div>
+					<div><span>17</span><span>. </span><span>D </span><span>. </span><span>Ladret &amp; M</span><span>. </span><span>Rueher (1991) VLP: a visual programming language</span><span>. </span><span>Journal of Visual &nbsp;</span></div>
+					<div><span>Languages and Computing </span><span>2, </span><span>163–189</span><span>. &nbsp;</span></div>
+					<div><span>18</span><span>. </span><span>D </span><span>. </span><span>Lau-Kee</span><span>, </span><span>A </span><span>. </span><span>Billyard</span><span>, </span><span>R </span><span>. </span><span>Faichney</span><span>, </span><span>Y </span><span>. </span><span>Kozata</span><span>, </span><span>P </span><span>. </span><span>Otto</span><span>, </span><span>M </span><span>. </span><span>Smith &amp; I</span><span>. </span><span>Wilkinson (1991) &nbsp;</span></div>
+					<div><span>VPL: an active declarative visual programming system</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual &nbsp;</span></div>
+					<div><span>Languages, </span><span>Kobe</span><span>, </span><span>Japan</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>40–46</span><span>. &nbsp;</span></div>
+					<div><span>19</span><span>. </span><span>H </span><span>. </span><span>Lieberman (1989) A three-dimensional representation for program execution</span><span>. </span><span>In: </span><span>IEEE &nbsp;</span></div>
+					<div><span>Workshop on Visual Languages, </span><span>Rome</span><span>, </span><span>Italy</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, &nbsp;</span></div>
+					<div><span>CA</span><span>, </span><span>pp</span><span>. </span><span>111–116</span><span>. &nbsp;</span></div>
+					<div><span>20</span><span>. </span><span>F </span><span>. </span><span>Ludolph</span><span>, </span><span>Y </span><span>. </span><span>Chow</span><span>, </span><span>D </span><span>. </span><span>Ingalls</span><span>, </span><span>S </span><span>. </span><span>Wallace &amp; K</span><span>. </span><span>Doyle (1988) The Fabrik programming &nbsp;</span></div>
+					<div><span>environment</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual Languages, </span><span>Pittsburgh</span><span>, </span><span>PA</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>222–230</span><span>. &nbsp;</span></div>
+					<div><span>21</span><span>. </span><span>D </span><span>. </span><span>A </span><span>. </span><span>Miller &amp; G</span><span>. </span><span>Nadathur (1986) Higher-order logic programming</span><span>. </span><span>In: </span><span>3rd International &nbsp;</span></div>
+					<div><span>Conference on Logic Programming. </span><span>Published as </span><span>Lecture Notes in Computer Science </span><span>225, &nbsp;</span></div>
+					<div><span>448–462</span><span>. &nbsp;</span></div>
+					<div><span>22</span><span>. </span><span>M </span><span>. </span><span>Najork &amp; E</span><span>. </span><span>Golin (1990) Enhancing Show-and-Tell with a polymorphic type system &nbsp;</span></div>
+					<div><span>and higher-order functions</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual Languages, </span><span>Skokie</span><span>, </span><span>IL</span><span>. </span><span>IEEE &nbsp;</span></div>
+					<div><span>Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>215–220</span><span>. &nbsp;</span></div>
+					<div><span>23</span><span>. </span><span>M </span><span>. </span><span>Najork &amp; S</span><span>. </span><span>Kaplan (1991) The Cube language</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual &nbsp;</span></div>
+					<div><span>Languages, </span><span>Kobe</span><span>, </span><span>Japan</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>218–224</span><span>. &nbsp;</span></div>
+					<div><span>24</span><span>. </span><span>M </span><span>. </span><span>Najork &amp; S</span><span>. </span><span>Kaplan (1992) A prototype implementation of the Cube language</span><span>. </span><span>In: &nbsp;</span></div>
+					<div><span>IEEE Workshop on Visual Languages, </span><span>Seattle</span><span>, </span><span>WA</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los &nbsp;</span></div>
+					<div><span>Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>270–272</span><span>. &nbsp;</span></div>
+					<div><span>25</span><span>. </span><span>M </span><span>. </span><span>Najork (1993) Programming in three dimensions</span><span>. </span><span>PhD Thesis</span><span>. </span><span>Technical Report &nbsp;</span></div>
+					<div><span>UIUCDCS-R-93-1838</span><span>, </span><span>Department of Computer Science</span><span>, </span><span>University of Illinois at &nbsp;</span></div>
+					<div><span>Urbana-Champaign</span><span>. &nbsp;</span></div>
+					<div><span>26</span><span>. </span><span>G </span><span>. </span><span>Nelson (ed</span><span>. </span><span>) (1991) </span><span>Systems Programming with Modula</span><span>- </span><span>3. </span><span>Prentice Hall</span><span>, </span><span>Englewood &nbsp;</span></div>
+					<div><span>Cliffs</span><span>. &nbsp;</span></div>
+					<div><span>27</span><span>. </span><span>L </span><span>. </span><span>F </span><span>. </span><span>Pau &amp; H</span><span>. </span><span>Olason</span><span>. </span><span>Visual logic programming</span><span>. </span><span>Journal of Visual Languages and &nbsp;</span></div>
+					<div><span>Computing </span><span>2, </span><span>3–15</span><span>. &nbsp;</span></div>
+					<div><span>28</span><span>. </span><span>J </span><span>. </span><span>Poswig</span><span>, </span><span>K </span><span>. </span><span>Teves</span><span>, </span><span>G </span><span>. </span><span>Vrankar &amp; C</span><span>. </span><span>Moraga (1992) VisaVis—Contributions to theory &nbsp;</span></div>
+					<div><span>and practice of highly interactive visual languages</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual &nbsp;</span></div>
+					<div><span>Languages, </span><span>Seattle</span><span>, </span><span>WA</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>155–161</span><span>. &nbsp;</span></div>
+					<div><span>29</span><span>. </span><span>G </span><span>. </span><span>Raeder (1985) A survey of current graphical programming techniques</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>18, </span><span>11–25</span><span>. &nbsp;</span></div>
+					<div><span>30</span><span>. </span><span>F </span><span>. </span><span>Van Reeth &amp; E</span><span>. </span><span>Flerackers (1993) Three-dimensional graphical programming in CAEL</span><span>. &nbsp;</span></div>
+					<div><span>In: </span><span>IEEE Symposium on Visual Languages, </span><span>Bergen</span><span>, </span><span>Norway</span><span>. </span><span>IEEE Computer Society &nbsp;</span></div>
+					<div><span>Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>389–391</span><span>. &nbsp;</span></div>
+					<div><span>31</span><span>. </span><span>S </span><span>. </span><span>P </span><span>. </span><span>Reiss (1995) An engine for the 3D visualization of program information</span><span>. </span><span>Journal of &nbsp;</span></div>
+					<div><span>Visual Languages and Computing </span><span>6, </span><span>229–323</span><span>. &nbsp;</span></div>
+					<div><span>32</span><span>. </span><span>G </span><span>. </span><span>G </span><span>. </span><span>Robertson</span><span>, </span><span>S </span><span>. </span><span>K </span><span>. </span><span>Card &amp; J</span><span>. </span><span>D </span><span>. </span><span>Mackinlay (1993) Information visualization using 3D &nbsp;</span></div>
+					<div><span>interactive animation</span><span>. </span><span>Communications of the ACM </span><span>36, </span><span>56–71</span><span>. &nbsp;</span></div>
+					<div><span>33</span><span>. </span><span>H </span><span>. </span><span>Senay &amp; S</span><span>. </span><span>G </span><span>. </span><span>Lazzeri (1991) Graphical representation of logic programs and their &nbsp;</span></div>
+					<div><span>behavior</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual Languages, </span><span>Kobe</span><span>, </span><span>Japan</span><span>. </span><span>IEEE Computer Society &nbsp;</span></div>
+					<div><span>Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>25–31</span><span>. &nbsp;</span></div>
+					<div><span>34</span><span>. </span><span>L </span><span>. </span><span>Spratt &amp; A</span><span>. </span><span>Ambler (1993) A visual logic programming language based on sets and &nbsp;</span></div>
+					<div><span>partitioning constraints</span><span>. </span><span>In: </span><span>IEEE Symposium on Visual Languages, </span><span>Bergen</span><span>, </span><span>Norway</span><span>. </span><span>IEEE &nbsp;</span></div>
+					<div><span>Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>204–208</span><span>. &nbsp;</span></div>
+					<div><span>35</span><span>. </span><span>L </span><span>. </span><span>Spratt &amp; A</span><span>. </span><span>Ambler (1994) Using 3D tubes to solve the intersecting line representation &nbsp;</span></div>
+					<div><span>problem</span><span>. </span><span>In: </span><span>IEEE Symposium on Visual Languages, </span><span>St</span><span>. </span><span>Louis</span><span>, </span><span>MO</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>254–261</span><span>. &nbsp;</span></div>
+					<div><span>36</span><span>. </span><span>J </span><span>. </span><span>Stasko &amp; J</span><span>. </span><span>Wehrli (1993) Three-dimensional computation visualization</span><span>. </span><span>In: </span><span>IEEE &nbsp;</span></div>
+					<div><span>Symposium on Visual Languages, </span><span>Bergen</span><span>, </span><span>Norway</span><span>. </span><span>IEEE Computer Society Press</span><span>, </span><span>Los &nbsp;</span></div>
+					<div><span>Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>100–107</span><span>. &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_23">
+			
+			<div>
+				<div>
+					<div><span>242 &nbsp;</span></div>
+					<div><span>M </span><span>. </span><span>A </span><span>. </span><span>NAJORK &nbsp;</span></div>
+					<div><span>37</span><span>. </span><span>R </span><span>. </span><span>Stiles &amp; M</span><span>. </span><span>Pontecorvo (1992) Lingua Graphica: a visual language for virtual &nbsp;</span></div>
+					<div><span>environments</span><span>. </span><span>In: </span><span>IEEE Workshop on Visual Languages, </span><span>Seattle</span><span>, </span><span>WA</span><span>. </span><span>IEEE Computer &nbsp;</span></div>
+					<div><span>Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>225–227</span><span>. &nbsp;</span></div>
+					<div><span>38</span><span>. </span><span>W </span><span>. </span><span>R </span><span>. </span><span>Sutherland (1966) On-Line Graphical Speciﬁcation of Computer Procedures</span><span>. </span><span>Ph</span><span>. </span><span>D </span><span>. &nbsp;</span></div>
+					<div><span>Thesis</span><span>, </span><span>MIT</span><span>, </span><span>Cambridge</span><span>, </span><span>MA</span><span>. &nbsp;</span></div>
+					<div><span>39</span><span>. </span><span>A </span><span>. </span><span>Tal &amp; D</span><span>. </span><span>Dobkin (1995) Visualization of Geometric Algorithms</span><span>. </span><span>IEEE Transactions on &nbsp;</span></div>
+					<div><span>Visualization and Computer Graphics </span><span>1, </span><span>194–204</span><span>. &nbsp;</span></div>
+					<div><span>40</span><span>. </span><span>C </span><span>. </span><span>Ware &amp; G</span><span>. </span><span>Franck (1994) Viewing a graph in a virtual reality display is three times as &nbsp;</span></div>
+					<div><span>good as a 2D diagram</span><span>. </span><span>In: </span><span>IEEE Symposium on Visual Languages, </span><span>St</span><span>. </span><span>Louis</span><span>, </span><span>MO</span><span>. </span><span>IEEE &nbsp;</span></div>
+					<div><span>Computer Society Press</span><span>, </span><span>Los Alamitos</span><span>, </span><span>CA</span><span>, </span><span>pp</span><span>. </span><span>182–183</span><span>. &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

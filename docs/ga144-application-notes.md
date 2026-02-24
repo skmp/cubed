@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/AB002-120108-ETH-RX.txt,txt/AB003-121018-EVBCURR.txt,txt/AB004-141021-PORTEX.txt,txt/AB005-220623-DELAY.txt,txt/AB006-171108-BRIDGE.txt,txt/AN001-141023-MD5.txt,txt/AN002-171106-OSC.txt,txt/AN003-110810-SRAM.txt,txt/AN005-110926-SCHMART.txt,txt/AN007-141112-10BASET.txt,txt/AN008-120510-ACCEL.txt,txt/AN009-120912-KEYBRD.txt,txt/AN010-130604-SNORKEL1.txt,txt/AN011-130608-GANGLIA1.txt,txt/AN012-130606-SENSORTAG.txt,txt/AN016-141111-DCMOTOR.txt,txt/AN017-170105-GANGLIA2.txt,txt/AN018-171105-ADV7611.txt,txt/AN020-171106-1080P.txt,txt/AN021-220819-GS-EVB002.txt,txt/WP001-090805-noise.txt,txt/WP002-100405-energycons.txt -->
 # GA144 Application Notes Summary
 
 Summary of all application notes, briefs, white papers, and tutorials from GreenArrays documentation, organized by topic. Key takeaways for compiler implementors are highlighted.
@@ -187,25 +188,25 @@ Summary of all application notes, briefs, white papers, and tutorials from Green
 
 ## References
 
-- [AN001 - Implementing MD5 on GA144](../reference/greenarrays/pdfs/AN001-141023-MD5.txt) — MD5 hash using multi-node F18A clusters
-- [AN002 - Simple Oscillators](../reference/greenarrays/pdfs/AN002-171106-OSC.txt) — External timing references and clock generation
-- [AN003 - SRAM Control Cluster](../reference/greenarrays/pdfs/AN003-110810-SRAM.txt) — Four-node SRAM controller for external memory
-- [AN005 - SchmartBoard Usage](../reference/greenarrays/pdfs/AN005-110926-SCHMART.txt) — Prototyping with QFN-88 carrier for GA144
-- [AN007 - 10baseT Bit-Banged NIC](../reference/greenarrays/pdfs/AN007-141112-10BASET.txt) — 26-node software Ethernet controller
-- [AN008 - 3-axis Accelerometer](../reference/greenarrays/pdfs/AN008-120510-ACCEL.txt) — Sensor integration with polyFORTH
-- [AN009 - PS/2 Keyboard](../reference/greenarrays/pdfs/AN009-120912-KEYBRD.txt) — PS/2 keyboard interface implementation
-- [AN010 - Snorkel Mark 1](../reference/greenarrays/pdfs/AN010-130604-SNORKEL1.txt) — Programmable DMA channel from SRAM
-- [AN011 - Ganglia Mark 1](../reference/greenarrays/pdfs/AN011-130608-GANGLIA1.txt) — Dynamic message routing surface
-- [AN012 - TI SensorTag Control](../reference/greenarrays/pdfs/AN012-130606-SENSORTAG.txt) — BLE and I2C sensor integration
-- [AN016 - PID Motor Controller](../reference/greenarrays/pdfs/AN016-141111-DCMOTOR.txt) — DC motor speed control with PID feedback
-- [AN017 - Ganglia Mark 2](../reference/greenarrays/pdfs/AN017-170105-GANGLIA2.txt) — Enhanced message routing with multi-chip support
-- [AN018 - ADV7611 HDMI Receiver](../reference/greenarrays/pdfs/AN018-171105-ADV7611.txt) — HDMI video input with I2C bus mastering
-- [AN020 - 1080p Video Distribution](../reference/greenarrays/pdfs/AN020-171106-1080P.txt) — Large-scale LED signage architecture
-- [AN021 - Getting Started with EVB002](../reference/greenarrays/pdfs/AN021-220819-GS-EVB002.txt) — EVB002 quick-start guide
-- [AB002 - Ethernet Line Receiver](../reference/greenarrays/pdfs/AB002-120108-ETH-RX.txt) — Manchester decoder for 10baseT input
-- [AB003 - Measuring Currents on EVB001](../reference/greenarrays/pdfs/AB003-121018-EVBCURR.txt) — Power measurement techniques
-- [AB004 - Port Execution Communication](../reference/greenarrays/pdfs/AB004-141021-PORTEX.txt) — Inter-node port execution demonstration
-- [AB005 - Delay Lines/Buffers](../reference/greenarrays/pdfs/AB005-220623-DELAY.txt) — FIFO buffer via port execution
-- [AB006 - Transparent Port Bridge](../reference/greenarrays/pdfs/AB006-171108-BRIDGE.txt) — Two-chip COM port bridge
-- [WP001 - Noise Reduction in ADC](../reference/greenarrays/pdfs/WP001-090805-noise.txt) — VCO-based A/D converter noise analysis
-- [WP002 - Energy Conservation](../reference/greenarrays/pdfs/WP002-100405-energycons.txt) — Fine-grained power control mechanisms
+- [AN001 - Implementing MD5 on GA144](txt/AN001-141023-MD5.txt) — MD5 hash using multi-node F18A clusters
+- [AN002 - Simple Oscillators](txt/AN002-171106-OSC.txt) — External timing references and clock generation
+- [AN003 - SRAM Control Cluster](txt/AN003-110810-SRAM.txt) — Four-node SRAM controller for external memory
+- [AN005 - SchmartBoard Usage](txt/AN005-110926-SCHMART.txt) — Prototyping with QFN-88 carrier for GA144
+- [AN007 - 10baseT Bit-Banged NIC](txt/AN007-141112-10BASET.txt) — 26-node software Ethernet controller
+- [AN008 - 3-axis Accelerometer](txt/AN008-120510-ACCEL.txt) — Sensor integration with polyFORTH
+- [AN009 - PS/2 Keyboard](txt/AN009-120912-KEYBRD.txt) — PS/2 keyboard interface implementation
+- [AN010 - Snorkel Mark 1](txt/AN010-130604-SNORKEL1.txt) — Programmable DMA channel from SRAM
+- [AN011 - Ganglia Mark 1](txt/AN011-130608-GANGLIA1.txt) — Dynamic message routing surface
+- [AN012 - TI SensorTag Control](txt/AN012-130606-SENSORTAG.txt) — BLE and I2C sensor integration
+- [AN016 - PID Motor Controller](txt/AN016-141111-DCMOTOR.txt) — DC motor speed control with PID feedback
+- [AN017 - Ganglia Mark 2](txt/AN017-170105-GANGLIA2.txt) — Enhanced message routing with multi-chip support
+- [AN018 - ADV7611 HDMI Receiver](txt/AN018-171105-ADV7611.txt) — HDMI video input with I2C bus mastering
+- [AN020 - 1080p Video Distribution](txt/AN020-171106-1080P.txt) — Large-scale LED signage architecture
+- [AN021 - Getting Started with EVB002](txt/AN021-220819-GS-EVB002.txt) — EVB002 quick-start guide
+- [AB002 - Ethernet Line Receiver](txt/AB002-120108-ETH-RX.txt) — Manchester decoder for 10baseT input
+- [AB003 - Measuring Currents on EVB001](txt/AB003-121018-EVBCURR.txt) — Power measurement techniques
+- [AB004 - Port Execution Communication](txt/AB004-141021-PORTEX.txt) — Inter-node port execution demonstration
+- [AB005 - Delay Lines/Buffers](txt/AB005-220623-DELAY.txt) — FIFO buffer via port execution
+- [AB006 - Transparent Port Bridge](txt/AB006-171108-BRIDGE.txt) — Two-chip COM port bridge
+- [WP001 - Noise Reduction in ADC](txt/WP001-090805-noise.txt) — VCO-based A/D converter noise analysis
+- [WP002 - Energy Conservation](txt/WP002-100405-energycons.txt) — Fine-grained power control mechanisms

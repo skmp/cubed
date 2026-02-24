@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>
+		</title>
+		
+	 
+</head>
+	<body>
+		<div id="page_0">
+			
+			<div>
+				<div>
+					<div><span>A Prototype Implementation of the </span><span>C</span><span>UBE </span><span>Language &nbsp;</span></div>
+					<div><span>Marc A. Najork &nbsp;</span></div>
+					<div><span>Simon M. Kaplan &nbsp;</span></div>
+					<div><span>Dept. of Computer Science &nbsp;</span></div>
+					<div><span>University of Illinois &nbsp;</span></div>
+					<div><span>Urbana, IL</span><span>&nbsp;</span><span>61801 &nbsp;</span></div>
+					<div><span>Abstract &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>is a three-dimensional, visual, statically typed, in- &nbsp;</span></div>
+					<div><span>herently concurrent, higher-order logic programming lan- &nbsp;</span></div>
+					<div><span>guage, aimed towards a virtual-reality-based programming &nbsp;</span></div>
+					<div><span>environment. This</span><span>&nbsp;</span><span>paper describes a prototype implemen- &nbsp;</span></div>
+					<div><span>tation of </span><span>C</span><span>UBE</span><span>. &nbsp;</span></div>
+					<div><span>1</span></div>
+					<div><span>Introduction &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>[7, 9] is a new programmin</span><span>g</span><span>l</span><span>anguage which com- &nbsp;</span></div>
+					<div><span>bines several innovative features, namely &nbsp;</span></div>
+					<div><span>a visual, three-dimensional syntax, which shall even- &nbsp;</span></div>
+					<div><span>tually make it possible to edit programs in a virtual- &nbsp;</span></div>
+					<div><span>reality-based programming environment. &nbsp;</span></div>
+					<div><span>a static, polymorphic type system, as used by many &nbsp;</span></div>
+					<div><span>functional languages &nbsp;</span></div>
+					<div><span>an inherently concurrent, higher-order Horn logic &nbsp;</span></div>
+					<div><span>based semantics &nbsp;</span></div>
+					<div><span>(a) Wireframe rendering &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>was strongly inﬂuenced by Show an</span><span>d</span><span>T</span><span>ell [4], a visual &nbsp;</span></div>
+					<div><span>functional language based on data ﬂow, completion and &nbsp;</span></div>
+					<div><span>consistency. C</span><span>UBE</span><span>’s type system and higher-order aspects &nbsp;</span></div>
+					<div><span>were inspired by ESTL [8].</span><span>&nbsp;</span><span>Other visual logic languages &nbsp;</span></div>
+					<div><span>include the Transparent Prolog Machine [2], Senay’s and &nbsp;</span></div>
+					<div><span>Lazzeri’s system [10], pictorial Janus [3], and VLP [5]. &nbsp;</span></div>
+					<div><span>Three-dimensional pictures have been used by Lieberman &nbsp;</span></div>
+					<div><span>to visualize the execution of Lisp programs [6]. &nbsp;</span></div>
+					<div><span>2</span></div>
+					<div><span>System Overview &nbsp;</span></div>
+					<div><span>The C</span><span>UBE </span><span>prototype system reads the description of a &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>program from a ﬁle, renders it, and allows the user to &nbsp;</span></div>
+					<div><span>“move around” in the program (see Fig.2).</span><span>&nbsp;</span><span>Upon request, &nbsp;</span></div>
+					<div><span>it type-checks the program, renders the program together &nbsp;</span></div>
+					<div><span>with the inferred types, and again allows the user to move &nbsp;</span></div>
+					<div><span>around in it (see Fig.3).</span><span>&nbsp;</span><span>Upon further request, it evaluates &nbsp;</span></div>
+					<div><span>the program, and allows the user to move around in the &nbsp;</span></div>
+					<div><span>result (see Fig.4).</span><span>&nbsp;</span><span>The largest deﬁciency of the system is &nbsp;</span></div>
+					<div><span>that it does not yet contain an editor; programs are supplied &nbsp;</span></div>
+					<div><span>in form of hand-written text ﬁles. &nbsp;</span></div>
+					<div><span>The system consists of two programs: the Front-End, a &nbsp;</span></div>
+					<div><span>C program responsible for rendering and user interaction, &nbsp;</span></div>
+					<div><span>(b) High-quality rendering (original in color) &nbsp;</span></div>
+					<div><span>Figure 1: Renderings of the factorial predicate &nbsp;</span></div>
+					<div><span>This work was supported by the National Science Foundation under &nbsp;</span></div>
+					<div><span>grant CCR-9007195 &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_1">
+			
+			<div>
+				<div>
+					<div><span>Rendering of the program for computing the factorial of 3.</span><span>&nbsp;</span><span>Meaning &nbsp;</span></div>
+					<div><span>of the buttons, from top to bottom:</span><span>&nbsp;</span><span>turn left/right, turn up/down, rotate &nbsp;</span></div>
+					<div><span>counterclockwise/clockwise around view-axis, move forward/backward, &nbsp;</span></div>
+					<div><span>zoom in/out, typecheck, evaluate, change rendering quality, and exit. &nbsp;</span></div>
+					<div><span>The right holder cube contains the inferred result type, &nbsp;</span></div>
+					<div><span>initially empty holder cube is ﬁlled with its inferred type. &nbsp;</span></div>
+					<div><span>.</span></div>
+					<div><span>Every &nbsp;</span></div>
+					<div><span>Figure 3: The factorial program after typechecking &nbsp;</span></div>
+					<div><span>Figure 2: The factorial program before typechecking &nbsp;</span></div>
+					<div><span>2.2 The</span><span>&nbsp;</span><span>Back-End &nbsp;</span></div>
+					<div><span>and the Back-End, a Lazy ML program responsible for &nbsp;</span></div>
+					<div><span>everything else.</span><span>&nbsp;</span><span>These two programs run concurrently, and &nbsp;</span></div>
+					<div><span>communicate over Unix streams. &nbsp;</span></div>
+					<div><span>The Back-End of the system performs three major tasks: &nbsp;</span></div>
+					<div><span>typechecking of programs, evaluation of programs, and &nbsp;</span></div>
+					<div><span>visualizatio</span><span>n</span><span>o</span><span>f</span><span>p</span><span>rograms</span><span>,</span><span>t</span><span>ypes, an</span><span>d</span><span>r</span><span>esults, i.e.</span><span>&nbsp;</span><span>translation &nbsp;</span></div>
+					<div><span>of highly structured objects into polygons, which are then &nbsp;</span></div>
+					<div><span>forwarded to the Front-End. &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>uses Hindley-Milner style type inference [1].</span><span>&nbsp;</span><span>In &nbsp;</span></div>
+					<div><span>order to infer the types of the subexpressions of a program, &nbsp;</span></div>
+					<div><span>it is ﬁrst translated into a simpler textual form, upon which &nbsp;</span></div>
+					<div><span>fairl</span><span>y</span><span>c</span><span>onventiona</span><span>l</span><span>t</span><span>ype inference rules are applied. Details &nbsp;</span></div>
+					<div><span>can be found in [7]. &nbsp;</span></div>
+					<div><span>The system was implemented in such a way in order to &nbsp;</span></div>
+					<div><span>combine fast rendering with rapid prototyping.</span><span>&nbsp;</span><span>The ren- &nbsp;</span></div>
+					<div><span>dering step is presently the performance bottleneck, so it &nbsp;</span></div>
+					<div><span>was mandatory to implement i</span><span>t</span><span>i</span><span>n a fast, low-leve</span><span>l</span><span>l</span><span>anguage &nbsp;</span></div>
+					<div><span>such as C. On the other hand, the rendering routines com- &nbsp;</span></div>
+					<div><span>prise jus</span><span>t</span><span>a </span><span>s</span><span>mall portio</span><span>n</span><span>o</span><span>f the system, the less time-critical &nbsp;</span></div>
+					<div><span>parts could still be implemented in a high-level language &nbsp;</span></div>
+					<div><span>such as Lazy ML. &nbsp;</span></div>
+					<div><span>Semantically, C</span><span>UBE </span><span>is a higher-order Horn logic lan- &nbsp;</span></div>
+					<div><span>guage. Predicates</span><span>&nbsp;</span><span>are viewed as special kinds of terms, &nbsp;</span></div>
+					<div><span>and variables may range over predicates.</span><span>&nbsp;</span><span>However, we &nbsp;</span></div>
+					<div><span>use normal ﬁrst-order uniﬁcation.</span><span>&nbsp;</span><span>Two predicates unify &nbsp;</span></div>
+					<div><span>not if they describe the same relation (which is in general &nbsp;</span></div>
+					<div><span>undecidable), but rather if they have unifying deﬁnitions. &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>is inherently concurrent. Our interpreter simulates &nbsp;</span></div>
+					<div><span>a concurrent execution by maintainin</span><span>g</span><span>a </span><span>q</span><span>ueue of processes &nbsp;</span></div>
+					<div><span>(called a </span><span>conﬁguration</span><span>)</span><span>,</span><span>a</span><span>nd by allowing each process a cer- &nbsp;</span></div>
+					<div><span>tain time-slice.</span><span>&nbsp;</span><span>In our terminology, a </span><span>process </span><span>consists of a &nbsp;</span></div>
+					<div><span>store and a set of threads.</span><span>&nbsp;</span><span>A </span><span>thread </span><span>is a “lightweight pro- &nbsp;</span></div>
+					<div><span>cess”, which shares a store with other concurrent threads &nbsp;</span></div>
+					<div><span>within the same process.</span><span>&nbsp;</span><span>Associated with each logic vari- &nbsp;</span></div>
+					<div><span>able is a </span><span>location</span><span>. A</span><span>&nbsp;</span><span>store </span><span>maps locations to values.</span><span>&nbsp;</span><span>A &nbsp;</span></div>
+					<div><span>value </span><span>can either be a term (the variable is “instantiated”), &nbsp;</span></div>
+					<div><span>or be undeﬁned (the variable is “uninstantiated”). Attached &nbsp;</span></div>
+					<div><span>to each undeﬁned value is a set of </span><span>wait-tokens</span><span>. &nbsp;</span></div>
+					<div><span>2.1 The</span><span>&nbsp;</span><span>Front-End &nbsp;</span></div>
+					<div><span>The Front-End of the C</span><span>UBE </span><span>system performs two tasks: &nbsp;</span></div>
+					<div><span>it renders three-dimensional pictures transmitted from the &nbsp;</span></div>
+					<div><span>Back-End onto an X window, and it detects mouse events, &nbsp;</span></div>
+					<div><span>and either forwards them to the Back-End, or changes the &nbsp;</span></div>
+					<div><span>viewpoint of the picture. &nbsp;</span></div>
+					<div><span>Th</span><span>e</span><span>p</span><span>ictur</span><span>e</span><span>d</span><span>escriptio</span><span>n</span><span>t</span><span>ransmitte</span><span>d</span><span>f</span><span>ro</span><span>m</span><span>t</span><span>h</span><span>e</span><span>B</span><span>ack-En</span><span>d</span><span>i</span><span>s &nbsp;</span></div>
+					<div><span>on a fairly low level: polygons in three-space with attached &nbsp;</span></div>
+					<div><span>color- and transparency-values. &nbsp;</span></div>
+					<div><span>The Front-End displays a C</span><span>UB</span><span>E</span><span>program either as a wire- &nbsp;</span></div>
+					<div><span>frame rendering, or it will use a more complex technique, &nbsp;</span></div>
+					<div><span>which performs hidden-surface removal, and also handles &nbsp;</span></div>
+					<div><span>transparent surfaces (see Fig.1). This technique combines &nbsp;</span></div>
+					<div><span>concepts of z-buffering and</span><span>&nbsp;</span><span>-channels, and delivers very &nbsp;</span></div>
+					<div><span>realistic pictures, but unfortunately is very slow without &nbsp;</span></div>
+					<div><span>hardware support. &nbsp;</span></div>
+					<div><span>A thread corresponds to a goal to be proven, a set of &nbsp;</span></div>
+					<div><span>threads within a process to a conjunction of subgoals, a &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+		<div id="page_2">
+			
+			<div>
+				<div>
+					<div><span>tion involves establishing a – again concurrent – sub- &nbsp;</span></div>
+					<div><span>conﬁguration, and determining if all its processes fail (i.e. &nbsp;</span></div>
+					<div><span>the negation succeeds), or if at least one process succeeds &nbsp;</span></div>
+					<div><span>(i.e. the negation fails). &nbsp;</span></div>
+					<div><span>3</span></div>
+					<div><span>Future Work &nbsp;</span></div>
+					<div><span>The prototype system demonstrates the feasibility of a &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>implementation. In order to provide a useful system, &nbsp;</span></div>
+					<div><span>three basic improvements have to be made: &nbsp;</span></div>
+					<div><span>A visual editor for C</span><span>UBE </span><span>programs is needed.</span><span>&nbsp;</span><span>This &nbsp;</span></div>
+					<div><span>editor should be structural and be context-sensitive, &nbsp;</span></div>
+					<div><span>i.e. it</span><span>&nbsp;</span><span>should not allow the construction of ill-formed &nbsp;</span></div>
+					<div><span>or ill-typed programs. &nbsp;</span></div>
+					<div><span>In order to provid</span><span>e</span><span>a </span><span>t</span><span>rul</span><span>y</span><span>i</span><span>nteractive environment, the &nbsp;</span></div>
+					<div><span>system’s performance has to be increased.</span><span>&nbsp;</span><span>We hope &nbsp;</span></div>
+					<div><span>to achieve this by porting our system onto a Silicon &nbsp;</span></div>
+					<div><span>Graphics workstation. &nbsp;</span></div>
+					<div><span>Our long-term goal is to port C</span><span>UBE </span><span>to a virtual reality &nbsp;</span></div>
+					<div><span>environmen</span><span>t</span><span>t</span><span>o</span><span>p</span><span>rovid</span><span>e</span><span>a</span><span>b</span><span>ette</span><span>r</span><span>s</span><span>uppor</span><span>t</span><span>t</span><span>o</span><span>i</span><span>nterac</span><span>t</span><span>w</span><span>ith &nbsp;</span></div>
+					<div><span>its three-dimensional pictures than a mouse-based in- &nbsp;</span></div>
+					<div><span>terface can provide. &nbsp;</span></div>
+					<div><span>The right holder cube contains the result, namely 6. &nbsp;</span></div>
+					<div><span>Figure 4: The factorial program after evaluation &nbsp;</span></div>
+					<div><span>References &nbsp;</span></div>
+					<div><span>process to a particular proof attempt, and a conﬁguration to &nbsp;</span></div>
+					<div><span>different proof attempts. &nbsp;</span></div>
+					<div><span>[1] L.</span><span>&nbsp;</span><span>Damas, R. Milner. Principal type schemes for functional &nbsp;</span></div>
+					<div><span>programs. In </span><span>9th ACM Symp. on Principles of Programming &nbsp;</span></div>
+					<div><span>Languages</span><span>, pp. 207 – 212, 1982. &nbsp;</span></div>
+					<div><span>One evaluation step consists of picking one thread out &nbsp;</span></div>
+					<div><span>of a process, and resolving it.</span><span>&nbsp;</span><span>But not every thread (ev- &nbsp;</span></div>
+					<div><span>ery goal) can be resolved right away.</span><span>&nbsp;</span><span>For instance, the &nbsp;</span></div>
+					<div><span>[2] M.</span><span>&nbsp;</span><span>Eisenstadt, M. Brayshaw. The Transparent Prolog Ma- &nbsp;</span></div>
+					<div><span>chine (TPM): An execution model an</span><span>d</span><span>g</span><span>raphical debugger for &nbsp;</span></div>
+					<div><span>logic programming. </span><span>Journal of Logic Programming</span><span>,</span><span>5</span><span>(4):277 &nbsp;</span></div>
+					<div><span>– 342, Dec. 1988. &nbsp;</span></div>
+					<div><span>goal “ &nbsp;</span></div>
+					<div><span>and &nbsp;</span></div>
+					<div><span>” cannot be resolved, as long as both &nbsp;</span></div>
+					<div><span>are unknown.</span><span>&nbsp;</span><span>In such a case, the thread is sus- &nbsp;</span></div>
+					<div><span>pended, and wait-tokens identifyin</span><span>g</span><span>i</span><span>t are attached to</span><span>&nbsp;</span><span>and &nbsp;</span></div>
+					<div><span>. When</span><span>&nbsp;</span><span>a variable is instantiated with a value, all of the &nbsp;</span></div>
+					<div><span>suspended threads with wait-tokens attached to the variable &nbsp;</span></div>
+					<div><span>are resumed. &nbsp;</span></div>
+					<div><span>[3] K.</span><span>&nbsp;</span><span>Kahn, </span><span>V</span><span>. </span><span>S</span><span>araswat. Complete visualizations of concurrent &nbsp;</span></div>
+					<div><span>programs and their executions. In </span><span>1990 IEEE Workshop on &nbsp;</span></div>
+					<div><span>Visual Languages</span><span>, pp. 7–15. &nbsp;</span></div>
+					<div><span>Before resolution, predicate applications have to be </span><span>re- &nbsp;</span></div>
+					<div><span>duced </span><span>to a normal form, which entails the bindin</span><span>g</span><span>o</span><span>f actual &nbsp;</span></div>
+					<div><span>to formal parameters for applications. &nbsp;</span></div>
+					<div><span>[4] T.</span><span>&nbsp;</span><span>Kimura, J. Choi, J. Mack. A visual languag</span><span>e</span><span>f</span><span>or keyboard- &nbsp;</span></div>
+					<div><span>less programming. Tech. Rep. WUCS-86-6, Dept. of Comp. &nbsp;</span></div>
+					<div><span>Science, Washington Univ., St. Louis, MO, March 1986. &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>is a higher-order language, which means that pred- &nbsp;</span></div>
+					<div><span>icate and constructor applications may have variables in &nbsp;</span></div>
+					<div><span>functor positions.</span><span>&nbsp;</span><span>If the functor is an uninstantiated vari- &nbsp;</span></div>
+					<div><span>able, the reductio</span><span>n</span><span>c</span><span>annot be performed.</span><span>&nbsp;</span><span>The curren</span><span>t</span><span>t</span><span>hread &nbsp;</span></div>
+					<div><span>is suspended, and a wait-token identifying it is attached to &nbsp;</span></div>
+					<div><span>the variable. &nbsp;</span></div>
+					<div><span>[5] D. Ladret, M. Rueher. VLP: a Visual Programming Lan- &nbsp;</span></div>
+					<div><span>guage. </span><span>Journal of Visual Language</span><span>s</span><span>a</span><span>nd Computing</span><span>,</span><span>2</span><span>(2):163 &nbsp;</span></div>
+					<div><span>– 189, June 1991. &nbsp;</span></div>
+					<div><span>[6] H.</span><span>&nbsp;</span><span>Lieberman. A three-dimensional representation for pro- &nbsp;</span></div>
+					<div><span>gram execution. In </span><span>1989 IEEE Workshop on Visual Lan- &nbsp;</span></div>
+					<div><span>guages</span><span>, pp. 111 – 116. &nbsp;</span></div>
+					<div><span>A goal may be a uniﬁcation of two expressions. Such a &nbsp;</span></div>
+					<div><span>goal is resolved by ﬁrst reducin</span><span>g</span><span>b</span><span>oth expressions to normal &nbsp;</span></div>
+					<div><span>forms, and then unifying these. &nbsp;</span></div>
+					<div><span>[7] M.</span><span>&nbsp;</span><span>Najork. Design an</span><span>d</span><span>i</span><span>mplementation of the Cub</span><span>e</span><span>l</span><span>anguage. &nbsp;</span></div>
+					<div><span>Unpublished manuscript, April 1992. &nbsp;</span></div>
+					<div><span>[8] M.</span><span>&nbsp;</span><span>Najork, E. Golin. Enhancing Show-and-Tell with a poly- &nbsp;</span></div>
+					<div><span>morphic type system and higher-order functions. In </span><span>1990 &nbsp;</span></div>
+					<div><span>IEEE Workshop on Vis. Lang.</span><span>, pp. 215 – 220. &nbsp;</span></div>
+					<div><span>A goal might also be reduced to the body of a predicate &nbsp;</span></div>
+					<div><span>deﬁnition, i.e.</span><span>&nbsp;</span><span>a disjunction &nbsp;</span></div>
+					<div><span>, where each &nbsp;</span></div>
+					<div><span>1</span></div>
+					<div><span>is in turn a conjunction &nbsp;</span></div>
+					<div><span>1</span></div>
+					<div><span>. In</span><span>&nbsp;</span><span>this case, the &nbsp;</span></div>
+					<div><span>[9] M.</span><span>&nbsp;</span><span>Najork, S. Kaplan. The Cube Language. In </span><span>1991 IEEE &nbsp;</span></div>
+					<div><span>current process &nbsp;</span></div>
+					<div><span>is replaced by &nbsp;</span></div>
+					<div><span>duplicates &nbsp;</span></div>
+					<div><span>,</span></div>
+					<div><span>1</span></div>
+					<div><span>Workshop on Visual Languages</span><span>, pp. 218–224. &nbsp;</span></div>
+					<div><span>and to each process</span><span>&nbsp;</span><span>, new threads &nbsp;</span></div>
+					<div><span>are added. &nbsp;</span></div>
+					<div><span>1</span></div>
+					<div><span>[10] H.</span><span>&nbsp;</span><span>Senay, S. Lazzeri. Graphical representation of logic pro- &nbsp;</span></div>
+					<div><span>grams and their behavior. In </span><span>1991 IEEE Workshop on Visual &nbsp;</span></div>
+					<div><span>Languages</span><span>, pp. 25 – 31. &nbsp;</span></div>
+					<div><span>C</span><span>UBE </span><span>has a primitive negation predicate, which is &nbsp;</span></div>
+					<div><span>cleaner than Prolog negation, as it suspends until the goal &nbsp;</span></div>
+					<div><span>to be negated is completely ground.</span><span>&nbsp;</span><span>Evaluating a nega- &nbsp;</span></div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

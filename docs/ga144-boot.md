@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/AN021-220819-GS-EVB002.txt,txt/BOOT-02.txt,txt/DB001-221113-F18A.txt,txt/DB014-190520-EVB002.txt -->
 # GA144 Boot Process
 
 ## Overview
@@ -166,7 +167,7 @@ Loading code into node 500 via async serial boot at node 708:
 
 ## References
 
-- [BOOT-02 - Boot Protocols](../reference/greenarrays/pdfs/BOOT-02.txt) — Specification of SPI Flash, 2-wire sync, 1-wire, and UART boot protocols with frame structure and timing
-- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Boot ROM entry points and node-specific boot behavior
-- [AN021 - Getting Started with EVB002 (2022)](../reference/greenarrays/pdfs/AN021-220819-GS-EVB002.txt) — Practical boot setup and jumper configuration for EVB002
-- [DB014 - EVB002 Evaluation Board Reference](../reference/greenarrays/pdfs/DB014-190520-EVB002.txt) — EVB002 hardware boot interfaces and dual-chip configuration
+- [BOOT-02 - Boot Protocols](txt/BOOT-02.txt) — Specification of SPI Flash, 2-wire sync, 1-wire, and UART boot protocols with frame structure and timing
+- [DB001 - F18A Technology Reference (2022)](txt/DB001-221113-F18A.txt) — Boot ROM entry points and node-specific boot behavior
+- [AN021 - Getting Started with EVB002 (2022)](txt/AN021-220819-GS-EVB002.txt) — Practical boot setup and jumper configuration for EVB002
+- [DB014 - EVB002 Evaluation Board Reference](txt/DB014-190520-EVB002.txt) — EVB002 hardware boot interfaces and dual-chip configuration

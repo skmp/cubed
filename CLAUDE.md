@@ -96,6 +96,12 @@ YXX format: node 117 = row 1, col 17. Use `coordToIndex()`/`indexToCoord()` for 
 
 `divmod` available on most nodes at address 0x2d6 (not on nodes 300, 708, 705). Look up via `rom-functions.ts`.
 
+## Workflow Preferences
+
+- **Quick iteration over reasoning**: Prefer running tests and executing code to verify behavior rather than reasoning about how things will work out. Run early, fail fast, fix incrementally.
+- **Differential debugging**: When something breaks, compare against a known-good state (reference implementation, previous passing tests, git diff) rather than trying to reason from first principles.
+- **Differential programming**: When porting or adapting code, run both versions side-by-side and compare outputs rather than reading and translating in one pass.
+
 ## Key Pitfalls
 
 - `emitLiteral` (@p + jump + data): the @p and jump must share an instruction word — if @p lands late in a word, flush first

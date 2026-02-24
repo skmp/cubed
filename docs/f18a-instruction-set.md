@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/DB001-171107-F18A.txt,txt/DB001-221113-F18A.txt,txt/PB001-100503-GA144-1-10.txt -->
 # F18A Instruction Set Reference
 
 ## Instruction Word Format
@@ -220,6 +221,6 @@ A full 18×18 multiply requires 18 consecutive `+*` instructions. The result is 
 
 ## References
 
-- [DB001 - F18A Technology Reference (2017)](../reference/greenarrays/pdfs/DB001-171107-F18A.txt) — Instruction set encoding, opcode table, slot restrictions, XOR encoding
-- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Revised edition with updated instruction details
-- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — Instruction timing and performance specifications
+- [DB001 - F18A Technology Reference (2017)](txt/DB001-171107-F18A.txt) — Instruction set encoding, opcode table, slot restrictions, XOR encoding
+- [DB001 - F18A Technology Reference (2022)](txt/DB001-221113-F18A.txt) — Revised edition with updated instruction details
+- [PB001 - GA144 Product Brief](txt/PB001-100503-GA144-1-10.txt) — Instruction timing and performance specifications

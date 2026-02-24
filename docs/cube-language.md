@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/vl1991.txt, txt/vl1992.txt, txt/jvlc1996.txt -->
 # The Cube Programming Language
 
 Summary of the Cube language as defined in three academic papers by Marc A. Najork

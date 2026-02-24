@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/DB001-171107-F18A.txt,txt/DB001-221113-F18A.txt,txt/PB001-100503-GA144-1-10.txt,txt/PB005-100501-F18B.txt -->
 # F18A Core Architecture
 
 The F18A is an 18-bit stack-based processor core. Each GA144 chip contains 144 instances of the F18A, connected in an 8×18 mesh grid.
@@ -160,7 +161,7 @@ The F18A prefetches the next instruction word while executing the current one:
 
 ## References
 
-- [DB001 - F18A Technology Reference (2017)](../reference/greenarrays/pdfs/DB001-171107-F18A.txt) — Comprehensive F18A processor documentation: registers, stacks, memory, instruction encoding
-- [DB001 - F18A Technology Reference (2022)](../reference/greenarrays/pdfs/DB001-221113-F18A.txt) — Revised edition of the F18A reference
-- [PB001 - GA144 Product Brief](../reference/greenarrays/pdfs/PB001-100503-GA144-1-10.txt) — GA144 chip overview including F18A core specifications
-- [PB005 - F18B Computer](../reference/greenarrays/pdfs/PB005-100501-F18B.txt) — F18B evolutionary improvement over F18A architecture
+- [DB001 - F18A Technology Reference (2017)](txt/DB001-171107-F18A.txt) — Comprehensive F18A processor documentation: registers, stacks, memory, instruction encoding
+- [DB001 - F18A Technology Reference (2022)](txt/DB001-221113-F18A.txt) — Revised edition of the F18A reference
+- [PB001 - GA144 Product Brief](txt/PB001-100503-GA144-1-10.txt) — GA144 chip overview including F18A core specifications
+- [PB005 - F18B Computer](txt/PB005-100501-F18B.txt) — F18B evolutionary improvement over F18A architecture

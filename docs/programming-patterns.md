@@ -1,3 +1,4 @@
+<\!-- Derived from: txt/AB004-141021-PORTEX.txt,txt/AB005-220623-DELAY.txt,txt/AB006-171108-BRIDGE.txt,txt/AN011-130608-GANGLIA1.txt,txt/AN016-141111-DCMOTOR.txt,txt/WP002-100405-energycons.txt -->
 # F18A / GA144 Programming Patterns
 
 Common programming patterns and idioms used in GA144 applications, extracted from tutorials, application notes, and example code.
@@ -355,9 +356,9 @@ This sequence:
 
 ## References
 
-- [AB004 - Port Execution Communication](../reference/greenarrays/pdfs/AB004-141021-PORTEX.txt) — Inter-node communication via port execution
-- [AB005 - Delay Lines/Buffers](../reference/greenarrays/pdfs/AB005-220623-DELAY.txt) — FIFO buffer implementation using port execution across nodes
-- [AB006 - Transparent Port Bridge](../reference/greenarrays/pdfs/AB006-171108-BRIDGE.txt) — Two-chip connection via port bridging
-- [AN016 - PID Motor Controller](../reference/greenarrays/pdfs/AN016-141111-DCMOTOR.txt) — Multi-node coordination pattern with PID feedback loop
-- [AN011 - Ganglia Mark 1](../reference/greenarrays/pdfs/AN011-130608-GANGLIA1.txt) — Dynamic message routing patterns across the chip
-- [WP002 - Energy Conservation](../reference/greenarrays/pdfs/WP002-100405-energycons.txt) — Power management patterns and sleep/wake strategies
+- [AB004 - Port Execution Communication](txt/AB004-141021-PORTEX.txt) — Inter-node communication via port execution
+- [AB005 - Delay Lines/Buffers](txt/AB005-220623-DELAY.txt) — FIFO buffer implementation using port execution across nodes
+- [AB006 - Transparent Port Bridge](txt/AB006-171108-BRIDGE.txt) — Two-chip connection via port bridging
+- [AN016 - PID Motor Controller](txt/AN016-141111-DCMOTOR.txt) — Multi-node coordination pattern with PID feedback loop
+- [AN011 - Ganglia Mark 1](txt/AN011-130608-GANGLIA1.txt) — Dynamic message routing patterns across the chip
+- [WP002 - Energy Conservation](txt/WP002-100405-energycons.txt) — Power management patterns and sleep/wake strategies

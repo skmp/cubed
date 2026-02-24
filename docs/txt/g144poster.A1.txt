@@ -1,0 +1,1114 @@
+[Derived from: ../../reference/greenarrays/g144poster.A1.compact.html]
+Pads 104 103 102 101 100 099 098 097 096 095 094 093 092 091 090 089 088 087 086 085 084 083 082 081 080 079
+
+001
+
+078
+
+002
+
+Pins
+
+88 87 86 85 84 83 rst- 701.01 701.17 705.17 705.05 +c
+
+82 81 80 79 78 77 76 75 +i 705.03 705.01 708.01 708.17 709.ao 709.ai +c
+
+74 73 72 71 70 69 68 67 +a 713.ai 713.ao 715.17 717.ao 717.ai a00 a01
+
+077
+
+1 d00
+
+a02 66
+
+003
+
+U
+
+1 17
+
+U
+
+U
+
+U
+
+17 5 3 1
+
+U
+
+U
+
+1 17
+
+ao ai 17
+
+U
+
+U
+
+U
+
+ai ao
+
+17
+
+U
+
+17
+
+U
+
+17 ao ai
+
+076
+
+004
+
+2 d01
+
+700 701 702 703 704 705 706 707 708 709 710 711 712 713 714 715 716 717
+
+a03 65 075
+
+serdes
+
+SPI
+
+async analog
+
+analog
+
+analog
+
+3 d02 L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
++i 64
+
+005
+
+074
+
+006
+
+4 +i
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+617.ao 63
+
+600
+
+601
+
+602
+
+603
+
+604
+
+605
+
+606
+
+607
+
+608
+
+609
+
+610
+
+611
+
+612
+
+613
+
+614
+
+615
+
+616
+
+617 ao ai
+
+073
+
+007
+
+5 +c
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+analog
+
++c 62
+
+R
+
+L
+
+072
+
+008
+
+6 600.17
+
+17
+
+617.ai 61
+17
+
+071
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+009 7 500.17 17500 501 502 503 504 505 506 507 508 509 510 511 512 513 514 515 516 517 17 517.17 60 070
+
+010
+
+8 d03 L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L 417.17 59
+
+069
+
+011
+
+9 d04
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+a04 58 068
+
+400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 17
+
+012 10 d05
+
+a05 57 067
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+013 11 d06
+
+a06 56 066
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+014 12 d07 300 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 317 a07 55 065
+
+sync
+
+015 13 d08 L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+a08 54
+
+064
+
+17
+
+17
+
+016
+
+14 300.17
+
+1
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+a09 53 063
+
+017
+
+15 300.01
+
+200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 1wire
+
+317.17 52
+
+062
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+018
+
+16 d09 17
+
+217.17 51
+17
+
+061
+
+019 17 +c
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+17
+
+100
+
+101
+
+102
+
+103
+
+104
+
+105
+
+106
+
+107
+
+108
+
+109
+
+110
+
+111
+
+112
+
+113
+
+114
+
+115
+
+116
+
+117 ao ai
+
+117.ao 50
+
+060
+
+020
+
+18 200.17
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+analog
+
+R
+
+L +c 49
+
+059
+
+021
+
+17
+
+058
+
+19 +i
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+D
+
+117.ai 48
+
+022
+
+000 001 002 003 004 005 006 007 008 009 010 011 012 013 014 015 016 017
+
+057
+
+20 100.17
+
+serdes
+
+data control address
+
++i 47
+
+023
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+R
+
+L
+
+056
+
+21 d10
+
+a10 46
+
+024 22 d11
+025
+026
+
+U
+
+1 17
+
+U
+
+U
+
+U
+
+d12 d13 d14 001.01 001.17 +i 23 24 25 26 27 28
+
+U
+
+U
+
+U 17
+
+9 17 5 3 1 7
+
+17 U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+U
+
+d00...d17
+
+a00...a17
+
++c d15 d16 d17 008.17 008.05 008.03 008.01 a17 a16 a15 +i 29 30 31 32 33 34 35 36 37 38 39 40
+
++c a14 a13 a12 41 42 43 44
+
+055 a11 45
+054
+053
+
+027 028 029 030 031 032 033 034 035 036 037 038 039 040 041 042 043 044 045 046 047 048 049 050 051 052
+
+IO Read Write
+
+|17 |16 15 | PIN | Rr_ | Rw | PIN state | | SR |
+
+|14 |13
+
+| Dr_ | Dw
+
+|
+
+|
+
+| VCO
+
+|12 11 | Lr_ | Lw | DB | WD |
+
+|10 |09 |08
+
+| Ur_ | Uw |
+
+|
+
+| pin |
+
+|
+
+|
+
+|
+
+07 |06 |05 |04 03 |02 |01 |00
+
+|
+
+|
+
+| PIN |
+
+| PIN |
+
+| PIN |
+
+|
+
+pin |
+
+| PIN state PIN state | PIN state |
+
+9-bit DAC output level (155 xor)
+
+PIN state WD DB SR VCO
+
+01=WEAK PULLDOWN 0=NORMAL 1=OUTPUT 0=RECEIVE
+10=OFF
+
+00=tristate 1=inverted 0=tristate 1=send
+00=input
+
+10=Vss(0) 01=Vdd calibrate
+
+11=Vdd(1) 11=Vss calibrate
+
+-Pin State -Wake Direction -Data Bus direction -Serializer/Deserializer -Voltage Controlled Oscillator
+
+Port -d-u -d--dlu -dldata ---u io --lu --l-
+
+Address 105 115 125 135 141 145 15d 165 175
+
+Description Down, Up Down Down, Left, Up Down, Left Up, no handshake Up 18-bit I/O Control/Status Left, Up Left
+
+Port Address Description rd-u 185 Right, Down, Up rd-- 195 Right, Down rdlu 1a5 Right, Down, Left, Up rdl- 1b5 Right, Down, Left r--u 1c5 Right, Up r--- 1d5 Right r-lu 1e5 Right, Left, Up r-l- 1f5 Right, Left Note: ALWAYS refer to port names, addresses may change
+
+address 18-bit external address bus
+
+data 18-bit external data bus
+
+a
+
+18-bit general, address, 7-bit auto-increment
+
+b
+
+9-bit address (write only)
+
+p r t, s io
+
+10-bit program register, 7-bit auto-increment 18-bit 1+8 return stack 18-bit 2+8 data stack 18-bit I/O Control and Status Register
+
+Opcode Hex Notes -- ADDRESS opcodes
+
+;
+
+00 return
+
+ex
+
+01 execute via r (swap p and r)
+
+name ; 02 jump to a red word, name
+
+name 03 call to a red word, name
+
+unext 04 jump r0 decrement r
+
+next 05 jump r0 decrement r
+
+if 06 jump t=0
+
+-if 07 jump t17=0
+
+@p
+
+08 literal
+
+7-bit auto-increment
+
+@+
+
+09 fetch via a 7-bit auto-increment
+
+@b
+
+0a fetch via b
+
+@
+
+0b fetch via a
+
+!p
+
+0c
+
+7-bit auto-increment
+
+!+
+
+0d store via a 7-bit auto-increment
+
+!b
+
+0e store via b
+
+!
+
+0f store via a
+
+Opcode Hex Notes -- ALU opcodes
+
++*
+
+10 . +*
+
+2*
+
+11 left shift
+
+2/
+
+12 right shift (signed)
+
+-
+
+13 invert (3ffff xor)
+
++
+
+14 . +
+
+and 15
+
+or
+
+16 exclusive or (xor)
+
+drop 17
+
+dup 18
+
+pop 19
+
+over 1a
+
+a
+
+1b fetch from register a
+
+.
+
+1c nop
+
+push 1d
+
+b!
+
+1e store into register b
+
+a!
+
+1f store into register a
+
+ga144 poster 20091212
+
+www.GreenArrayChips.com
+
+© 2009 GreenArrays, Inc.
+
+

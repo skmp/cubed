@@ -1,0 +1,24 @@
+[Derived from: ../../reference/greenarrays/AB002-120108-ETH-RX.compact.html]
+GreenArraysTM Application Brief AB002 Revised 1/08/12
+
+Software-defined Ethernet 10baseT
+Line Receiver and Manchester Decoder
+
+This is one component of a complete, full-duplex 10baseT solution implemented in software using the G144A12 chip. A single pin is programmed as a high-impedance input and a single F18 computer monitors the line, passing decoded data bits one at a time through a COM port to another node for processing of incoming link pulses, FLP autonegotiation bursts, and data packets.
+Electrical Interface: The simple circuit shown at right is sufficient to connect a 10baseT input directly to a G144A12 pin. It uses a standard transformer (Pulse E2009QNL) with a standard 100 termination. The network of two resistors and two capacitors biases the input at ½ Vdd and suppresses noise. The 2.2K resistor limits current shunted by the pad's internal protection diodes.
+Software for the receiving node: The coding below consumes only leakage when the receive pair is inactive. When the pair becomes active it passes decoded data to the next node in the input pipeline, one bit at a time. Note that the entire program for the line receiver and Manchester decoder compiles into ten words of memory (180 bits.) All work is done using the io register, com ports and stacks; RAM never changes once the program has been loaded.
+
+the ethernet rx pin node acts as a continuous manchester decoder, recovering and passing each data bit to an adjacent buffering node to eliminate jitter in its timing sequence. this code automatically acquires bit sync during frame preambles. when a link pulse is positive only it decodes as a single '1' in which case another node must drive the pin low momentarily to reset the schmitts; this may produce a spurious '0'.
+edge samples pin and waits for opposite state. run waits for the edge at the center of a bit cell, writes the value of io with the data bit in position 17 to the buffering node, then delays long enough that the next edge call will be well centered in the first half of the next bit cell, maximizing margins for sampling and waiting. it is paramount that the delay ne ver be too long since that means loss of bit sync. duty cycle is always lt 100 pct.
+
+858 list 117/017 rx pin 117 node 0 org reclaim edge rise fall 00 push @b -if pop !b ! . drop . . ; then over !b ! . pop drop drop ;
+run 05 edge a! @b ! 4 push a! begin unext run ; 0A
+initialization for the above done as part of booting:
+117 +node 117 /ram io /b left /a 5555 5D55 left down 5555 5D55 left down 5555 5D55 10 /stack 5 /p
+
+Live behavior of circuit and software: The logic analyzer trace at right shows raw input signal measured at the chip pad on top. Below it is a signal produced by another node using the decoded bit values produced by the receiving node, in real time; the tall pulses reflect bit value 1, while the short pulses reflect zeroes.
+The alternating ones and zeroes at the left are the last few bits of the Ethernet frame preamble. The first two consecutive ones at the center of the display are the end of the Start of Frame Delimiter. Bits following these two consecutive ones are the beginning of the destination MAC address, all ones since this is a broadcast packet. For more information see http://www.greenarraychips.com
+
+Copyright © 2011-2012 GreenArrays, Inc. All rights reserved
+
+
