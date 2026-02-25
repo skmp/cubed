@@ -1,10 +1,26 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
-import { Box, Select, MenuItem, type SelectChangeEvent } from '@mui/material';
+import { Box, Select, MenuItem, IconButton, Tooltip, LinearProgress, TextField, Typography, type SelectChangeEvent } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import UsbIcon from '@mui/icons-material/Usb';
 import { registerArrayForthLanguage } from './arrayforthLang';
 import { registerCubeLanguage } from './cubeLang';
 import type { CompileError, CompiledNode } from '../../core/types';
+
+// Web Serial API type declarations
+interface SerialPortOptions { baudRate: number }
+interface WebSerialPort {
+  open(options: SerialPortOptions): Promise<void>;
+  close(): Promise<void>;
+  setSignals(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
+  writable: WritableStream<Uint8Array> | null;
+}
+interface Serial { requestPort(): Promise<WebSerialPort> }
+function getSerial(): Serial | null {
+  const nav = navigator as Navigator & { serial?: Serial };
+  return nav.serial ?? null;
+}
 
 // Import sample files using Vite's ?raw imports
 import defaultArrayforth from '../../../samples/default.aforth?raw';
@@ -82,14 +98,18 @@ interface CodeEditorProps {
   errors: CompileError[];
   compiledNodes?: CompiledNode[];
   initialSource?: string | null;
+  bootStreamBytes?: Uint8Array | null;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors, compiledNodes, initialSource }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onSourceChange, errors, compiledNodes, initialSource, bootStreamBytes }) => {
   const editorRef = useRef<EditorInstance | null>(null);
   const monacoRef = useRef<MonacoInstance | null>(null);
   const languagesRegistered = useRef(false);
   const onCompileRef = useRef(onCompile);
   const [selectedSample, setSelectedSample] = useState('RSC (Serial TX)');
+  const [baudRate, setBaudRate] = useState(921600);
+  const [serialProgress, setSerialProgress] = useState<number | null>(null);
+  const [serialError, setSerialError] = useState<string | null>(null);
 
   useEffect(() => {
     onCompileRef.current = onCompile;
@@ -155,6 +175,54 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
     }
   }, [language]);
 
+  const handleDownload = useCallback(() => {
+    if (!bootStreamBytes) return;
+    const blob = new Blob([bootStreamBytes as unknown as BlobPart], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bootstream.bin';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [bootStreamBytes]);
+
+  const handleSendSerial = useCallback(async () => {
+    if (!bootStreamBytes) return;
+    const serial = getSerial();
+    if (!serial) return;
+    let port: WebSerialPort | null = null;
+    try {
+      port = await serial.requestPort();
+      await port.open({ baudRate });
+      setSerialProgress(0);
+      setSerialError(null);
+      await port.setSignals({ requestToSend: true });
+      await new Promise(r => setTimeout(r, 50));
+      await port.setSignals({ requestToSend: false });
+      await new Promise(r => setTimeout(r, 100));
+      const writer = port.writable!.getWriter();
+      const total = bootStreamBytes.length;
+      let sent = 0;
+      while (sent < total) {
+        const end = Math.min(sent + 64, total);
+        await writer.write(bootStreamBytes.slice(sent, end));
+        sent = end;
+        setSerialProgress((sent / total) * 100);
+      }
+      writer.releaseLock();
+      await port.close();
+      setSerialProgress(null);
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'NotFoundError') {
+        setSerialProgress(null);
+        return;
+      }
+      setSerialError(err instanceof Error ? err.message : String(err));
+      setSerialProgress(null);
+      try { if (port) await port.close(); } catch { /* ignore */ }
+    }
+  }, [bootStreamBytes, baudRate]);
+
   // Handle sample selection
   const handleSampleChange = useCallback((event: SelectChangeEvent) => {
     const name = event.target.value;
@@ -187,7 +255,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {language === 'cube' && (
-        <Box sx={{ px: 1, py: 0.5, borderBottom: '1px solid #333', flexShrink: 0 }}>
+        <Box sx={{ px: 1, py: 0.5, borderBottom: '1px solid #333', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
           <Select
             value={selectedSample}
             onChange={handleSampleChange}
@@ -206,6 +274,43 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
               </MenuItem>
             ))}
           </Select>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {serialProgress !== null && (
+              <LinearProgress variant="determinate" value={serialProgress} sx={{ width: 60 }} />
+            )}
+            {serialError && (
+              <Typography variant="caption" sx={{ color: '#ff6b6b', fontSize: 10, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {serialError}
+              </Typography>
+            )}
+            <Tooltip title={bootStreamBytes ? `Download bootstream.bin (${bootStreamBytes.length} bytes)` : 'No boot stream available'}>
+              <span>
+                <IconButton size="small" onClick={handleDownload} disabled={!bootStreamBytes} sx={{ color: '#aaa' }}>
+                  <DownloadIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <TextField
+              type="number"
+              size="small"
+              value={baudRate}
+              onChange={(e) => setBaudRate(Math.max(1, parseInt(e.target.value) || 921600))}
+              disabled={serialProgress !== null}
+              slotProps={{ htmlInput: { min: 1 } }}
+              sx={{
+                width: 80,
+                '& input': { fontSize: '10px', py: 0.25, px: 0.5, color: '#ccc' },
+                '& fieldset': { borderColor: '#444' },
+              }}
+            />
+            <Tooltip title={!getSerial() ? 'Web Serial not available (use Chrome/Edge)' : !bootStreamBytes ? 'No boot stream available' : 'Send over serial'}>
+              <span>
+                <IconButton size="small" onClick={handleSendSerial} disabled={!bootStreamBytes || !getSerial() || serialProgress !== null} sx={{ color: '#aaa' }}>
+                  <UsbIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
         </Box>
       )}
       <Box sx={{ flex: 1, minHeight: 0, border: '1px solid #333' }}>

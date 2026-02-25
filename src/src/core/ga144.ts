@@ -38,6 +38,9 @@ export class GA144 {
   private serialRemaining = 0;
   private serialNode: F18ANode | null = null;
 
+  // Stored compiled program for re-enqueuing serial bits on reset
+  private pendingProgram: CompiledProgram | null = null;
+
   constructor(name: string = 'chip1') {
     this.name = name;
     this.nodes = new Array(NUM_NODES);
@@ -303,10 +306,15 @@ export class GA144 {
   static readonly GA144_MOPS = 666_000_000;
   static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
 
-  loadViaBootStream(
-    compiled: CompiledProgram,
-  ): void {
+  /**
+   * Store a compiled program for boot stream loading.
+   * The serial bits are enqueued immediately and re-enqueued on each reset().
+   * Call reset() first if you want a clean chip state before loading.
+   */
+  loadViaBootStream(compiled: CompiledProgram): void {
     if (compiled.nodes.length === 0) return;
+
+    this.pendingProgram = compiled;
 
     // Track loaded nodes for IO write filtering
     this.loadedNodes.clear();
@@ -317,8 +325,18 @@ export class GA144 {
       }
     }
 
-    // Build boot stream and enqueue serial bits — they'll be consumed
-    // during normal stepProgram() calls, driving node 708's pin17.
+    this.enqueueBootStream(compiled);
+
+    // Reset step counter and IO buffer for clean starting state
+    this.totalSteps = 0;
+    this.ioWriteStart = 0;
+    this.ioWriteStartSeq = 0;
+    this.ioWriteSeq = 0;
+    this.lastVsyncSeq = null;
+  }
+
+  /** Enqueue serial bits from a compiled program into node 708's pin17. */
+  private enqueueBootStream(compiled: CompiledProgram): void {
     const boot = buildBootStream(compiled.nodes);
     this.serialBits = GA144.buildSerialBits(
       Array.from(boot.bytes),
@@ -328,13 +346,6 @@ export class GA144 {
     this.serialBitIdx = 0;
     this.serialRemaining = this.serialBits.length > 0 ? this.serialBits[0].duration : 0;
     this.serialNode = this.getNodeByCoord(708);
-
-    // Reset step counter and IO buffer for clean starting state
-    this.totalSteps = 0;
-    this.ioWriteStart = 0;
-    this.ioWriteStartSeq = 0;
-    this.ioWriteSeq = 0;
-    this.lastVsyncSeq = null;
   }
 
   /** Returns true if serial boot stream is still being delivered. */
@@ -354,10 +365,6 @@ export class GA144 {
     this.ioWriteSeq = 0;
     this.ioWriteJitter = new Float32Array(GA144.IO_WRITE_CAPACITY);
     this.lastVsyncSeq = null;
-    this.serialBits = [];
-    this.serialBitIdx = 0;
-    this.serialRemaining = 0;
-    this.serialNode = null;
     this.lastActiveIndex = NUM_NODES - 1;
 
     for (let i = 0; i < NUM_NODES; i++) {
@@ -373,6 +380,16 @@ export class GA144 {
     // After reset, trigger initial fetch for all nodes
     for (const node of this.nodes) {
       node.fetchI();
+    }
+
+    // Re-enqueue serial boot stream if a program was loaded
+    if (this.pendingProgram) {
+      this.enqueueBootStream(this.pendingProgram);
+    } else {
+      this.serialBits = [];
+      this.serialBitIdx = 0;
+      this.serialRemaining = 0;
+      this.serialNode = null;
     }
   }
 

@@ -11,7 +11,6 @@ import { CompileOutputPanel } from './ui/output/CompileOutputPanel';
 import { useEmulator } from './hooks/useEmulator';
 import { readUrlSource, updateUrlSource } from './ui/urlSource';
 import { RecursePanel } from './ui/recurse/RecursePanel';
-import { BootStreamModal } from './ui/toolbar/BootStreamModal';
 import { ArrayForthViewer } from './ui/arrayforth/ArrayForthViewer';
 import { decompile } from './core/decompiler';
 import { useEditorStore } from './stores/editorStore';
@@ -34,7 +33,6 @@ function App() {
     reset,
     compileAndLoad,
     selectNode,
-    clearBootStream,
     bootStreamBytes,
     setStepsPerFrame,
     setLanguage,
@@ -96,13 +94,13 @@ function App() {
 
   const handleCompileFromEditor = useCallback((source: string) => {
     editorSourceRef.current = source;
-    compileAndLoad(source, { download: true });
+    compileAndLoad(source);
     updateUrlSource(source);
   }, [compileAndLoad]);
 
   const handleCompileButton = useCallback(() => {
     if (editorSourceRef.current) {
-      compileAndLoad(editorSourceRef.current, { download: true });
+      compileAndLoad(editorSourceRef.current);
       updateUrlSource(editorSourceRef.current);
     }
   }, [compileAndLoad]);
@@ -171,6 +169,7 @@ function App() {
                   errors={compileErrors}
                   compiledNodes={compiledProgram?.nodes}
                   initialSource={urlSource}
+                  bootStreamBytes={bootStreamBytes}
                 />
               </Box>
             </>
@@ -202,7 +201,6 @@ function App() {
           />
         }
       />
-      <BootStreamModal bytes={bootStreamBytes} onClose={clearBootStream} />
     </ThemeProvider>
   );
 }

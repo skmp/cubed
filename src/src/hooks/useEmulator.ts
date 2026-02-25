@@ -84,7 +84,7 @@ export function useEmulator() {
     updateSnapshot();
   }, [ga144, stop, updateSnapshot]);
 
-  const compileAndLoad = useCallback((source: string, options?: { download?: boolean; asLanguage?: EditorLanguage }) => {
+  const compileAndLoad = useCallback((source: string, options?: { asLanguage?: EditorLanguage }) => {
     stop();
     ga144.reset();
 
@@ -110,10 +110,8 @@ export function useEmulator() {
       setCubeCompileResult(result.errors.length === 0 ? result : null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
+        setBootStreamBytes(buildBootStream(result.nodes).bytes);
         ga144.loadViaBootStream(result);
-        if (options?.download) {
-          setBootStreamBytes(buildBootStream(result.nodes).bytes);
-        }
       }
     } else {
       const result = compile(source);
@@ -121,10 +119,8 @@ export function useEmulator() {
       setCubeCompileResult(null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
+        setBootStreamBytes(buildBootStream(result.nodes).bytes);
         ga144.loadViaBootStream(result);
-        if (options?.download) {
-          setBootStreamBytes(buildBootStream(result.nodes).bytes);
-        }
       }
     }
     updateSnapshot();
@@ -134,10 +130,6 @@ export function useEmulator() {
     setSelectedCoord(coord);
     setSnapshot(ga144.getSnapshot(coord ?? undefined));
   }, [ga144]);
-
-  const clearBootStream = useCallback(() => {
-    setBootStreamBytes(null);
-  }, []);
 
   return {
     snapshot,
@@ -157,7 +149,6 @@ export function useEmulator() {
     reset,
     compileAndLoad,
     selectNode,
-    clearBootStream,
     setStepsPerFrame,
     setLanguage,
   };
