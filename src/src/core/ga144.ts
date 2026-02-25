@@ -429,6 +429,19 @@ export class GA144 {
 
     this.pendingBootBytes = bytes;
     this.pendingBootBaud = baudPeriod;
+
+    // Clear serial state left by reset()'s re-enqueue of the old
+    // pendingBootBytes. Remove the in-flight EVT_SERIAL event (there's
+    // at most one in the queue at any time due to the chaining design).
+    if (this.serialBitValues.length > 0 && this.serialBitIndex < this.serialBitValues.length) {
+      removeByTypeAndPayload(this.eventQueue, EVT_SERIAL, this.serialBitIndex);
+    }
+    this.serialBitValues = [];
+    this.serialBitTimes = [];
+    this.serialEndTime = 0;
+    this.serialBitIndex = 0;
+    this.serialNode = null;
+
     this.enqueueBootStream(bytes, baudPeriod);
 
     // Reset step counter and IO buffer for clean starting state
@@ -546,15 +559,16 @@ export class GA144 {
       enqueue(this.eventQueue, this.nodes[i].thermal.simulatedTime, EVT_NODE, i);
     }
 
+    // Always clear serial state before re-enqueuing
+    this.serialBitValues = [];
+    this.serialBitTimes = [];
+    this.serialEndTime = 0;
+    this.serialBitIndex = 0;
+    this.serialNode = null;
+
     // Re-enqueue serial boot stream if boot bytes were loaded
     if (this.pendingBootBytes) {
       this.enqueueBootStream(this.pendingBootBytes, this.pendingBootBaud);
-    } else {
-      this.serialBitValues = [];
-      this.serialBitTimes = [];
-      this.serialEndTime = 0;
-      this.serialBitIndex = 0;
-      this.serialNode = null;
     }
   }
 

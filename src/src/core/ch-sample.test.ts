@@ -67,4 +67,70 @@ describe('CH.cube Swiss flag sample', () => {
     expect(res.width).toBe(640);
     expect(res.height).toBe(480);
   });
+
+  it('produces VGA output with chunked stepping (UI-like)', { timeout: 120_000 }, () => {
+    const source = readFileSync(samplePath, 'utf-8');
+    const compiled = compileCube(source);
+    expect(compiled.errors).toHaveLength(0);
+
+    const ga = new GA144('test');
+    ga.setRomData(ROM_DATA);
+    ga.reset();
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+
+    // Mimic the worker run loop: step in 50K chunks, check active count,
+    // advance idle time when all nodes suspended (like the worker does)
+    const CHUNK = 50_000;
+    const MAX_CHUNKS = 1000; // 50M steps max
+    let totalIdleAdvances = 0;
+    let consecutiveIdle = 0;
+    for (let c = 0; c < MAX_CHUNKS; c++) {
+      ga.stepProgramN(CHUNK);
+      if (ga.getActiveCount() === 0) {
+        ga.advanceIdleTime(50 * 1e6); // 50ms in ns, like the worker
+        totalIdleAdvances++;
+        consecutiveIdle++;
+        if (consecutiveIdle > 5) {
+          console.log(`Deadlock after chunk ${c}, totalSteps=${ga.getTotalSteps()}, idle advances=${totalIdleAdvances}`);
+          break;
+        }
+      } else {
+        consecutiveIdle = 0;
+      }
+    }
+
+    const snap = ga.getSnapshot();
+    const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+    console.log('Chunked resolution:', res, 'total idle advances:', totalIdleAdvances);
+
+    expect(res.hasSyncSignals).toBe(true);
+    expect(res.width).toBe(640);
+    expect(res.height).toBe(480);
+  });
+
+  it('works after double load (reset + loadViaBootStream twice)', { timeout: 120_000 }, () => {
+    const source = readFileSync(samplePath, 'utf-8');
+    const compiled = compileCube(source);
+    expect(compiled.errors).toHaveLength(0);
+
+    const ga = new GA144('test');
+    ga.setRomData(ROM_DATA);
+    ga.reset();
+
+    // First load (like initial page load auto-compile)
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+
+    // Second load (like auto-compile debounce firing again)
+    ga.reset();
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+
+    ga.stepUntilDone(50_000_000);
+    const snap = ga.getSnapshot();
+    const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+    console.log('Double-load resolution:', res);
+
+    expect(res.hasSyncSignals).toBe(true);
+    expect(res.width).toBe(640);
+    expect(res.height).toBe(480);
+  });
 });
