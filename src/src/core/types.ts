@@ -66,6 +66,9 @@ export interface GA144Snapshot {
   ioWriteStart: number;      // Start index for ring buffer
   ioWriteCount: number;      // Number of valid entries in ring buffer
   ioWriteSeq: number;        // Total writes seen (monotonic sequence)
+  totalEnergyPJ: number;     // Cumulative energy dissipated across all nodes (picojoules)
+  chipPowerMW: number;       // Instantaneous chip power (milliwatts)
+  totalSimTimeNS: number;    // Max simulated time across all nodes (nanoseconds)
 }
 
 export interface PortHandler {

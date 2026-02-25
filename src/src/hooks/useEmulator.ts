@@ -42,6 +42,9 @@ export function useEmulator() {
       ioWriteStart: io.start,
       ioWriteCount: io.count,
       ioWriteSeq: io.seq,
+      totalEnergyPJ: ws.totalEnergyPJ,
+      chipPowerMW: ws.chipPowerMW,
+      totalSimTimeNS: ws.totalSimTimeNS,
     };
   }, []);
 

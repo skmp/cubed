@@ -28,6 +28,9 @@ export interface WorkerSnapshot {
   activeCount: number;
   totalSteps: number;
   selectedNode: NodeSnapshot | null;
+  totalEnergyPJ: number;
+  chipPowerMW: number;
+  totalSimTimeNS: number;
 }
 
 /** Delta batch of IO writes since the last batch. */

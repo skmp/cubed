@@ -32,6 +32,9 @@ function sendSnapshot(): void {
     activeCount: full.activeCount,
     totalSteps: full.totalSteps,
     selectedNode: full.selectedNode,
+    totalEnergyPJ: full.totalEnergyPJ,
+    chipPowerMW: full.chipPowerMW,
+    totalSimTimeNS: full.totalSimTimeNS,
   };
   post({ type: 'snapshot', snapshot });
 }

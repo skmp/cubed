@@ -466,10 +466,21 @@ export class GA144 {
     const states: NodeState[] = new Array(NUM_NODES);
     const coords: number[] = new Array(NUM_NODES);
 
+    let totalEnergyPJ = 0;
+    let maxSimTimeNS = 0;
     for (let i = 0; i < NUM_NODES; i++) {
       states[i] = this.nodes[i].getState();
       coords[i] = this.nodes[i].getCoord();
+      totalEnergyPJ += this.nodes[i].thermal.totalEnergy;
+      if (this.nodes[i].thermal.simulatedTime > maxSimTimeNS) {
+        maxSimTimeNS = this.nodes[i].thermal.simulatedTime;
+      }
     }
+
+    // Instantaneous power estimate: active nodes at typical power, idle at leakage
+    const active = this.lastActiveIndex + 1;
+    const idle = NUM_NODES - active;
+    const chipPowerMW = active * 4.5 + idle * 100e-6; // 4.5 mW active, 100 nW idle
 
     let selectedNode = null;
     if (selectedCoord !== undefined) {
@@ -482,7 +493,7 @@ export class GA144 {
     return {
       nodeStates: states,
       nodeCoords: coords,
-      activeCount: this.lastActiveIndex + 1,
+      activeCount: active,
       totalSteps: this.totalSteps,
       selectedNode,
       ioWrites: this.ioWriteBuffer,
@@ -491,6 +502,9 @@ export class GA144 {
       ioWriteStart: this.ioWriteStart,
       ioWriteCount: this.ioWriteSeq - this.ioWriteStartSeq,
       ioWriteSeq: this.ioWriteSeq,
+      totalEnergyPJ,
+      chipPowerMW,
+      totalSimTimeNS: maxSimTimeNS,
     };
   }
 }

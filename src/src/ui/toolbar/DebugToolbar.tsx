@@ -13,6 +13,9 @@ import type { EditorLanguage } from '../editor/CodeEditor';
 interface DebugToolbarProps {
   activeCount: number;
   totalSteps: number;
+  totalEnergyPJ: number;
+  chipPowerMW: number;
+  totalSimTimeNS: number;
   language: EditorLanguage;
   isRunning: boolean;
   sabActive: boolean;
@@ -32,26 +35,64 @@ function formatRate(rate: number): string {
   return `${Math.round(rate)}`;
 }
 
+/** Auto-scale energy from picojoules to the best SI unit (pJ → nJ → uJ → mJ → J → kJ → MJ) */
+function formatEnergy(pj: number): string {
+  if (pj < 1e3) return `${pj.toFixed(1)} pJ`;
+  if (pj < 1e6) return `${(pj / 1e3).toFixed(1)} nJ`;
+  if (pj < 1e9) return `${(pj / 1e6).toFixed(1)} uJ`;
+  if (pj < 1e12) return `${(pj / 1e9).toFixed(1)} mJ`;
+  if (pj < 1e15) return `${(pj / 1e12).toFixed(1)} J`;
+  if (pj < 1e18) return `${(pj / 1e15).toFixed(1)} kJ`;
+  return `${(pj / 1e18).toFixed(1)} MJ`;
+}
+
+/** Auto-scale power from milliwatts to the best SI unit (nW → uW → mW → W → kW) */
+function formatPower(mw: number): string {
+  if (mw < 1e-3) return `${(mw * 1e6).toFixed(1)} nW`;
+  if (mw < 1) return `${(mw * 1e3).toFixed(1)} uW`;
+  if (mw < 1e3) return `${mw.toFixed(1)} mW`;
+  if (mw < 1e6) return `${(mw / 1e3).toFixed(1)} W`;
+  return `${(mw / 1e6).toFixed(1)} kW`;
+}
+
 export const DebugToolbar: React.FC<DebugToolbarProps> = ({
-  activeCount, totalSteps, language, isRunning, sabActive,
+  activeCount, totalSteps, totalEnergyPJ, chipPowerMW, totalSimTimeNS,
+  language, isRunning, sabActive,
   onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset,
 }) => {
   const totalStepsRef = useRef(totalSteps);
+  const totalEnergyRef = useRef(totalEnergyPJ);
+  const totalSimTimeRef = useRef(totalSimTimeNS);
   const lastStepsRef = useRef(totalSteps);
+  const lastEnergyRef = useRef(totalEnergyPJ);
+  const lastSimTimeRef = useRef(totalSimTimeNS);
   const lastTimeRef = useRef(0);
   const [measuredRate, setMeasuredRate] = useState(0);
+  const [measuredAvgPower, setMeasuredAvgPower] = useState(0);
 
   useEffect(() => {
     totalStepsRef.current = totalSteps;
   }, [totalSteps]);
 
   useEffect(() => {
+    totalEnergyRef.current = totalEnergyPJ;
+  }, [totalEnergyPJ]);
+
+  useEffect(() => {
+    totalSimTimeRef.current = totalSimTimeNS;
+  }, [totalSimTimeNS]);
+
+  useEffect(() => {
     if (!isRunning) {
       lastStepsRef.current = totalStepsRef.current;
+      lastEnergyRef.current = totalEnergyRef.current;
+      lastSimTimeRef.current = totalSimTimeRef.current;
       lastTimeRef.current = performance.now();
       return;
     }
     lastStepsRef.current = totalStepsRef.current;
+    lastEnergyRef.current = totalEnergyRef.current;
+    lastSimTimeRef.current = totalSimTimeRef.current;
     lastTimeRef.current = performance.now();
     const interval = setInterval(() => {
       const now = performance.now();
@@ -59,14 +100,22 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
       if (dt > 0) {
         const ds = totalStepsRef.current - lastStepsRef.current;
         setMeasuredRate(ds / dt);
+        // Average power in CPU clock domain: delta energy (pJ) / delta sim time (ns)
+        // pJ / ns = mW
+        const dE = totalEnergyRef.current - lastEnergyRef.current;
+        const dSimT = totalSimTimeRef.current - lastSimTimeRef.current;
+        setMeasuredAvgPower(dSimT > 0 ? dE / dSimT : 0); // pJ/ns = mW
       }
       lastStepsRef.current = totalStepsRef.current;
+      lastEnergyRef.current = totalEnergyRef.current;
+      lastSimTimeRef.current = totalSimTimeRef.current;
       lastTimeRef.current = now;
     }, 500);
     return () => clearInterval(interval);
   }, [isRunning]);
 
   const stepsPerSec = isRunning ? measuredRate : 0;
+  const avgPowerMW = isRunning ? measuredAvgPower : 0;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 40 }}>
@@ -121,6 +170,29 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
       </ButtonGroup>
 
       <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        <Chip
+          size="small"
+          label={formatEnergy(totalEnergyPJ)}
+          variant="outlined"
+          title="Cumulative energy dissipated (all nodes)"
+          sx={{ fontSize: '10px', height: 20 }}
+        />
+        <Chip
+          size="small"
+          label={formatPower(chipPowerMW)}
+          variant="outlined"
+          title="Instantaneous chip power consumption"
+          sx={{ fontSize: '10px', height: 20 }}
+        />
+        {isRunning && avgPowerMW > 0 && (
+          <Chip
+            size="small"
+            label={`avg ${formatPower(avgPowerMW)}`}
+            variant="outlined"
+            title="Average power (1s rolling window)"
+            sx={{ fontSize: '10px', height: 20 }}
+          />
+        )}
         {sabActive && (
           <Chip
             size="small"

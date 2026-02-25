@@ -126,6 +126,9 @@ function App() {
           <DebugToolbar
             activeCount={snapshot.activeCount}
             totalSteps={snapshot.totalSteps}
+            totalEnergyPJ={snapshot.totalEnergyPJ}
+            chipPowerMW={snapshot.chipPowerMW}
+            totalSimTimeNS={snapshot.totalSimTimeNS}
             language={language}
             isRunning={isRunning}
             sabActive={sabActive}
