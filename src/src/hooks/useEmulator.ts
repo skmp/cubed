@@ -146,6 +146,10 @@ export function useEmulator() {
     }
   }, [language, post]);
 
+  const sendSerialInput = useCallback((bytes: number[]) => {
+    post({ type: 'sendSerialInput', bytes });
+  }, [post]);
+
   const selectNode = useCallback((coord: number | null) => {
     setSelectedCoord(coord);
     post({ type: 'selectNode', coord });
@@ -168,6 +172,7 @@ export function useEmulator() {
     stop,
     reset,
     compileAndLoad,
+    sendSerialInput,
     selectNode,
     setLanguage,
   };

@@ -178,5 +178,11 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
       selectedCoord = msg.coord;
       if (ga144) sendSnapshot();
       break;
+
+    case 'sendSerialInput':
+      if (ga144) {
+        ga144.sendSerialInput(msg.bytes);
+      }
+      break;
   }
 };

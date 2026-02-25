@@ -35,6 +35,7 @@ function App() {
     selectNode,
     bootStreamBytes,
     emulatorError,
+    sendSerialInput,
     setLanguage,
   } = useEmulator();
 
@@ -203,6 +204,7 @@ function App() {
             ioWriteCount={snapshot.ioWriteCount}
             ioWriteStart={snapshot.ioWriteStart}
             ioWriteSeq={snapshot.ioWriteSeq}
+            onSendSerialInput={sendSerialInput}
           />
         }
       />

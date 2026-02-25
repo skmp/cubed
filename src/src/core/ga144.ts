@@ -513,6 +513,16 @@ export class GA144 {
     return this.serialNode !== null;
   }
 
+  /**
+   * Send bytes as serial input to node 708 at boot baud rate.
+   * Appends to any in-flight serial stream (boot or prior input).
+   */
+  sendSerialInput(bytes: number[]): void {
+    if (bytes.length === 0) return;
+    const bits = GA144.buildSerialBits(bytes, GA144.BOOT_BAUD_PERIOD);
+    this.enqueueSerialBits(708, bits);
+  }
+
   // ========================================================================
   // Reset
   // ========================================================================

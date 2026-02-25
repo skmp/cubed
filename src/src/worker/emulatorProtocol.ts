@@ -15,7 +15,8 @@ export type MainToWorker =
   | { type: 'step' }
   | { type: 'stepN'; count: number }
   | { type: 'reset' }
-  | { type: 'selectNode'; coord: number | null };
+  | { type: 'selectNode'; coord: number | null }
+  | { type: 'sendSerialInput'; bytes: number[] };
 
 // ============================================================================
 // Worker → Main messages
