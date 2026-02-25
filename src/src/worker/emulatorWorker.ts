@@ -86,10 +86,10 @@ function runLoop(): void {
   }
 
   if (ga144.getActiveCount() === 0) {
-    running = false;
-    sendSnapshot();
-    sendIoBatch();
-    post({ type: 'stopped', reason: 'allSuspended' });
+    // All nodes idle (blocked on ports / suspended). Keep the run loop alive
+    // but yield longer — there's no work to do until an external event arrives
+    // (serial data, user stop, etc.). Advance guest clock at host wall rate.
+    setTimeout(runLoop, 50);
     return;
   }
 
