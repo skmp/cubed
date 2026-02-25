@@ -486,10 +486,10 @@ describe('vgaRenderer', () => {
         dacWrite(VGA_NODE_B, 0), dacWrite(VGA_NODE_G, 0x1FF), dacWrite(VGA_NODE_R, 0),  // step 4
       ];
       const timestamps = [
-        1, 1, 1,
-        2, 2, 2,
-        3,        // HSYNC
-        4, 4, 4,  // next pixel, different step
+        100, 100, 100,
+        200, 200, 200,
+        300,              // HSYNC
+        400, 400, 400,    // next pixel, different time (gap > 10ns threshold)
       ];
 
       renderIoWrites(state, texData, 4, 4, writes, writes.length, 0, writes.length, true, timestamps);

@@ -395,10 +395,16 @@ export class GA144 {
   // ========================================================================
 
   load(compiled: CompiledProgram): void {
+    // Clear the event queue — non-loaded nodes (executing ROM) would
+    // consume step budget without contributing to the test scenario.
+    clearQueue(this.eventQueue);
+
     for (const nodeData of compiled.nodes) {
       const index = coordToIndex(nodeData.coord);
       if (index >= 0 && index < NUM_NODES) {
         this.nodes[index].load(nodeData);
+        // node.load() calls fetchI(); enqueue the node so it participates
+        enqueue(this.eventQueue, this.nodes[index].thermal.simulatedTime, EVT_NODE, index);
       }
     }
   }
