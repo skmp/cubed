@@ -31,6 +31,13 @@ export class GA144 {
   // ROM data loaded externally
   private romData: Record<number, number[]> = {};
 
+  // Serial boot stream state — bits are driven into node 708's pin17
+  // each step, consumed during normal stepProgram() calls.
+  private serialBits: { value: boolean; duration: number }[] = [];
+  private serialBitIdx = 0;
+  private serialRemaining = 0;
+  private serialNode: F18ANode | null = null;
+
   constructor(name: string = 'chip1') {
     this.name = name;
     this.nodes = new Array(NUM_NODES);
@@ -91,6 +98,23 @@ export class GA144 {
   stepProgram(): boolean {
     this._breakpointHit = false;
     this.totalSteps++;
+
+    // Drive serial boot stream into node 708's pin17
+    if (this.serialNode) {
+      if (this.serialBitIdx < this.serialBits.length) {
+        this.serialNode.setPin17(this.serialBits[this.serialBitIdx].value);
+        this.serialRemaining--;
+        if (this.serialRemaining <= 0) {
+          this.serialBitIdx++;
+          this.serialRemaining = this.serialBitIdx < this.serialBits.length
+            ? this.serialBits[this.serialBitIdx].duration : 0;
+        }
+      } else {
+        this.serialNode.setPin17(false); // idle after all bits sent
+        this.serialNode = null; // done with serial stream
+        this.serialBits = [];
+      }
+    }
 
     for (let i = this.lastActiveIndex; i >= 0; i--) {
       this.activeNodes[i].stepProgram();
@@ -271,8 +295,9 @@ export class GA144 {
    * serial data, decodes it, and relays code across the mesh to all
    * target nodes — exactly as real GA144 hardware boots.
    *
-   * After boot completes, totalSteps is reset to 0 and the IO write
-   * buffer is cleared so the user sees a clean starting state.
+   * Serial bits are enqueued and consumed during normal stepProgram()
+   * calls — boot and program execution happen naturally together,
+   * exactly as on real hardware.
    */
   static readonly BOOT_BAUD = 921_600;
   static readonly GA144_MOPS = 666_000_000;
@@ -292,31 +317,29 @@ export class GA144 {
       }
     }
 
-    // Build boot stream and serial bits
+    // Build boot stream and enqueue serial bits — they'll be consumed
+    // during normal stepProgram() calls, driving node 708's pin17.
     const boot = buildBootStream(compiled.nodes);
-    const bits = GA144.buildSerialBits(
+    this.serialBits = GA144.buildSerialBits(
       Array.from(boot.bytes),
       GA144.BOOT_BAUD_PERIOD,
       GA144.BOOT_BAUD_PERIOD * 10, // idle lead-in for auto-baud detection
     );
+    this.serialBitIdx = 0;
+    this.serialRemaining = this.serialBits.length > 0 ? this.serialBits[0].duration : 0;
+    this.serialNode = this.getNodeByCoord(708);
 
-    // Compute max steps: serial bit duration + mesh relay propagation time.
-    // After serial bits finish, boot data still propagates through relay hops.
-    // Each hop relays accumulated words via port pump (~3 steps/word).
-    // Use path length × frame size × 5 as generous padding.
-    const totalBitDuration = bits.reduce((sum, b) => sum + b.duration, 0);
-    const relayPadding = boot.path.length * boot.words.length * 5;
-    const maxSteps = totalBitDuration + Math.max(relayPadding, 100_000);
-
-    // Drive serial bits into node 708
-    this.stepWithSerialBits(708, bits, maxSteps);
-
-    // Post-boot cleanup: reset step counter and IO buffer so user sees clean state
+    // Reset step counter and IO buffer for clean starting state
     this.totalSteps = 0;
     this.ioWriteStart = 0;
     this.ioWriteStartSeq = 0;
     this.ioWriteSeq = 0;
     this.lastVsyncSeq = null;
+  }
+
+  /** Returns true if serial boot stream is still being delivered. */
+  isBooting(): boolean {
+    return this.serialNode !== null;
   }
 
   // ========================================================================
@@ -331,6 +354,10 @@ export class GA144 {
     this.ioWriteSeq = 0;
     this.ioWriteJitter = new Float32Array(GA144.IO_WRITE_CAPACITY);
     this.lastVsyncSeq = null;
+    this.serialBits = [];
+    this.serialBitIdx = 0;
+    this.serialRemaining = 0;
+    this.serialNode = null;
     this.lastActiveIndex = NUM_NODES - 1;
 
     for (let i = 0; i < NUM_NODES; i++) {

@@ -53,6 +53,9 @@ describe('boot stream loading', () => {
     ga.reset();
     ga.loadViaBootStream(compiled);
 
+    // Run until boot completes and program settles
+    ga.stepUntilDone(2_000_000);
+
     // Inspect node 709
     const snap = ga.getSnapshot(709);
     expect(snap.selectedNode).toBeDefined();

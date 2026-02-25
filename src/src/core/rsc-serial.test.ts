@@ -129,7 +129,7 @@ describe('RSC sample: continuous serial TX', () => {
     ga.reset();
     ga.loadViaBootStream(compiled);
 
-    ga.stepUntilDone(500_000);
+    ga.stepUntilDone(50_000_000);
 
     const snap = ga.getSnapshot();
     const serialData = extractSerialData(snap);
@@ -150,7 +150,7 @@ describe('RSC sample: continuous serial TX', () => {
     ga.reset();
     ga.loadViaBootStream(compiled);
 
-    ga.stepUntilDone(2_000_000);
+    ga.stepUntilDone(50_000_000);
 
     const snap = ga.getSnapshot();
     const serialData = extractSerialData(snap);
