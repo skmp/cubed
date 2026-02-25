@@ -6,6 +6,7 @@
  */
 import { GA144 } from '../core/ga144';
 import type { MainToWorker, WorkerToMain, WorkerSnapshot } from './emulatorProtocol';
+import { createVcoClocks } from './vcoClock';
 
 const STEPS_PER_CHUNK = 50_000;
 const SNAPSHOT_INTERVAL_MS = 50;  // 20 Hz
@@ -95,13 +96,16 @@ function runLoop(): void {
 self.onmessage = (e: MessageEvent<MainToWorker>) => {
   const msg = e.data;
   switch (msg.type) {
-    case 'init':
+    case 'init': {
       ga144 = new GA144('evb001');
       ga144.setRomData(msg.romData);
       ga144.reset();
-      post({ type: 'ready' });
+      const vcoState = createVcoClocks();
+      if (vcoState) ga144.setVcoCounters(vcoState.counters);
+      post({ type: 'ready', sabActive: vcoState !== null });
       sendSnapshot();
       break;
+    }
 
     case 'loadBootStream':
       running = false;

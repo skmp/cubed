@@ -15,6 +15,7 @@ interface DebugToolbarProps {
   totalSteps: number;
   language: EditorLanguage;
   isRunning: boolean;
+  sabActive: boolean;
   onCompile: () => void;
   onSetLanguage: (lang: EditorLanguage) => void;
   onStep: () => void;
@@ -32,7 +33,7 @@ function formatRate(rate: number): string {
 }
 
 export const DebugToolbar: React.FC<DebugToolbarProps> = ({
-  activeCount, totalSteps, language, isRunning,
+  activeCount, totalSteps, language, isRunning, sabActive,
   onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset,
 }) => {
   const totalStepsRef = useRef(totalSteps);
@@ -120,6 +121,15 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
       </ButtonGroup>
 
       <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        {sabActive && (
+          <Chip
+            size="small"
+            label="SAB"
+            color="success"
+            title="SharedArrayBuffer VCO clocks active"
+            sx={{ fontSize: '10px', height: 20 }}
+          />
+        )}
         {isRunning && stepsPerSec > 0 && (
           <Chip
             size="small"

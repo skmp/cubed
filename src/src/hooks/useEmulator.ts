@@ -23,6 +23,7 @@ export function useEmulator() {
   const [cubeCompileResult, setCubeCompileResult] = useState<CubeCompileResult | null>(null);
   const [compiledProgram, setCompiledProgram] = useState<CompiledProgram | null>(null);
   const [bootStreamBytes, setBootStreamBytes] = useState<Uint8Array | null>(null);
+  const [sabActive, setSabActive] = useState(false);
 
   // Compose a GA144Snapshot-compatible object from worker snapshot + IO buffer
   const buildSnapshot = useCallback((): GA144Snapshot | null => {
@@ -56,6 +57,7 @@ export function useEmulator() {
       const msg = e.data;
       switch (msg.type) {
         case 'ready':
+          setSabActive(msg.sabActive);
           break;
         case 'snapshot':
           workerSnapshotRef.current = msg.snapshot;
@@ -154,6 +156,7 @@ export function useEmulator() {
     cubeCompileResult,
     compiledProgram,
     bootStreamBytes,
+    sabActive,
     step,
     stepN,
     run,

@@ -42,4 +42,4 @@ export type WorkerToMain =
   | { type: 'snapshot'; snapshot: WorkerSnapshot }
   | { type: 'ioWriteBatch'; batch: IoWriteBatch }
   | { type: 'stopped'; reason: 'user' | 'breakpoint' | 'allSuspended' }
-  | { type: 'ready' };
+  | { type: 'ready'; sabActive: boolean };

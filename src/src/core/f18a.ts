@@ -89,6 +89,10 @@ export class F18ANode {
   // Thermal model
   thermal: ThermalState;
 
+  // VCO clock source (SharedArrayBuffer-backed, null = fallback to performance.now)
+  private vcoCounter: Uint32Array | null = null;
+  private vcoSlotIndex = 0;
+
   constructor(index: number, ga144: GA144) {
     this.index = index;
     this.activeIndex = index;
@@ -884,23 +888,26 @@ export class F18ANode {
     //   ticks = performance.now() * 3_000_000
     //   counter = ticks mod 2^18
     if (ANALOG_NODES.includes(this.coord)) {
-      const VCO_TICKS_PER_MS = 3_000_000; // 3 GHz
       this.memory[PORT.DATA] = {
         read: () => {
-          const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-          // Compute total VCO ticks from wall clock.
-          // Use modular arithmetic to avoid floating-point overflow:
-          // (nowMs * 3e6) mod 2^18 = ((nowMs mod (2^18 / 3e6)) * 3e6) mod 2^18
-          // Simpler: use the fractional part of nowMs at a suitable scale.
-          const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
-          const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs; // 0..256 wraps
-          const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
-          // Each node's VCO has a unique phase offset derived from its
-          // coordinate, modelling manufacturing variation between circuits.
-          const nodeOffset = (this.coord * 40499 + 112771) & 0x3FFFF;
+          let baseTicks: number;
+          if (this.vcoCounter) {
+            // SharedArrayBuffer path: clock worker keeps counter updated
+            // (node phase offset already baked in by the clock worker)
+            baseTicks = Atomics.load(this.vcoCounter, this.vcoSlotIndex);
+          } else {
+            // Fallback: derive from wall clock when SAB is unavailable
+            const VCO_TICKS_PER_MS = 3_000_000; // 3 GHz
+            const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
+            const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs;
+            baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
+            const nodeOffset = (this.coord * 40499 + 112771) & 0x3FFFF;
+            baseTicks = (baseTicks + nodeOffset) & 0x3FFFF;
+          }
           // Mix in thermal jitter: temperature shifts VCO frequency slightly
           const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
-          this.fetchedData = (baseTicks + nodeOffset + thermalOffset) & 0x3FFFF;
+          this.fetchedData = (baseTicks + thermalOffset) & 0x3FFFF;
           return true;
         },
         write: (_: number) => {
@@ -1026,6 +1033,12 @@ export class F18ANode {
       rom.push(typeof val === 'number' ? val : 0);
     }
     return rom;
+  }
+
+  /** Set SharedArrayBuffer-backed VCO counter for this analog node. */
+  setVcoCounter(counters: Uint32Array | null, slotIndex: number): void {
+    this.vcoCounter = counters;
+    this.vcoSlotIndex = slotIndex;
   }
 
   getCoord(): number {

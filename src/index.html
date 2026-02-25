@@ -20,6 +20,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- coi-serviceworker: enables SharedArrayBuffer on GitHub Pages (no-op when COOP/COEP headers already set) -->
+    <script src="coi-serviceworker.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

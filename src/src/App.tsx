@@ -33,6 +33,7 @@ function App() {
     compileAndLoad,
     selectNode,
     bootStreamBytes,
+    sabActive,
     setLanguage,
   } = useEmulator();
 
@@ -127,6 +128,7 @@ function App() {
             totalSteps={snapshot.totalSteps}
             language={language}
             isRunning={isRunning}
+            sabActive={sabActive}
             onCompile={handleCompileButton}
             onSetLanguage={(lang) => {
               setLanguage(lang);

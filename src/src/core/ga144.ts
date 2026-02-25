@@ -3,7 +3,7 @@
  * Port of reference/ga144/src/ga144.rkt
  */
 import { F18ANode } from './f18a';
-import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
+import { NUM_NODES, coordToIndex, indexToCoord, ANALOG_NODES } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 import type { ThermalState } from './thermal';
@@ -36,6 +36,9 @@ export class GA144 {
   // ROM data loaded externally
   private romData: Record<number, number[]> = {};
 
+  // SharedArrayBuffer VCO counters for analog nodes (null = fallback)
+  private vcoCounters: Uint32Array | null = null;
+
   // Serial boot stream state — bits are driven into node 708's pin17
   // each step, consumed during normal stepProgram() calls.
   private serialBits: { value: boolean; duration: number }[] = [];
@@ -66,6 +69,17 @@ export class GA144 {
   setRomData(romData: Record<number, number[]>): void {
     this.romData = romData;
     this.reset();
+  }
+
+  /** Set SharedArrayBuffer-backed VCO counters for analog nodes. */
+  setVcoCounters(counters: Uint32Array | null): void {
+    this.vcoCounters = counters;
+    // Wire to existing analog nodes immediately
+    if (counters) {
+      for (let i = 0; i < ANALOG_NODES.length; i++) {
+        this.getNodeByCoord(ANALOG_NODES[i]).setVcoCounter(counters, i);
+      }
+    }
   }
 
   // ========================================================================
@@ -365,6 +379,13 @@ export class GA144 {
     for (const node of this.nodes) {
       const coord = node.getCoord();
       node.reset(this.romData[coord]);
+    }
+
+    // Re-wire VCO counters after node reset (setupPorts() clears them)
+    if (this.vcoCounters) {
+      for (let i = 0; i < ANALOG_NODES.length; i++) {
+        this.getNodeByCoord(ANALOG_NODES[i]).setVcoCounter(this.vcoCounters, i);
+      }
     }
 
     // After reset, trigger initial fetch for all nodes
