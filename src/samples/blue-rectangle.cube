@@ -43,6 +43,10 @@ node 117
 
 /\
 
+std.forever{}
+
+/\
+
 -- Top margin: 140 rows
 std.loop{n=140}
 /\ std.fill{value=0x155, count=640}
@@ -64,6 +68,8 @@ std.loop{n=140}
 /\ std.fill{value=0x155, count=640}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- GREEN CHANNEL (node 617 DAC)
 -- ============================================================
@@ -71,6 +77,10 @@ std.loop{n=140}
 -- For blue rectangle:   G = 0           -> XOR -> 0x155
 
 node 617
+
+/\
+
+std.forever{}
 
 /\
 
@@ -95,6 +105,8 @@ std.loop{n=140}
 /\ std.fill{value=0x0AA, count=640}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- BLUE CHANNEL (node 717 DAC)
 -- ============================================================
@@ -102,6 +114,10 @@ std.loop{n=140}
 -- For blue rectangle:   B = max (0x1FF) -> XOR -> 0x0AA
 
 node 717
+
+/\
+
+std.forever{}
 
 /\
 
@@ -126,6 +142,8 @@ std.loop{n=140}
 /\ std.fill{value=0x155, count=640}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
@@ -137,8 +155,8 @@ node 217
 
 /\
 
--- 480 rows: std.delay to match DAC timing, then std.send HSYNC
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.delay{n=640}
 /\ std.send{port=0x15D, value=0x20000}
 /\ std.again{}
@@ -147,3 +165,5 @@ std.loop{n=480}
 
 -- End of frame: VSYNC
 std.send{port=0x15D, value=0x30000}
+
+/\ std.repeat{}

@@ -38,10 +38,12 @@ node 117
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.send{port=0x145, value=0}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617)
@@ -51,9 +53,11 @@ node 617
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- BLUE DAC RELAY (node 717)
@@ -63,9 +67,11 @@ node 717
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -76,6 +82,10 @@ std.loop{n=480}
 -- Green stripe: 64px red triangle, rest zero.
 
 node 116 { b=0x1D5 }
+
+/\
+
+std.forever{}
 
 /\
 
@@ -100,6 +110,8 @@ std.loop{n=160}
 /\ std.fill{value=0x155, count=576}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- GREEN FEEDER (node 616)
 -- ============================================================
@@ -109,6 +121,10 @@ std.loop{n=160}
 -- Green stripe: 64px zero (triangle), 576px max (green).
 
 node 616 { b=0x1D5 }
+
+/\
+
+std.forever{}
 
 /\
 
@@ -133,6 +149,8 @@ std.loop{n=160}
 /\ std.fill{value=0x0AA, count=576}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- BLUE FEEDER (node 716)
 -- ============================================================
@@ -142,6 +160,10 @@ std.loop{n=160}
 -- Green stripe: all zero (green + red triangle both have B=0).
 
 node 716 { b=0x1D5 }
+
+/\
+
+std.forever{}
 
 /\
 
@@ -165,6 +187,8 @@ std.loop{n=160}
 /\ std.fill{value=0x155, count=640}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
@@ -173,7 +197,8 @@ node 217
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.recv{port=0x145}
 /\ std.send{port=0x15D, value=0x20000}
 /\ std.again{}
@@ -182,3 +207,5 @@ std.loop{n=480}
 
 -- End of frame: VSYNC
 std.send{port=0x15D, value=0x30000}
+
+/\ std.repeat{}

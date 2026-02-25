@@ -41,10 +41,12 @@ node 117
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.send{port=0x145, value=0}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- GREEN DAC RELAY (node 617)
@@ -54,9 +56,11 @@ node 617
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- BLUE DAC RELAY (node 717)
@@ -66,9 +70,11 @@ node 717
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.relay{port=0x1D5, count=640}
 /\ std.again{}
+/\ std.repeat{}
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -79,6 +85,10 @@ node 116 { b=0x1D5 }
 
 /\
 
+std.forever{}
+
+/\
+
 -- Top blue: 150 rows
 std.loop{n=150}
 /\ std.fill{value=0x1C3, count=640}
@@ -99,6 +109,8 @@ std.loop{n=180}
 std.loop{n=150}
 /\ std.fill{value=0x1C3, count=640}
 /\ std.again{}
+
+/\ std.repeat{}
 
 -- ============================================================
 -- GREEN FEEDER (node 616)
@@ -109,6 +121,10 @@ node 616 { b=0x1D5 }
 
 /\
 
+std.forever{}
+
+/\
+
 -- Top blue: 150 rows
 std.loop{n=150}
 /\ std.fill{value=0x071, count=640}
@@ -129,6 +145,8 @@ std.loop{n=180}
 std.loop{n=150}
 /\ std.fill{value=0x071, count=640}
 /\ std.again{}
+
+/\ std.repeat{}
 
 -- ============================================================
 -- BLUE FEEDER (node 716)
@@ -139,6 +157,10 @@ node 716 { b=0x1D5 }
 
 /\
 
+std.forever{}
+
+/\
+
 -- Top blue: 150 rows
 std.loop{n=150}
 /\ std.fill{value=0x043, count=640}
@@ -160,6 +182,8 @@ std.loop{n=150}
 /\ std.fill{value=0x043, count=640}
 /\ std.again{}
 
+/\ std.repeat{}
+
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
@@ -168,7 +192,8 @@ node 217
 
 /\
 
-std.loop{n=480}
+std.forever{}
+/\ std.loop{n=480}
 /\ std.recv{port=0x145}
 /\ std.send{port=0x15D, value=0x20000}
 /\ std.again{}
@@ -177,3 +202,5 @@ std.loop{n=480}
 
 -- End of frame: VSYNC
 std.send{port=0x15D, value=0x30000}
+
+/\ std.repeat{}
