@@ -59,6 +59,11 @@ export class GA144 {
   // SharedArrayBuffer VCO counters for analog nodes (null = fallback)
   private vcoCounters: Uint32Array | null = null;
 
+  // Boot stream constants
+  static readonly BOOT_BAUD = 921_600;
+  static readonly GA144_MOPS = 666_000_000;
+  static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
+
   // Stored boot stream bytes for re-enqueuing serial bits on reset
   private pendingBootBytes: Uint8Array | null = null;
   private pendingBootBaud: number = GA144.BOOT_BAUD_PERIOD;
@@ -421,9 +426,6 @@ export class GA144 {
    * calls — boot and program execution happen naturally together,
    * exactly as on real hardware.
    */
-  static readonly BOOT_BAUD = 921_600;
-  static readonly GA144_MOPS = 666_000_000;
-  static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
 
   /**
    * Load a boot stream for serial delivery to node 708.
