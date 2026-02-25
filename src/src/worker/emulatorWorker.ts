@@ -98,7 +98,9 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
     case 'init':
       ga144 = new GA144('evb001');
       ga144.setRomData(msg.romData);
+      ga144.reset();
       post({ type: 'ready' });
+      sendSnapshot();
       break;
 
     case 'loadBootStream':

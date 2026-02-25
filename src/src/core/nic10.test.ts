@@ -44,7 +44,7 @@ describe('NIC10 sample: 10baseT NIC', () => {
     // (errors may occur during development)
     if (compiled.errors.length > 0) {
       // Re-compile node by node to get individual stats
-      const lines = source.split('\n');
+      const _lines = source.split('\n');
       console.log('\nPer-node compilation (allowing errors):');
       // Extract node blocks from source for individual compilation
     }

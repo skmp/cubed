@@ -36,12 +36,11 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
   onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset,
 }) => {
   const lastStepsRef = useRef(totalSteps);
-  const lastTimeRef = useRef(performance.now());
-  const [stepsPerSec, setStepsPerSec] = useState(0);
+  const lastTimeRef = useRef(0);
+  const [measuredRate, setMeasuredRate] = useState(0);
 
   useEffect(() => {
     if (!isRunning) {
-      setStepsPerSec(0);
       lastStepsRef.current = totalSteps;
       lastTimeRef.current = performance.now();
       return;
@@ -51,13 +50,15 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
       const dt = (now - lastTimeRef.current) / 1000;
       if (dt > 0) {
         const ds = totalSteps - lastStepsRef.current;
-        setStepsPerSec(ds / dt);
+        setMeasuredRate(ds / dt);
       }
       lastStepsRef.current = totalSteps;
       lastTimeRef.current = now;
     }, 500);
     return () => clearInterval(interval);
   }, [isRunning, totalSteps]);
+
+  const stepsPerSec = isRunning ? measuredRate : 0;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 40 }}>
