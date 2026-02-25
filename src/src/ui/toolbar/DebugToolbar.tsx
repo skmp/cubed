@@ -34,21 +34,21 @@ function formatRate(rate: number): string {
   return `${Math.round(rate)}`;
 }
 
-/** Auto-scale energy from picojoules to the best SI unit (pJ → nJ → uJ → mJ → J → kJ → MJ) */
+/** Auto-scale energy from picojoules to the best SI unit (pJ → nJ → μJ → mJ → J → kJ → MJ) */
 function formatEnergy(pj: number): string {
   if (pj < 1e3) return `${pj.toFixed(1)} pJ`;
   if (pj < 1e6) return `${(pj / 1e3).toFixed(1)} nJ`;
-  if (pj < 1e9) return `${(pj / 1e6).toFixed(1)} uJ`;
+  if (pj < 1e9) return `${(pj / 1e6).toFixed(1)} μJ`;
   if (pj < 1e12) return `${(pj / 1e9).toFixed(1)} mJ`;
   if (pj < 1e15) return `${(pj / 1e12).toFixed(1)} J`;
   if (pj < 1e18) return `${(pj / 1e15).toFixed(1)} kJ`;
   return `${(pj / 1e18).toFixed(1)} MJ`;
 }
 
-/** Auto-scale power from milliwatts to the best SI unit (nW → uW → mW → W → kW) */
+/** Auto-scale power from milliwatts to the best SI unit (nW → μW → mW → W → kW) */
 function formatPower(mw: number): string {
   if (mw < 1e-3) return `${(mw * 1e6).toFixed(1)} nW`;
-  if (mw < 1) return `${(mw * 1e3).toFixed(1)} uW`;
+  if (mw < 1) return `${(mw * 1e3).toFixed(1)} μW`;
   if (mw < 1e3) return `${mw.toFixed(1)} mW`;
   if (mw < 1e6) return `${(mw / 1e3).toFixed(1)} W`;
   return `${(mw / 1e6).toFixed(1)} kW`;

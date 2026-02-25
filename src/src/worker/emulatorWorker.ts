@@ -18,6 +18,7 @@ let selectedCoord: number | null = null;
 let lastIoSeq = 0;
 let lastSnapshotTime = 0;
 let lastIoBatchTime = 0;
+let lastIdleAdvanceTime = 0;
 
 function post(msg: WorkerToMain): void {
   self.postMessage(msg);
@@ -67,6 +68,7 @@ function runLoop(): void {
   const hit = ga144.stepProgramN(STEPS_PER_CHUNK);
 
   const now = performance.now();
+  lastIdleAdvanceTime = now; // keep fresh for active→idle transition
   if (now - lastSnapshotTime >= SNAPSHOT_INTERVAL_MS) {
     ga144.flushVcoTemperatures();
     sendSnapshot();
@@ -87,8 +89,15 @@ function runLoop(): void {
 
   if (ga144.getActiveCount() === 0) {
     // All nodes idle (blocked on ports / suspended). Keep the run loop alive
-    // but yield longer — there's no work to do until an external event arrives
-    // (serial data, user stop, etc.). Advance guest clock at host wall rate.
+    // but yield longer — no work until an external event arrives.
+    // Advance guest clock at host wall-clock rate so power/energy reporting
+    // stays accurate (leakage currents accumulate, time keeps passing).
+    const idleNow = performance.now();
+    const dtMs = idleNow - lastIdleAdvanceTime;
+    lastIdleAdvanceTime = idleNow;
+    if (dtMs > 0 && dtMs < 1000) { // cap at 1s to avoid huge jumps
+      ga144.advanceIdleTime(dtMs * 1e6); // ms → ns
+    }
     setTimeout(runLoop, 50);
     return;
   }
@@ -130,6 +139,7 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
       running = true;
       lastSnapshotTime = performance.now();
       lastIoBatchTime = performance.now();
+      lastIdleAdvanceTime = performance.now();
       runLoop();
       break;
 

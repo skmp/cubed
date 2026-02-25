@@ -8,6 +8,7 @@ import { CubeRenderer } from './ui/cube3d/CubeRenderer';
 import { WysiwygEditor } from './ui/cube3d/WysiwygEditor';
 import { EmulatorPanel } from './ui/emulator/EmulatorPanel';
 import { CompileOutputPanel } from './ui/output/CompileOutputPanel';
+import { IoPanel } from './ui/output/IoPanel';
 import { useEmulator } from './hooks/useEmulator';
 import { readUrlSource, updateUrlSource } from './ui/urlSource';
 import { RecursePanel } from './ui/recurse/RecursePanel';
@@ -186,13 +187,17 @@ function App() {
             selectedNode={snapshot.selectedNode}
             sourceMap={sourceMap}
             onNodeClick={selectNode}
+            compileOutput={
+              <CompileOutputPanel
+                cubeResult={cubeCompileResult}
+                compiledProgram={compiledProgram}
+                language={language}
+              />
+            }
           />
         }
-        outputTab={
-          <CompileOutputPanel
-            cubeResult={cubeCompileResult}
-            compiledProgram={compiledProgram}
-            language={language}
+        ioTab={
+          <IoPanel
             ioWrites={snapshot.ioWrites}
             ioWriteTimestamps={snapshot.ioWriteTimestamps}
             ioWriteCount={snapshot.ioWriteCount}

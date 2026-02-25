@@ -9,18 +9,11 @@ import type { SourceMapEntry } from '../../core/cube/emitter';
 import type { EditorLanguage } from '../editor/CodeEditor';
 import { OPCODES } from '../../core/constants';
 import { XOR_ENCODING } from '../../core/types';
-import { VgaDisplay } from '../emulator/VgaDisplay';
-import { SerialOutput } from '../emulator/SerialOutput';
 
 interface CompileOutputPanelProps {
   cubeResult: CubeCompileResult | null;
   compiledProgram: CompiledProgram | null;
   language: EditorLanguage;
-  ioWrites: number[];
-  ioWriteTimestamps: number[];
-  ioWriteCount: number;
-  ioWriteStart: number;
-  ioWriteSeq: number;
 }
 
 const cellSx = { fontSize: '11px', py: 0.5, px: 1, fontFamily: 'monospace' };
@@ -30,11 +23,6 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
   cubeResult,
   compiledProgram,
   language,
-  ioWrites,
-  ioWriteTimestamps,
-  ioWriteCount,
-  ioWriteStart,
-  ioWriteSeq,
 }) => {
   const [tab, setTab] = React.useState(0);
 
@@ -49,28 +37,11 @@ export const CompileOutputPanel: React.FC<CompileOutputPanelProps> = ({
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Box sx={{ flexShrink: 0, borderBottom: '1px solid #333', maxHeight: '50%', overflow: 'auto' }}>
-        <VgaDisplay
-          ioWrites={ioWrites}
-          ioWriteTimestamps={ioWriteTimestamps}
-          ioWriteCount={ioWriteCount}
-          ioWriteStart={ioWriteStart}
-          ioWriteSeq={ioWriteSeq}
-        />
-        <SerialOutput
-          ioWrites={ioWrites}
-          ioWriteCount={ioWriteCount}
-          ioWriteStart={ioWriteStart}
-          ioWriteSeq={ioWriteSeq}
-        />
-      </Box>
-      <Box sx={{ flex: 1, overflow: 'hidden' }}>
-        {language === 'cube'
-          ? <CubeOutputView result={cubeResult} tab={tab} setTab={setTab} />
-          : <ArrayForthOutputView result={compiledProgram} tab={tab} setTab={setTab} />
-        }
-      </Box>
+    <Box sx={{ height: '100%', overflow: 'hidden' }}>
+      {language === 'cube'
+        ? <CubeOutputView result={cubeResult} tab={tab} setTab={setTab} />
+        : <ArrayForthOutputView result={compiledProgram} tab={tab} setTab={setTab} />
+      }
     </Box>
   );
 };

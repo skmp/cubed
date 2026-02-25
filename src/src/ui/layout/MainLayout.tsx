@@ -12,13 +12,13 @@ interface MainLayoutProps {
   editorTab: React.ReactNode;
   arrayforthTab: React.ReactNode;
   emulatorTab: React.ReactNode;
-  outputTab: React.ReactNode;
+  ioTab: React.ReactNode;
   activeTab: number;
   onTabChange: (tab: number) => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
-  toolbar, wysiwygTab, editorTab, arrayforthTab, emulatorTab, outputTab, activeTab, onTabChange,
+  toolbar, wysiwygTab, editorTab, arrayforthTab, emulatorTab, ioTab, activeTab, onTabChange,
 }) => {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -54,7 +54,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           <Tab icon={<EditIcon sx={{ fontSize: 14 }} />} iconPosition="start" label="Editor" />
           <Tab icon={<CodeIcon sx={{ fontSize: 14 }} />} iconPosition="start" label="arrayForth" />
           <Tab icon={<MemoryIcon sx={{ fontSize: 14 }} />} iconPosition="start" label="Emulator" />
-          <Tab icon={<OutputIcon sx={{ fontSize: 14 }} />} iconPosition="start" label="Output" />
+          <Tab icon={<OutputIcon sx={{ fontSize: 14 }} />} iconPosition="start" label="I/O" />
         </Tabs>
       </Box>
 
@@ -73,7 +73,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           {emulatorTab}
         </Box>
         <Box sx={{ display: activeTab === 4 ? 'flex' : 'none', height: '100%' }}>
-          {outputTab}
+          {ioTab}
         </Box>
       </Box>
     </Box>

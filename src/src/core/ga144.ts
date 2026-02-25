@@ -252,6 +252,25 @@ export class GA144 {
     }
   }
 
+  /**
+   * Advance guest wall clock while all nodes are idle.
+   * Accumulates leakage energy for all suspended nodes and updates
+   * their simulated time so power/energy reporting stays accurate.
+   *
+   * @param dtNS - Nanoseconds to advance (e.g. from host wall-clock delta)
+   */
+  advanceIdleTime(dtNS: number): void {
+    if (dtNS <= 0) return;
+    this.guestWallClock += dtNS;
+    for (let i = 0; i < NUM_NODES; i++) {
+      const node = this.nodes[i];
+      const dt = this.guestWallClock - node.thermal.simulatedTime;
+      if (dt > 0) {
+        recordIdle(node.thermal, dt);
+      }
+    }
+  }
+
   /** Step until all nodes are suspended or breakpoint hit */
   stepUntilDone(maxSteps: number = 1000000): boolean {
     return this.stepProgramN(maxSteps);

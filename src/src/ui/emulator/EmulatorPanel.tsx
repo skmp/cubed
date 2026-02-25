@@ -12,10 +12,11 @@ interface EmulatorPanelProps {
   selectedNode: NodeSnapshot | null;
   sourceMap: SourceMapEntry[] | null;
   onNodeClick: (coord: number) => void;
+  compileOutput?: React.ReactNode;
 }
 
 export const EmulatorPanel: React.FC<EmulatorPanelProps> = ({
-  nodeStates, nodeCoords, selectedCoord, selectedNode, sourceMap, onNodeClick,
+  nodeStates, nodeCoords, selectedCoord, selectedNode, sourceMap, onNodeClick, compileOutput,
 }) => {
   return (
     <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
@@ -36,6 +37,16 @@ export const EmulatorPanel: React.FC<EmulatorPanelProps> = ({
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         <NodeDetailPanel node={selectedNode} sourceMap={sourceMap} />
       </Box>
+      {compileOutput && (
+        <Box sx={{
+          width: 400,
+          flexShrink: 0,
+          overflow: 'auto',
+          borderLeft: '1px solid #333',
+        }}>
+          {compileOutput}
+        </Box>
+      )}
     </Box>
   );
 };
