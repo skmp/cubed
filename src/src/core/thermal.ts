@@ -21,54 +21,66 @@
 
 // ============================================================================
 // Per-opcode energy (picojoules) and base timing (nanoseconds)
-// From DB001 sections 2.3.3-2.3.5 and WP002 energy calculations
-// Energy = power (4.5 mW typical) × time
+//
+// Sources:
+//   PB001 line 33: "basic ALU instruction in 1.5 ns for ~7 pJ"
+//   DB001 §2.3.3: ALU/register class ~1.5 ns
+//   DB001 §2.3.4: Memory read/write class ~5.1 ns (internal memory)
+//   DB001 §2.3.5: Control flow class ~5.1 ns; unext ~2.0 ns
+//   AN002 line 538: unext loop ~2.5 ns per iteration
+//   WP002 line 27: Active node ~4.5 mW; leakage ~100 nW
+//
+// Within each class, energy is differentiated by circuit complexity:
+//   - Ops with address incrementing (P++, A++) cost more than plain reads
+//   - +* (multiply step) uses ALU + carry + shift — most complex ALU op
+//   - Simple routing (dup, drop, a) costs less than arithmetic (+)
+//   - nop dissipates only clock distribution energy
 // ============================================================================
 
 /** Energy in picojoules per opcode */
 export const OPCODE_ENERGY_PJ: readonly number[] = [
-  // 0x00-0x07: Control flow (~5.1 ns × 4.5 mW = ~23 pJ, except unext ~2.0 ns = ~9 pJ)
-  23.0,   // 0x00  ;    (ret)    — memory fetch
-  23.0,   // 0x01  ex            — memory fetch
-  23.0,   // 0x02  jump          — memory fetch
-  23.0,   // 0x03  call          — memory fetch
-   9.0,   // 0x04  unext         — no memory fetch, loops within word
-  23.0,   // 0x05  next          — memory fetch
-  23.0,   // 0x06  if            — memory fetch (conditional)
-  23.0,   // 0x07  -if           — memory fetch (conditional)
+  // 0x00-0x07: Control flow (base ~21 pJ; fetch from new address)
+  21.0,   // 0x00  ;    (ret)    — pop R→P, fetch from new P
+  21.0,   // 0x01  ex            — swap R↔P, fetch
+  21.0,   // 0x02  jump          — load P, fetch
+  22.0,   // 0x03  call          — push P→R + load P + fetch (extra stack write)
+   8.5,   // 0x04  unext         — decrement R, no memory fetch, stays in word
+  22.0,   // 0x05  next          — decrement R, conditional branch, possible fetch
+  21.5,   // 0x06  if            — test T, conditional fetch
+  21.5,   // 0x07  -if           — test T sign, conditional fetch
 
-  // 0x08-0x0F: Memory read/write (~5.1 ns × 4.5 mW = ~23 pJ)
-  23.0,   // 0x08  @p            — fetch P, memory read
-  23.0,   // 0x09  @+            — fetch A+, memory read
+  // 0x08-0x0F: Memory read/write (base ~23 pJ; auto-increment costs more)
+  24.0,   // 0x08  @p            — fetch P, increment P, memory read (most expensive)
+  23.5,   // 0x09  @+            — fetch A, increment A, memory read
   23.0,   // 0x0A  @b            — fetch B, memory read
   23.0,   // 0x0B  @             — fetch A, memory read
-  23.0,   // 0x0C  !p            — store P, memory write
-  23.0,   // 0x0D  !+            — store A+, memory write
-  23.0,   // 0x0E  !b            — store B, memory write
-  23.0,   // 0x0F  !             — store A, memory write
+  24.0,   // 0x0C  !p            — store at P, increment P, memory write
+  23.5,   // 0x0D  !+            — store at A, increment A, memory write
+  23.0,   // 0x0E  !b            — store at B, memory write
+  23.0,   // 0x0F  !             — store at A, memory write
 
-  // 0x10-0x1F: ALU/register (~1.5 ns × 4.5 mW ≈ 6.75 pJ)
-   6.75,  // 0x10  +*            — multiply step
-   6.75,  // 0x11  2*            — left shift
-   6.75,  // 0x12  2/            — right shift
-   6.75,  // 0x13  not (inv)     — bitwise NOT
-   6.75,  // 0x14  +             — add (WP002: ~6.3 pJ at 1.4 ns)
-   6.75,  // 0x15  and
-   6.75,  // 0x16  or (xor)
-   6.75,  // 0x17  drop
-   6.75,  // 0x18  dup
-   6.75,  // 0x19  pop (r>)
-   6.75,  // 0x1A  over
-   6.75,  // 0x1B  a
-   6.75,  // 0x1C  . (nop)
-   6.75,  // 0x1D  push (>r)
-   6.75,  // 0x1E  b!
-   6.75,  // 0x1F  a!
+  // 0x10-0x1F: ALU/register (~7 pJ nominal from PB001; differentiated by complexity)
+   9.5,   // 0x10  +*            — multiply step: ALU add + shift + carry (most complex)
+   6.5,   // 0x11  2*            — left shift
+   6.5,   // 0x12  2/            — right shift
+   6.0,   // 0x13  not (inv)     — bitwise invert (toggle all bits)
+   7.5,   // 0x14  +             — 18-bit add with carry chain (~7 pJ from PB001)
+   6.0,   // 0x15  and           — bitwise AND (simple gate)
+   6.0,   // 0x16  or (xor)      — bitwise XOR (simple gate)
+   4.5,   // 0x17  drop          — stack pop only (minimal routing)
+   4.5,   // 0x18  dup           — T→S push (minimal routing)
+   5.0,   // 0x19  pop (r>)      — R→T, rstack pop + dstack push
+   5.0,   // 0x1A  over          — S→T push (reads deeper stack)
+   4.5,   // 0x1B  a             — A→T push (register read)
+   3.0,   // 0x1C  . (nop)       — no operation, only clock distribution
+   5.0,   // 0x1D  push (>r)     — T→R, dstack pop + rstack push
+   5.0,   // 0x1E  b!            — T→B, stack pop
+   5.0,   // 0x1F  a!            — T→A, stack pop
 ];
 
-/** Base execution time in nanoseconds per opcode */
+/** Base execution time in nanoseconds per opcode (DB001 §2.3.3-2.3.5) */
 export const OPCODE_TIME_NS: readonly number[] = [
-  // 0x00-0x07: Control flow
+  // 0x00-0x07: Control flow (~5.1 ns, DB001 §2.3.5; unext ~2.0 ns)
   5.1,    // 0x00  ;
   5.1,    // 0x01  ex
   5.1,    // 0x02  jump
@@ -78,7 +90,7 @@ export const OPCODE_TIME_NS: readonly number[] = [
   5.1,    // 0x06  if
   5.1,    // 0x07  -if
 
-  // 0x08-0x0F: Memory
+  // 0x08-0x0F: Memory (~5.1 ns, DB001 §2.3.4)
   5.1,    // 0x08  @p
   5.1,    // 0x09  @+
   5.1,    // 0x0A  @b
@@ -88,8 +100,8 @@ export const OPCODE_TIME_NS: readonly number[] = [
   5.1,    // 0x0E  !b
   5.1,    // 0x0F  !
 
-  // 0x10-0x1F: ALU/register
-  1.5,    // 0x10  +*
+  // 0x10-0x1F: ALU/register (~1.5 ns, DB001 §2.3.3)
+  1.6,    // 0x10  +* — multiply step: near timing limit (DB001 §2.4.2 prefetch warning)
   1.5,    // 0x11  2*
   1.5,    // 0x12  2/
   1.5,    // 0x13  not
@@ -101,7 +113,7 @@ export const OPCODE_TIME_NS: readonly number[] = [
   1.5,    // 0x19  pop
   1.5,    // 0x1A  over
   1.5,    // 0x1B  a
-  1.5,    // 0x1C  .
+  0.7,    // 0x1C  . (nop) — no work, just pipeline slot within instruction word
   1.5,    // 0x1D  push
   1.5,    // 0x1E  b!
   1.5,    // 0x1F  a!
@@ -156,27 +168,30 @@ export interface ThermalState {
  *   T_ss = P_avg / (k * C) ≈ 1.0 thermal units
  *
  * We use exponential decay: T_new = T_old * exp(-dt / tau)
- * tau (thermal time constant) ~ 50 ns for a tiny silicon node
- * This means heat dissipates on the scale of ~50 instruction times,
- * creating a meaningful thermal history.
+ * tau ~ 100 ns for a tiny silicon node (~60-70 ALU instructions).
+ * This gives smoother temperature evolution with realistic thermal
+ * inertia — silicon die area per node is ~0.007 mm², but substrate
+ * coupling provides meaningful thermal mass.
  */
-export const THERMAL_TAU_NS = 50.0;
+export const THERMAL_TAU_NS = 100.0;
 
 /**
  * Energy-to-temperature conversion factor.
- * Chosen so that a single 23 pJ instruction raises temperature by ~0.5 units,
- * and steady-state active temperature is ~1.0 units.
+ * Chosen so that steady-state active temperature ≈ 1.0 thermal units
+ * at typical mixed instruction workload (~12 pJ average per opcode).
  * Factor = 1 / (C_thermal) in units of [thermal_units / pJ]
  */
-export const ENERGY_TO_TEMP = 0.02;
+export const ENERGY_TO_TEMP = 0.015;
 
 /**
  * Jitter coefficient: how much temperature affects timing.
  * At T=1.0 (steady-state active), timing jitter sigma = JITTER_COEFF * base_time.
- * From the datasheet: times are "approximate" and vary with temperature.
- * We model ~2% sigma at steady state (T=1.0).
+ * DB001 §2.4.1: times are "approximate" and "vary directly with temperature,
+ * inversely with VDD, and randomly within a statistical distribution."
+ * We model ~1.5% sigma at steady state — conservative estimate matching
+ * the datasheet's language of "approximate" instruction times.
  */
-export const JITTER_COEFF = 0.02;
+export const JITTER_COEFF = 0.015;
 
 // ============================================================================
 // Thermal model functions
@@ -258,9 +273,11 @@ export function recordInstruction(state: ThermalState, opcode: number): number {
   const sigma = JITTER_COEFF * baseTime * Math.sqrt(Math.abs(state.temperature));
   const jitter = normalRandom(state) * sigma;
 
-  // Timing also has a deterministic thermal component:
-  // hotter = slower (timing varies directly with temperature)
-  const thermalSlowdown = 1.0 + 0.003 * state.temperature; // ~0.3% per thermal unit
+  // Deterministic thermal slowdown: hotter silicon = slower transistors.
+  // DB001 §2.4.1: "time required for all activity varies directly with temperature"
+  // CMOS delay temperature coefficient ~0.1-0.2%/°C; our thermal units map to
+  // a few °C of variation, so ~0.3% per thermal unit is physically reasonable.
+  const thermalSlowdown = 1.0 + 0.003 * state.temperature;
 
   const jitteredTime = Math.max(0.1, baseTime * thermalSlowdown + jitter);
 
