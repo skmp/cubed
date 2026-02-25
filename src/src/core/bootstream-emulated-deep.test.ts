@@ -34,7 +34,7 @@ function bootViaSerial(source: string, maxSteps: number) {
   return { ga, compiled, boot, bpHit };
 }
 
-describe.skip('boot ROM serial simulation (deep relay)', () => {
+describe('boot ROM serial simulation (deep relay)', () => {
 
   it('deep relay: single node 508 (110+ hops from 708)', { timeout: 120_000 }, () => {
     const source = `node 508\n/\\\nfill{value=0x508, count=1}\n`;

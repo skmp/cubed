@@ -35,7 +35,7 @@ function bootViaSerial(source: string, maxSteps: number) {
   return { ga, compiled, boot, bpHit };
 }
 
-describe.skip('boot ROM serial simulation (diagnostics)', () => {
+describe('boot ROM serial simulation (diagnostics)', () => {
 
   it('diagnostic: 508+608 with real CUBE code (no 708 target)', { timeout: 120_000 }, () => {
     const source = [
@@ -74,7 +74,7 @@ describe.skip('boot ROM serial simulation (diagnostics)', () => {
         `node ${node.coord}: P=0x${ns.registers.P.toString(16)} B=0x${ns.registers.B.toString(16)} ` +
         `A=0x${ns.registers.A.toString(16)} state=${ns.state} RAM[0]=0x${ns.ram[0].toString(16)}`
       );
-      const isRunning = ns.state === 'running' || ns.state === 'blocked_write';
+      const isRunning = ns.state === 'running' || ns.state === 'blocked_write' || ns.state === 'blocked_read';
       let nodeMismatches = 0;
       for (let i = 0; i < node.len; i++) {
         if (node.mem[i] !== null && ns.ram[i] !== node.mem[i]) {

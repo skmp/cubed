@@ -35,7 +35,7 @@ function bootViaSerial(source: string, maxSteps: number) {
   return { ga, compiled, boot, bpHit };
 }
 
-describe.skip('boot ROM serial simulation (basic)', () => {
+describe('boot ROM serial simulation (basic)', () => {
 
   it('diagnostic: disassemble node 708 ROM', () => {
     const lines = disassembleRom(708, ROM_DATA);
