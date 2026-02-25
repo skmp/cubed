@@ -18,7 +18,7 @@ npm run test         # vitest run (all tests)
 npm run lint         # eslint
 npx vitest src/src/core/f18a.test.ts          # single test file
 npx vitest --reporter=verbose -t "test name"  # single test by name
-node extract-rom.mjs                          # re-extract ROM from reference/ga144/
+node extract-rom.mjs                          # re-extract ROM data (rom-data.ts)
 ```
 
 ## Architecture
