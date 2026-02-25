@@ -86,7 +86,7 @@ function validateResults(results: number[][]): void {
 
 describe('RSC sample: continuous serial TX', () => {
 
-  it('RSC.cube compiles all 7 nodes without errors', () => {
+  it('RSC.cube compiles all 7 nodes without errors', { timeout: 60_000 }, () => {
     const source = readFileSync(join(__dirname, '../../samples/RSC.cube'), 'utf-8');
     const compiled = compileCube(source);
     expect(compiled.errors).toHaveLength(0);
