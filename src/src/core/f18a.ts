@@ -890,24 +890,20 @@ export class F18ANode {
     if (ANALOG_NODES.includes(this.coord)) {
       this.memory[PORT.DATA] = {
         read: () => {
-          let baseTicks: number;
           if (this.vcoCounter) {
-            // SharedArrayBuffer path: clock worker keeps counter updated
-            // (node phase offset already baked in by the clock worker)
-            baseTicks = Atomics.load(this.vcoCounter, this.vcoSlotIndex);
+            // SharedArrayBuffer path: clock worker bakes in node offset + thermal
+            this.fetchedData = Atomics.load(this.vcoCounter, this.vcoSlotIndex);
           } else {
             // Fallback: derive from wall clock when SAB is unavailable
             const VCO_TICKS_PER_MS = 3_000_000; // 3 GHz
             const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
             const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs;
-            baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
+            const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
             const nodeOffset = (this.coord * 40499 + 112771) & 0x3FFFF;
-            baseTicks = (baseTicks + nodeOffset) & 0x3FFFF;
+            const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
+            this.fetchedData = (baseTicks + nodeOffset + thermalOffset) & 0x3FFFF;
           }
-          // Mix in thermal jitter: temperature shifts VCO frequency slightly
-          const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
-          this.fetchedData = (baseTicks + thermalOffset) & 0x3FFFF;
           return true;
         },
         write: (_: number) => {
@@ -1039,6 +1035,11 @@ export class F18ANode {
   setVcoCounter(counters: Uint32Array | null, slotIndex: number): void {
     this.vcoCounter = counters;
     this.vcoSlotIndex = slotIndex;
+  }
+
+  /** Return current thermal temperature for this node. */
+  getThermalTemperature(): number {
+    return this.thermal.temperature;
   }
 
   getCoord(): number {

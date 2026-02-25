@@ -65,6 +65,7 @@ function runLoop(): void {
 
   const now = performance.now();
   if (now - lastSnapshotTime >= SNAPSHOT_INTERVAL_MS) {
+    ga144.flushVcoTemperatures();
     sendSnapshot();
     lastSnapshotTime = now;
   }

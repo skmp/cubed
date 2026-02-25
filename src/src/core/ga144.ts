@@ -82,6 +82,22 @@ export class GA144 {
     }
   }
 
+  /**
+   * Flush analog nodes' thermal temperatures to the SharedArrayBuffer.
+   * Called periodically by the emulator worker so clock workers can
+   * incorporate thermal jitter into their VCO counter values.
+   * Temperatures are stored as scaled integers (×1000) at offset ANALOG_NODES.length.
+   */
+  flushVcoTemperatures(): void {
+    if (!this.vcoCounters) return;
+    const thermalOffset = ANALOG_NODES.length;
+    for (let i = 0; i < ANALOG_NODES.length; i++) {
+      const node = this.getNodeByCoord(ANALOG_NODES[i]);
+      const temp = node.getThermalTemperature();
+      Atomics.store(this.vcoCounters, thermalOffset + i, Math.floor(temp * 1000));
+    }
+  }
+
   // ========================================================================
   // Active list management (swap-based O(1) add/remove)
   // ========================================================================
