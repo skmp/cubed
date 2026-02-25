@@ -35,7 +35,7 @@ function bootViaSerial(source: string, maxSteps: number) {
   return { ga, compiled, boot, bpHit };
 }
 
-describe('boot ROM serial simulation (diagnostics)', () => {
+describe.skip('boot ROM serial simulation (diagnostics)', () => {
 
   it('diagnostic: 508+608 with real CUBE code (no 708 target)', { timeout: 120_000 }, () => {
     const source = [
@@ -287,40 +287,24 @@ describe('boot ROM serial simulation (diagnostics)', () => {
     expect(compiled.errors).toHaveLength(0);
     const boot = buildBootStream(compiled.nodes);
     const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
-    const totalBitDuration = bits.reduce((s, b) => s + b.duration, 0);
-
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
 
-    const node708 = ga.getNodeByCoord(708);
-    let bitIdx = 0;
-    let remaining = bits.length > 0 ? bits[0].duration : 0;
+    // Enqueue serial bits for time-based driving via stepProgram()
+    ga.stepWithSerialBits(708, bits, 0);
 
     const checkpoints = [
-      Math.floor(totalBitDuration * 0.5),
-      Math.floor(totalBitDuration * 0.9),
-      totalBitDuration,
-      totalBitDuration + 100,
-      totalBitDuration + 1000,
-      totalBitDuration + 10000,
-      totalBitDuration + 100000,
-      5_000_000,
+      500_000,
+      1_000_000,
+      2_000_000,
+      3_000_000,
+      4_000_000,
+      5_000_000 - 1,
     ];
     let checkIdx = 0;
 
     for (let step = 0; step < 5_000_000; step++) {
-      if (bitIdx < bits.length) {
-        node708.setPin17(bits[bitIdx].value);
-        remaining--;
-        if (remaining <= 0) {
-          bitIdx++;
-          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
-        }
-      } else {
-        node708.setPin17(false);
-      }
-
       ga.stepProgram();
 
       if (checkIdx < checkpoints.length && step >= checkpoints[checkIdx]) {

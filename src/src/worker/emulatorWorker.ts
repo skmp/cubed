@@ -101,12 +101,16 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
   const msg = e.data;
   switch (msg.type) {
     case 'init': {
+      if (typeof SharedArrayBuffer === 'undefined') {
+        post({ type: 'error', message: 'SharedArrayBuffer is not available. The page must be served with Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers.' });
+        return;
+      }
       ga144 = new GA144('evb001');
       ga144.setRomData(msg.romData);
       ga144.reset();
       const vcoState = createVcoClocks();
-      if (vcoState) ga144.setVcoCounters(vcoState.counters);
-      post({ type: 'ready', sabActive: vcoState !== null });
+      ga144.setVcoCounters(vcoState.counters);
+      post({ type: 'ready' });
       sendSnapshot();
       break;
     }

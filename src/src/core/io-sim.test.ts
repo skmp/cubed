@@ -26,6 +26,9 @@ import {
 // ============================================================================
 
 const BAUD_PERIOD = GA144.BOOT_BAUD_PERIOD; // ~723 steps per bit at 921600 baud
+const NS_PER_TICK = GA144.NS_PER_TICK;
+/** Convert step ticks to nanoseconds. */
+const toNS = (ticks: number) => ticks * NS_PER_TICK;
 
 // Opcodes
 const _RET   = 0;   // ;
@@ -109,14 +112,14 @@ function snap(ga: GA144, coord: number) {
 
 /**
  * Build RS232 8N1 bit sequence for given bytes at a given baud period.
- * Each element: {value: boolean, duration: number}
+ * Each element: {value: boolean, durationNS: number}
  * RS232: idle = false (LOW), start bit = true (HIGH), data inverted
  */
 function buildSerialBits(
   bytes: number[],
   baudPeriod: number = BAUD_PERIOD,
   idlePeriod: number = 0,
-): { value: boolean; duration: number }[] {
+): { value: boolean; durationNS: number }[] {
   return GA144.buildSerialBits(bytes, baudPeriod, idlePeriod);
 }
 
@@ -128,13 +131,14 @@ function buildSerialBits(
 function buildRawByteBits(
   byte: number,
   baudPeriod: number = BAUD_PERIOD,
-): { value: boolean; duration: number }[] {
-  const bits: { value: boolean; duration: number }[] = [];
-  bits.push({ value: false, duration: baudPeriod }); // start bit
+): { value: boolean; durationNS: number }[] {
+  const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
+  const bits: { value: boolean; durationNS: number }[] = [];
+  bits.push({ value: false, durationNS: toNS(baudPeriod) }); // start bit
   for (let i = 0; i < 8; i++) {
-    bits.push({ value: ((byte >> i) & 1) === 1, duration: baudPeriod });
+    bits.push({ value: ((byte >> i) & 1) === 1, durationNS: toNS(baudPeriod) });
   }
-  bits.push({ value: true, duration: baudPeriod }); // stop bit
+  bits.push({ value: true, durationNS: toNS(baudPeriod) }); // stop bit
   return bits;
 }
 
@@ -148,7 +152,9 @@ function isolateNodes(ga: GA144, coords: number[]): void {
     for (let col = 0; col < 18; col++) {
       const c = row * 100 + col;
       if (!keep.has(c)) {
-        ga.removeFromActiveList(ga.getNodeByCoord(c));
+        const node = ga.getNodeByCoord(c);
+        ga.removeFromActiveList(node);
+        ga.deactivateNode(node);
       }
     }
   }
@@ -175,8 +181,8 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // d4=1 (723), d5=0 (723), d6=1 (723), d7=0 (723), stop=1 (+trailing idle)
 
       // Verify total duration = 10 bits * BAUD + 2 * BAUD (trailing idle)
-      const totalDuration = bits.reduce((sum, b) => sum + b.duration, 0);
-      expect(totalDuration).toBe(BAUD_PERIOD * 12); // 10 data + 2 trailing
+      const totalDuration = bits.reduce((sum, b) => sum + b.durationNS, 0);
+      expect(totalDuration).toBe(toNS(BAUD_PERIOD * 12)); // 10 data + 2 trailing
     });
 
     it('0x00 byte: RS232 start(H) + inverted-zero data(H) merge', () => {
@@ -186,9 +192,9 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // stop + trailing merge into LOW span of 3*BAUD
       expect(bits).toHaveLength(2);
       expect(bits[0].value).toBe(true);
-      expect(bits[0].duration).toBe(BAUD_PERIOD * 9); // start + 8 data bits
+      expect(bits[0].durationNS).toBe(toNS(BAUD_PERIOD * 9)); // start + 8 data bits
       expect(bits[1].value).toBe(false);
-      expect(bits[1].duration).toBe(BAUD_PERIOD * 3); // stop + 2 trailing
+      expect(bits[1].durationNS).toBe(toNS(BAUD_PERIOD * 3)); // stop + 2 trailing
     });
 
     it('0xFF byte: RS232 inverted-one data(L) merges with stop(L)', () => {
@@ -197,9 +203,9 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // start = HIGH BAUD, data+stop+trailing = LOW 11*BAUD
       expect(bits).toHaveLength(2);
       expect(bits[0].value).toBe(true);
-      expect(bits[0].duration).toBe(BAUD_PERIOD * 1); // just start bit
+      expect(bits[0].durationNS).toBe(toNS(BAUD_PERIOD * 1)); // just start bit
       expect(bits[1].value).toBe(false);
-      expect(bits[1].duration).toBe(BAUD_PERIOD * 11); // 8 data + stop + 2 trailing
+      expect(bits[1].durationNS).toBe(toNS(BAUD_PERIOD * 11)); // 8 data + stop + 2 trailing
     });
 
     it('idle prefix is prepended (RS232 idle = LOW)', () => {
@@ -207,31 +213,31 @@ describe('IO simulation: serial input at 921600 baud', () => {
       const bits = buildSerialBits([0xFF], BAUD_PERIOD, idlePeriod);
       // RS232 idle = LOW, start = HIGH
       expect(bits[0].value).toBe(false);
-      expect(bits[0].duration).toBe(idlePeriod); // idle stands alone (LOW)
+      expect(bits[0].durationNS).toBe(toNS(idlePeriod)); // idle stands alone (LOW)
       expect(bits[1].value).toBe(true); // start bit (HIGH)
     });
 
     it('two bytes produce correct total duration', () => {
       const bits = buildSerialBits([0x41, 0x42], BAUD_PERIOD);
-      const totalDuration = bits.reduce((sum, b) => sum + b.duration, 0);
+      const totalDuration = bits.reduce((sum, b) => sum + b.durationNS, 0);
       // 2 bytes * 10 bits each + 2 trailing = 22 bit periods
-      expect(totalDuration).toBe(BAUD_PERIOD * 22);
+      expect(totalDuration).toBe(toNS(BAUD_PERIOD * 22));
     });
 
     it('raw byte bits produce exactly 10 entries', () => {
       const bits = buildRawByteBits(0xA5, BAUD_PERIOD);
       expect(bits).toHaveLength(10);
       // 0xA5 = 10100101 binary, LSB first: 1,0,1,0,0,1,0,1
-      expect(bits[0]).toEqual({ value: false, duration: BAUD_PERIOD }); // start
-      expect(bits[1]).toEqual({ value: true,  duration: BAUD_PERIOD }); // d0=1
-      expect(bits[2]).toEqual({ value: false, duration: BAUD_PERIOD }); // d1=0
-      expect(bits[3]).toEqual({ value: true,  duration: BAUD_PERIOD }); // d2=1
-      expect(bits[4]).toEqual({ value: false, duration: BAUD_PERIOD }); // d3=0
-      expect(bits[5]).toEqual({ value: false, duration: BAUD_PERIOD }); // d4=0
-      expect(bits[6]).toEqual({ value: true,  duration: BAUD_PERIOD }); // d5=1
-      expect(bits[7]).toEqual({ value: false, duration: BAUD_PERIOD }); // d6=0
-      expect(bits[8]).toEqual({ value: true,  duration: BAUD_PERIOD }); // d7=1
-      expect(bits[9]).toEqual({ value: true,  duration: BAUD_PERIOD }); // stop
+      expect(bits[0]).toEqual({ value: false, durationNS: toNS(BAUD_PERIOD) }); // start
+      expect(bits[1]).toEqual({ value: true,  durationNS: toNS(BAUD_PERIOD) }); // d0=1
+      expect(bits[2]).toEqual({ value: false, durationNS: toNS(BAUD_PERIOD) }); // d1=0
+      expect(bits[3]).toEqual({ value: true,  durationNS: toNS(BAUD_PERIOD) }); // d2=1
+      expect(bits[4]).toEqual({ value: false, durationNS: toNS(BAUD_PERIOD) }); // d3=0
+      expect(bits[5]).toEqual({ value: false, durationNS: toNS(BAUD_PERIOD) }); // d4=0
+      expect(bits[6]).toEqual({ value: true,  durationNS: toNS(BAUD_PERIOD) }); // d5=1
+      expect(bits[7]).toEqual({ value: false, durationNS: toNS(BAUD_PERIOD) }); // d6=0
+      expect(bits[8]).toEqual({ value: true,  durationNS: toNS(BAUD_PERIOD) }); // d7=1
+      expect(bits[9]).toEqual({ value: true,  durationNS: toNS(BAUD_PERIOD) }); // stop
     });
   });
 
@@ -282,7 +288,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Drive pin17 HIGH before stepping
       node.setPin17(true);
-      ga.stepProgramN(5); // let the read execute
+      ga.stepProgramN(1000); // let the read execute
 
       const s = snap(ga, 708);
       // T should have bit 17 set (0x20000)
@@ -310,7 +316,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
       });
 
       node.setPin17(false);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
 
       const s = snap(ga, 708);
       expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(0);
@@ -341,12 +347,12 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Read with pin17=false
       node.setPin17(false);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       const valLow = snap(ga, 304).registers.T;
 
       // Read with pin17=true — should be identical since node has no GPIO
       node.setPin17(true);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       const valHigh = snap(ga, 304).registers.T;
 
       expect(valLow).toBe(valHigh);
@@ -388,13 +394,13 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // Wake condition: pin17 === notWD → false === true → NOT MET
       // Node should suspend waiting for wake pin
 
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       let s = snap(ga, 708);
       expect(s.state).not.toBe('running'); // should be suspended
 
       // Now drive pin17 HIGH (satisfies wake condition: true === true)
       node.setPin17(true);
-      ga.stepProgramN(3);
+      ga.stepProgramN(1000);
       s = snap(ga, 708);
       // T should be 1 (pin17 was true when wake occurred)
       expect(s.registers.T).toBe(1);
@@ -422,13 +428,13 @@ describe('IO simulation: serial input at 921600 baud', () => {
       });
 
       // Should suspend since pin17=false, notWD=true
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       let s = snap(ga, 200);
       expect(s.state).not.toBe('running');
 
       // Wake with pin17=true
       node.setPin17(true);
-      ga.stepProgramN(3);
+      ga.stepProgramN(1000);
       s = snap(ga, 200);
       expect(s.registers.T).toBe(1);
     });
@@ -468,14 +474,14 @@ describe('IO simulation: serial input at 921600 baud', () => {
       node.setPin17(true);
 
       // Step enough for literal load + IO write + B switch + start reading wake pin
-      ga.stepProgramN(20);
+      ga.stepProgramN(1000);
       let s = snap(ga, 708);
       // Node should be suspended waiting for wake pin (pin17=true, notWD=false, not equal)
       expect(s.state).not.toBe('running');
 
       // Now drive pin17 LOW — satisfies wake condition (false === false)
       node.setPin17(false);
-      ga.stepProgramN(3);
+      ga.stepProgramN(1000);
       s = snap(ga, 708);
       expect(s.registers.T).toBe(0); // pin17 was false when woken
     });
@@ -517,13 +523,13 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Pin17 HIGH (idle)
       node.setPin17(true);
-      ga.stepProgramN(10);
+      ga.stepProgramN(1000);
       let s = snap(ga, 708);
       expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
 
       // Pin17 LOW (start bit arrives)
       node.setPin17(false);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       s = snap(ga, 708);
       expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(0);
     });
@@ -555,14 +561,14 @@ describe('IO simulation: serial input at 921600 baud', () => {
         errors: [],
       });
 
-      // Drive 5 samples HIGH then 5 samples LOW
-      // Each read+store cycle takes ~4 steps (fetch + @b + jump + !+ + jump)
+      // Drive a few samples HIGH then a few LOW
+      // Each read+store cycle takes ~4 events (fetch + @b + jump + !+ + jump)
 
       node.setPin17(true);
-      ga.stepProgramN(30); // several reads with pin17 HIGH
+      ga.stepProgramN(20); // ~5 reads with pin17 HIGH
 
       node.setPin17(false);
-      ga.stepProgramN(30); // several reads with pin17 LOW
+      ga.stepProgramN(20); // ~5 reads with pin17 LOW
 
       const s = snap(ga, 708);
       const ram = s.ram;
@@ -628,17 +634,18 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Phase 1: idle HIGH
       node.setPin17(true);
-      ga.stepProgramN(baud * 3);
+      ga.stepProgramN(Math.max(baud * 3 * 200, 10000));
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
 
       // Phase 2: drive through the bit sequence, checking T at midpoints
       const sampledBits: boolean[] = [];
       for (const bit of bits) {
+        const ticks = Math.round(bit.durationNS / NS_PER_TICK);
         node.setPin17(bit.value);
-        ga.stepProgramN(Math.floor(bit.duration / 2)); // step to midpoint
+        ga.stepProgramN(Math.max(Math.floor(ticks / 2) * 200, 10000)); // step to midpoint
         const t = snap(ga, 708).registers.T;
         sampledBits.push((t & IO_BITS.PIN17_BIT) !== 0);
-        ga.stepProgramN(bit.duration - Math.floor(bit.duration / 2)); // finish bit
+        ga.stepProgramN(Math.max((ticks - Math.floor(ticks / 2)) * 200, 10000)); // finish bit
       }
 
       // sampledBits should match: start(false), d0-d7, stop(true)
@@ -690,7 +697,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Before serial: pin17 should be whatever initial state
       // Use stepWithSerialBits to drive the full frame
-      ga.stepWithSerialBits(708, bits, bits.reduce((s, b) => s + b.duration, 0));
+      ga.stepWithSerialBits(708, bits, bits.reduce((s, b) => s + b.durationNS, 0));
 
       // After all bits sent, pin17 should be idle (RS232 idle = LOW)
       expect(node.getPin17()).toBe(false);
@@ -718,17 +725,17 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Idle period (HIGH)
       node2.setPin17(true);
-      ga2.stepProgramN(baud * 3);
+      ga2.stepProgramN(Math.max(baud * 3 * 200, 10000));
       expect(snap(ga2, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
 
       // Start bit (LOW)
       node2.setPin17(false);
-      ga2.stepProgramN(baud);
+      ga2.stepProgramN(Math.max(baud * 200, 10000));
       expect(snap(ga2, 708).registers.T & IO_BITS.PIN17_BIT).toBe(0);
 
       // Data bits (0xFF = all HIGH)
       node2.setPin17(true);
-      ga2.stepProgramN(baud);
+      ga2.stepProgramN(Math.max(baud * 200, 10000));
       expect(snap(ga2, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
     });
 
@@ -758,7 +765,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
       expect(ga.getNodeByCoord(708).getPin17()).toBe(false);
 
       // Read IO one more time
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       const s = snap(ga, 708);
       expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(0);
     });
@@ -780,11 +787,11 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
     it('single byte frame has correct step count', () => {
       const bits = buildSerialBits([0x00], BAUD_PERIOD);
-      const totalDuration = bits.reduce((sum, b) => sum + b.duration, 0);
+      const totalDuration = bits.reduce((sum, b) => sum + b.durationNS, 0);
       // 1 start + 8 data + 1 stop + 2 trailing = 12 bit periods
-      expect(totalDuration).toBe(12 * BAUD_PERIOD);
-      expect(totalDuration).toBe(12 * 723);
-      expect(totalDuration).toBe(8676);
+      expect(totalDuration).toBe(toNS(12 * BAUD_PERIOD));
+      expect(totalDuration).toBe(toNS(12 * 723));
+      expect(totalDuration).toBe(toNS(8676));
     });
 
     it('bit transitions happen at exact baud boundaries', () => {
@@ -799,16 +806,17 @@ describe('IO simulation: serial input at 921600 baud', () => {
       const transitions: { step: number; value: boolean }[] = [];
       for (const b of bits) {
         transitions.push({ step: currentStep, value: b.value });
-        currentStep += b.duration;
+        currentStep += b.durationNS;
       }
 
       // First segment should be HIGH (RS232 start + d0=0 inverted)
       expect(transitions[0].value).toBe(true);
       expect(transitions[0].step).toBe(0);
 
-      // Verify all transitions happen at multiples of BAUD_PERIOD
+      // Verify all transitions happen at multiples of toNS(BAUD_PERIOD)
+      const baudNS = toNS(BAUD_PERIOD);
       for (const t of transitions) {
-        expect(t.step % BAUD_PERIOD).toBe(0);
+        expect(t.step % baudNS).toBe(0);
       }
     });
   });
@@ -827,19 +835,19 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // Two bytes + trailing:
       // Merged: HIGH(9*BAUD), LOW(1*BAUD), HIGH(9*BAUD), LOW(3*BAUD)
       expect(bits).toHaveLength(4);
-      expect(bits[0]).toEqual({ value: true,  duration: 9 * BAUD_PERIOD });
-      expect(bits[1]).toEqual({ value: false, duration: 1 * BAUD_PERIOD });
-      expect(bits[2]).toEqual({ value: true,  duration: 9 * BAUD_PERIOD });
-      expect(bits[3]).toEqual({ value: false, duration: 3 * BAUD_PERIOD });
+      expect(bits[0]).toEqual({ value: true,  durationNS: toNS(9 * BAUD_PERIOD) });
+      expect(bits[1]).toEqual({ value: false, durationNS: toNS(1 * BAUD_PERIOD) });
+      expect(bits[2]).toEqual({ value: true,  durationNS: toNS(9 * BAUD_PERIOD) });
+      expect(bits[3]).toEqual({ value: false, durationNS: toNS(3 * BAUD_PERIOD) });
     });
 
     it('total frame timing is correct for N bytes', () => {
       for (const n of [1, 2, 5, 10]) {
         const bytes = new Array(n).fill(0x55);
         const bits = buildSerialBits(bytes, BAUD_PERIOD);
-        const total = bits.reduce((sum, b) => sum + b.duration, 0);
+        const total = bits.reduce((sum, b) => sum + b.durationNS, 0);
         // Each byte = 10 bit periods, plus 2 trailing
-        expect(total).toBe((n * 10 + 2) * BAUD_PERIOD);
+        expect(total).toBe(toNS((n * 10 + 2) * BAUD_PERIOD));
       }
     });
 
@@ -867,25 +875,25 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Idle
       node.setPin17(true);
-      ga.stepProgramN(shortBaud * 3);
+      ga.stepProgramN(Math.max(shortBaud * 3 * 200, 10000));
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
 
       // Byte 0x00: start(LOW) + 8 data(LOW) = 9 bits LOW, then stop(HIGH)
       node.setPin17(false);
-      ga.stepProgramN(shortBaud * 5); // in the middle of LOW period
+      ga.stepProgramN(Math.max(shortBaud * 5 * 200, 10000)); // in the middle of LOW period
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(0);
 
       node.setPin17(true); // stop bit
-      ga.stepProgramN(shortBaud);
+      ga.stepProgramN(Math.max(shortBaud * 200, 10000));
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
 
       // Byte 0xFF: start(LOW), then 8 data(HIGH) + stop(HIGH)
       node.setPin17(false); // start bit
-      ga.stepProgramN(shortBaud);
+      ga.stepProgramN(Math.max(shortBaud * 200, 10000));
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(0);
 
       node.setPin17(true); // data + stop
-      ga.stepProgramN(shortBaud * 5);
+      ga.stepProgramN(Math.max(shortBaud * 5 * 200, 10000));
       expect(snap(ga, 708).registers.T & IO_BITS.PIN17_BIT).toBe(IO_BITS.PIN17_BIT);
     });
   });
@@ -932,12 +940,12 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Pin17 starts LOW → node should suspend on wake pin read
       node.setPin17(false);
-      ga.stepProgramN(10);
+      ga.stepProgramN(1000);
       expect(snap(ga, 708).state).not.toBe('running');
 
       // Drive pin17 HIGH (wake condition met: true === notWD=true)
       node.setPin17(true);
-      ga.stepProgramN(10);
+      ga.stepProgramN(1000);
 
       const s = snap(ga, 708);
       const ram = s.ram;
@@ -987,12 +995,12 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Phase 1: pin17=false, node should suspend on wake pin
       node.setPin17(false);
-      ga.stepProgramN(10);
+      ga.stepProgramN(1000);
       expect(snap(ga, 708).state).not.toBe('running');
 
       // Phase 2: idle line arrives (HIGH) — wakes node
       node.setPin17(true);
-      ga.stepProgramN(30); // let it wake, drop, load literal, set B
+      ga.stepProgramN(1000); // let it wake, drop, load literal, set B
 
       // Now node should be in the IO poll loop
       let s = snap(ga, 708);
@@ -1001,7 +1009,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // Phase 3: start bit arrives (LOW)
       node.setPin17(false);
-      ga.stepProgramN(10);
+      ga.stepProgramN(1000);
 
       s = snap(ga, 708);
       expect(s.registers.T & IO_BITS.PIN17_BIT).toBe(0);
@@ -1041,13 +1049,13 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       // pin17 HIGH: bit 17 should be set in T (this is the bit -if would test)
       node.setPin17(true);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       let s = snap(ga, 708);
       expect((s.registers.T >> 17) & 1).toBe(1); // -if would NOT jump (negative)
 
       // pin17 LOW: bit 17 should be clear in T
       node.setPin17(false);
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       s = snap(ga, 708);
       expect((s.registers.T >> 17) & 1).toBe(0); // -if WOULD jump (non-negative)
     });
@@ -1086,7 +1094,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
       const node = ga.getNodeByCoord(708);
       node.setPin17(true);
-      ga.stepProgramN(20);
+      ga.stepProgramN(1000);
 
       const s = snap(ga, 708);
       const ram = s.ram;
@@ -1144,12 +1152,12 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
         // Read with pin17=false
         ga.getNodeByCoord(coord).setPin17(false);
-        ga.stepProgramN(5);
+        ga.stepProgramN(1000);
         const valLow = snap(ga, coord).registers.T;
 
         // Read with pin17=true
         ga.getNodeByCoord(coord).setPin17(true);
-        ga.stepProgramN(5);
+        ga.stepProgramN(1000);
         const valHigh = snap(ga, coord).registers.T;
 
         if (hasGpio) {
@@ -1175,7 +1183,7 @@ describe('IO simulation: serial input at 921600 baud', () => {
       // No bytes → just trailing idle (RS232 idle = LOW, 2 * BAUD)
       expect(bits).toHaveLength(1);
       expect(bits[0].value).toBe(false);
-      expect(bits[0].duration).toBe(BAUD_PERIOD * 2);
+      expect(bits[0].durationNS).toBe(toNS(BAUD_PERIOD * 2));
     });
 
     it('pin17 toggle does not affect non-wake-pin port reads', () => {
@@ -1201,12 +1209,12 @@ describe('IO simulation: serial input at 921600 baud', () => {
       const node = ga.getNodeByCoord(708);
 
       // Node should suspend waiting for DOWN port data, not wake pin
-      ga.stepProgramN(5);
+      ga.stepProgramN(1000);
       expect(snap(ga, 708).state).not.toBe('running');
 
       // Toggle pin17 — should NOT wake the node (it's waiting on DOWN, not UP)
       node.setPin17(true);
-      ga.stepProgramN(3);
+      ga.stepProgramN(1000);
       // Still suspended — pin17 doesn't satisfy a DOWN port read
       expect(snap(ga, 708).state).not.toBe('running');
     });
@@ -1246,8 +1254,8 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
     it('very short baud period (1 step per bit) works', () => {
       const bits = buildSerialBits([0x55], 1);
-      const totalDuration = bits.reduce((sum, b) => sum + b.duration, 0);
-      expect(totalDuration).toBe(12); // 10 frame bits + 2 trailing
+      const totalDuration = bits.reduce((sum, b) => sum + b.durationNS, 0);
+      expect(totalDuration).toBe(toNS(12)); // 10 frame bits + 2 trailing
     });
 
     it('stepWithSerialBits returns false when all nodes suspend', () => {

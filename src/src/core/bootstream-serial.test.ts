@@ -56,8 +56,9 @@ describe('boot stream serial encoding at 921600 baud', () => {
     const byteArray = Array.from(boot.bytes);
     const idlePeriod = BAUD_PERIOD * 10;
     const bits = GA144.buildSerialBits(byteArray, BAUD_PERIOD, idlePeriod);
-    const totalDuration = bits.reduce((s, b) => s + b.duration, 0);
-    const expectedTotal = idlePeriod + boot.bytes.length * 10 * BAUD_PERIOD + BAUD_PERIOD * 2;
+    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
+    const totalDuration = bits.reduce((s, b) => s + b.durationNS, 0);
+    const expectedTotal = toNS(idlePeriod + boot.bytes.length * 10 * BAUD_PERIOD + BAUD_PERIOD * 2);
     expect(totalDuration).toBe(expectedTotal);
   });
 
@@ -75,9 +76,10 @@ describe('boot stream serial encoding at 921600 baud', () => {
     const testBytes = [0xAE, 0x00, 0xFF, 0x55, 0xAA];
     const bits = GA144.buildSerialBits(testBytes, BAUD_PERIOD, 0);
     let totalBitPeriods = 0;
+    const baudNS = BAUD_PERIOD * GA144.NS_PER_TICK;
     for (const seg of bits) {
-      expect(seg.duration % BAUD_PERIOD).toBe(0);
-      totalBitPeriods += seg.duration / BAUD_PERIOD;
+      expect(seg.durationNS % baudNS).toBe(0);
+      totalBitPeriods += seg.durationNS / baudNS;
     }
     expect(totalBitPeriods).toBe(testBytes.length * 10 + 2);
   });

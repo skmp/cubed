@@ -34,8 +34,9 @@ describe('GA144.buildSerialBits (RS232 polarity)', () => {
   it('produces correct bit count for a single byte', () => {
     // 8N1: 1 start + 8 data + 1 stop = 10 bits per byte
     const bits = GA144.buildSerialBits([0x41], 100, 200);
-    const totalDuration = bits.reduce((s, b) => s + b.duration, 0);
-    expect(totalDuration).toBe(200 + 10 * 100 + 200);
+    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
+    const totalDuration = bits.reduce((s, b) => s + b.durationNS, 0);
+    expect(totalDuration).toBe(toNS(200 + 10 * 100 + 200));
   });
 
   it('idle is LOW, first non-idle segment is HIGH (RS232 start bit)', () => {
@@ -47,19 +48,21 @@ describe('GA144.buildSerialBits (RS232 polarity)', () => {
   it('byte 0x00: all-zero data inverts to all-HIGH after start', () => {
     // RS232: start=HIGH, data bits inverted: 0→HIGH, stop=LOW
     // Byte 0x00: start(H) + 8×data(H) = 9×HIGH merged, then stop(L) + trailing(L)
+    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
     const bits = GA144.buildSerialBits([0x00], 100, 0);
     expect(bits[0].value).toBe(true);
-    expect(bits[0].duration).toBe(900); // start + 8 inverted-zero data = 9 × 100
+    expect(bits[0].durationNS).toBe(toNS(900)); // start + 8 inverted-zero data = 9 × 100
     expect(bits[1].value).toBe(false);  // stop + trailing = LOW
   });
 
   it('byte 0xFF: all-one data inverts to all-LOW after start', () => {
     // RS232: start(H), then 8×data inverted(L), then stop(L) + trailing(L)
     // start = HIGH 100, then data+stop+trailing = LOW
+    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
     const bits = GA144.buildSerialBits([0xFF], 100, 0);
     expect(bits[0].value).toBe(true);
-    expect(bits[0].duration).toBe(100); // just start bit (HIGH)
+    expect(bits[0].durationNS).toBe(toNS(100)); // just start bit (HIGH)
     expect(bits[1].value).toBe(false);
-    expect(bits[1].duration).toBe(8 * 100 + 100 + 2 * 100); // data + stop + trailing
+    expect(bits[1].durationNS).toBe(toNS(8 * 100 + 100 + 2 * 100)); // data + stop + trailing
   });
 });

@@ -162,8 +162,8 @@ export function renderIoWrites(
       // Resolve deferred HSYNC
       if (pendingHsyncTs >= 0 && ioWriteTimestamps) {
         const rTs = readIoTimestamp(ioWriteTimestamps, ioWriteStart, offset);
-        if (rTs === pendingHsyncTs) {
-          // Same step — R belongs to the line before HSYNC
+        if (Math.abs(rTs - pendingHsyncTs) <= 10) {
+          // Same time (~10ns) — R belongs to the line before HSYNC
           rVals.push(DAC_TO_8BIT[decodeDac(val)]);
           hsyncAtR.push(rVals.length);
           pendingHsyncTs = -1;

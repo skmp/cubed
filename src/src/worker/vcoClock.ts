@@ -1,24 +1,23 @@
 /**
  * VCO Clock Manager — spawns a single SharedArrayBuffer-backed clock worker
- * that updates all 5 analog node VCO counters. Falls back gracefully when
- * SAB is unavailable.
+ * that updates all 5 analog node VCO counters.
  *
- * SAB layout (151 × Uint32 = 604 bytes):
+ * SAB layout (150 × Uint32 = 600 bytes):
  *   Slots 0-4:    VCO counters (18-bit, written by clock worker)
  *   Slots 5-148:  Thermal temperatures (scaled ×1000, written by emulator worker)
  *                 Index = THERMAL_OFFSET + linearNodeIndex (0-143)
- *   Slots 149-150: Guest wall clock (nanoseconds as lo/hi Uint32, written by emulator)
+ *   Slot 149:     Control flag (0 = run, non-zero = exit; written by main thread)
  */
 import { ANALOG_NODES } from '../core/constants';
 
 /** Offset into the Uint32Array where thermal temperature slots begin. */
 export const THERMAL_OFFSET = ANALOG_NODES.length;
 
-/** Offset for guest wall clock (64-bit ns as two Uint32 words). */
-export const GUEST_CLOCK_OFFSET = THERMAL_OFFSET + 144;
+/** Offset for the control flag (0 = run, non-zero = exit). */
+export const CONTROL_OFFSET = THERMAL_OFFSET + 144;
 
 /** Total number of Uint32 slots in the SAB. */
-export const SAB_SLOT_COUNT = GUEST_CLOCK_OFFSET + 2;
+export const SAB_SLOT_COUNT = CONTROL_OFFSET + 1;
 
 export interface VcoClockState {
   sab: SharedArrayBuffer;
@@ -28,14 +27,9 @@ export interface VcoClockState {
 
 /**
  * Create a single VCO clock worker backed by SharedArrayBuffer.
- * Returns null if SharedArrayBuffer is unavailable (no COOP/COEP headers).
+ * Requires cross-origin isolation (COOP/COEP headers).
  */
-export function createVcoClocks(): VcoClockState | null {
-  if (typeof SharedArrayBuffer === 'undefined') return null;
-  if (typeof self !== 'undefined' && 'crossOriginIsolated' in self && !self.crossOriginIsolated) {
-    return null;
-  }
-
+export function createVcoClocks(): VcoClockState {
   const sab = new SharedArrayBuffer(SAB_SLOT_COUNT * 4);
   const counters = new Uint32Array(sab);
 
@@ -51,8 +45,9 @@ export function createVcoClocks(): VcoClockState | null {
   return { sab, counters, workers: [w] };
 }
 
-/** Terminate VCO clock worker. */
+/** Signal VCO clock worker to exit and terminate. */
 export function destroyVcoClocks(state: VcoClockState): void {
+  Atomics.store(state.counters, CONTROL_OFFSET, 1);
   for (const w of state.workers) {
     w.terminate();
   }

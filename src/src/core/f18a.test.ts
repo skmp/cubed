@@ -144,20 +144,23 @@ function makeProgram(
     errors: [],
   });
 
+  const node = ga.getNodeByCoord(coord);
+
   return {
     ga,
+    node,
     snap: (c?: number) => {
       const s = ga.getSnapshot(c ?? coord);
       return s.selectedNode!;
     },
+    /** Step until the target node has executed n instructions. */
+    step: (n: number) => {
+      const target = node.stepCount + n;
+      for (let i = 0; i < 100_000 && node.stepCount < target; i++) {
+        ga.stepProgram();
+      }
+    },
   };
-}
-
-/** Step the GA144 n times. */
-function stepN(ga: GA144, n: number): void {
-  for (let i = 0; i < n; i++) {
-    ga.stepProgram();
-  }
 }
 
 /** Get snapshot of a specific node. */
@@ -283,17 +286,17 @@ describe('control flow instructions', () => {
   it('; (return) — P=R, R popped', () => {
     // word0: [push, NOP, NOP, ;] — push T(=0x10) to R, then return
     const word0 = packWord(PUSH, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0x10] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0x10] });
 
     // After load: P=1, T=0x10. Word0 fetched.
     // Slot 0: push → R=0x10
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(0x10);
 
     // Slots 1-2: NOP
-    stepN(ga, 2);
+    step(2);
     // Slot 3: ; → P=R=0x10, R popped. Then fetchI → P=0x11.
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.P & 0x1FF).toBe(0x11);
   });
 
@@ -303,12 +306,12 @@ describe('control flow instructions', () => {
     // Slot 0: push → R=0x20, T=0x15555
     // Slot 1: ex → P=R=0x20, R=oldP=1. fetchI → P=0x21.
     const word0 = packWord(PUSH, EX, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0x20] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0x20] });
 
-    stepN(ga, 1); // push: R=0x20
+    step(1); // push: R=0x20
     expect(s().registers.R).toBe(0x20);
 
-    stepN(ga, 1); // ex: swap P(=1) and R(=0x20), fetchI → P=0x21
+    step(1); // ex: swap P(=1) and R(=0x20), fetchI → P=0x21
     const n = s();
     expect(n.registers.P).toBe(0x21);
     expect(n.registers.R).toBe(1);
@@ -317,18 +320,18 @@ describe('control flow instructions', () => {
   it('jump — sets P to target address', () => {
     // word0: [jump 0x05] — after fetchI, P=0x06
     const word0 = packJump(JUMP, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0]);
+    const { snap: s, step } = makeProgram(304, [word0]);
 
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.P & 0x3F).toBe(0x06);
   });
 
   it('call — pushes P, jumps to target', () => {
     // word0: [call 0x05] — R=old_P(=1), P=0x05, fetchI → P=0x06
     const word0 = packJump(CALL, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0]);
+    const { snap: s, step } = makeProgram(304, [word0]);
 
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.registers.P & 0x3F).toBe(0x06);
     expect(n.registers.R).toBe(1); // old P before call
@@ -337,30 +340,30 @@ describe('control flow instructions', () => {
   it('unext R>0 — decrements R and re-executes', () => {
     // word0: [push, NOP, NOP, unext]
     const word0 = packWord(PUSH, NOP, NOP, UNEXT);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [3] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [3] });
 
     // Slot 0: push → R=3
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(3);
     // Slots 1-2: NOP
-    stepN(ga, 2);
+    step(2);
     // Slot 3: unext, R=3>0 → R=2, re-execute same word
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(2);
     expect(s().slotIndex).toBe(0); // back to slot 0 (unextJumpP)
   });
 
   it('unext R=0 — pops R and continues', () => {
     const word0 = packWord(PUSH, NOP, NOP, UNEXT);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0] });
 
     // Slot 0: push → R=0
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(0);
     // Slots 1-2: NOP
-    stepN(ga, 2);
+    step(2);
     // Slot 3: unext, R=0 → pop R, continue
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(0x15555); // old rstack init value
   });
 
@@ -370,43 +373,43 @@ describe('control flow instructions', () => {
     const w0 = packOpJump(PUSH, 1);
     const w1 = packJump(NEXT, 1);
 
-    const { ga, snap: s } = makeProgram(304, [w0, w1], { stack: [3] });
+    const { snap: s, step } = makeProgram(304, [w0, w1], { stack: [3] });
 
     // Slot 0: push → R=3
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(3);
     // Slot 1: jump 1 → P=1, fetchI → P=2. word1 fetched.
-    stepN(ga, 1);
+    step(1);
 
     // word1 slot 0: next, R=3>0 → R=2, P=1, fetchI → P=2
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(2);
 
-    stepN(ga, 1); // R=1
+    step(1); // R=1
     expect(s().registers.R).toBe(1);
 
-    stepN(ga, 1); // R=0
+    step(1); // R=0
     expect(s().registers.R).toBe(0);
 
     // next R=0 → pop R, fall through (P not changed, continues)
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(0x15555);
   });
 
   it('if T=0 — jumps (branch taken)', () => {
     // word0: [if addr=0x05] — T=0, jump taken. fetchI → P=0x06
     const word0 = packJump(IF, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0] });
 
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.P & 0x3F).toBe(0x06);
   });
 
   it('if T≠0 — does not jump (branch not taken)', () => {
     const word0 = packJump(IF, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [1] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [1] });
 
-    stepN(ga, 1);
+    step(1);
     // if/−if always consume the address field, so remaining slots are skipped.
     // Reference: f18a.rkt — (and (= T 0) ...) always returns false.
     // P should advance to the next word (not jump to 0x05).
@@ -418,18 +421,18 @@ describe('control flow instructions', () => {
   it('-if T>=0 (bit17=0) — jumps (branch taken)', () => {
     // T=0x1000 → bit 17 = 0 → jump taken. fetchI → P=0x06
     const word0 = packJump(MIF, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0x1000] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0x1000] });
 
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.P & 0x3F).toBe(0x06);
   });
 
   it('-if T<0 (bit17=1) — does not jump', () => {
     // T=0x20000 → bit 17 = 1 → no jump
     const word0 = packJump(MIF, 0x05);
-    const { ga, snap: s } = makeProgram(304, [word0], { stack: [0x20000] });
+    const { snap: s, step } = makeProgram(304, [word0], { stack: [0x20000] });
 
-    stepN(ga, 1);
+    step(1);
     // -if always consumes the address field, so remaining slots are skipped.
     // Reference: f18a.rkt — always returns false.
     expect(s().slotIndex).toBe(0);
@@ -439,13 +442,13 @@ describe('control flow instructions', () => {
 
   it('if and -if do not pop T', () => {
     // if with T=0 (taken): T should remain 0
-    const { ga: ga1, snap: s1 } = makeProgram(304, [packJump(IF, 0x05)], { stack: [0] });
-    stepN(ga1, 1);
+    const { snap: s1, step: step1 } = makeProgram(304, [packJump(IF, 0x05)], { stack: [0] });
+    step1(1);
     expect(s1().registers.T).toBe(0);
 
     // -if with T=0x1000 (taken): T should remain 0x1000
-    const { ga: ga2, snap: s2 } = makeProgram(305, [packJump(MIF, 0x05)], { stack: [0x1000] });
-    stepN(ga2, 1);
+    const { snap: s2, step: step2 } = makeProgram(305, [packJump(MIF, 0x05)], { stack: [0x1000] });
+    step2(1);
     expect(s2().registers.T).toBe(0x1000);
   });
 });
@@ -461,80 +464,53 @@ describe('memory access instructions', () => {
     const w0 = packAtpJump(2);
     const w1 = 0xABCD;
 
-    const { ga, snap: s } = makeProgram(304, [w0, w1]);
+    const { snap: s, step } = makeProgram(304, [w0, w1]);
 
     // Slot 0: @p → reads mem[P=1] = 0xABCD, P=2
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.T).toBe(0xABCD);
 
     // Slot 1: jump 2 → P=2, fetchI → P=3
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.P & 0x3F).toBe(3);
   });
 
   it('@+ — fetches from [A], pushes to T, increments A', () => {
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const words = new Array(64).fill(null) as (number | null)[];
-    words[0] = w0;
-    words[5] = 0x12345 & WORD_MASK;
+    const words = [w0, 0, 0, 0, 0, 0x12345 & WORD_MASK];
+    const { snap: s, step } = makeProgram(304, words, { a: 5 });
 
-    const ga = new GA144('test');
-    ga.reset();
-    ga.load({
-      nodes: [{ coord: 304, mem: words, len: 6, a: 5, p: 0 }],
-      errors: [],
-    });
-
-    stepN(ga, 1);
-    const n = snap(ga, 304);
-    expect(n.registers.T).toBe(0x12345 & WORD_MASK);
-    expect(n.registers.A).toBe(6);
+    step(1);
+    expect(s().registers.T).toBe(0x12345 & WORD_MASK);
+    expect(s().registers.A).toBe(6);
   });
 
   it('@b — fetches from [B], pushes to T, B unchanged', () => {
     const w0 = packWord(ATB, NOP, NOP, RET);
-    const words = new Array(64).fill(null) as (number | null)[];
-    words[0] = w0;
-    words[5] = 0x1BEEF;
+    const words = [w0, 0, 0, 0, 0, 0x1BEEF];
+    const { snap: s, step } = makeProgram(304, words, { b: 5 });
 
-    const ga = new GA144('test');
-    ga.reset();
-    ga.load({
-      nodes: [{ coord: 304, mem: words, len: 6, b: 5, p: 0 }],
-      errors: [],
-    });
-
-    stepN(ga, 1);
-    const n = snap(ga, 304);
-    expect(n.registers.T).toBe(0x1BEEF);
-    expect(n.registers.B).toBe(5);
+    step(1);
+    expect(s().registers.T).toBe(0x1BEEF);
+    expect(s().registers.B).toBe(5);
   });
 
   it('@ — fetches from [A], pushes to T, A unchanged', () => {
     const w0 = packWord(AT, NOP, NOP, RET);
-    const words = new Array(64).fill(null) as (number | null)[];
-    words[0] = w0;
-    words[5] = 0x2CAFE & WORD_MASK;
+    const words = [w0, 0, 0, 0, 0, 0x2CAFE & WORD_MASK];
+    const { snap: s, step } = makeProgram(304, words, { a: 5 });
 
-    const ga = new GA144('test');
-    ga.reset();
-    ga.load({
-      nodes: [{ coord: 304, mem: words, len: 6, a: 5, p: 0 }],
-      errors: [],
-    });
-
-    stepN(ga, 1);
-    const n = snap(ga, 304);
-    expect(n.registers.T).toBe(0x2CAFE & WORD_MASK);
-    expect(n.registers.A).toBe(5);
+    step(1);
+    expect(s().registers.T).toBe(0x2CAFE & WORD_MASK);
+    expect(s().registers.A).toBe(5);
   });
 
   it('!p — stores T to [P], pops T, increments P', () => {
     // After load with p=0: P=1 (fetchI). !p writes T to mem[P=1], then P=2.
     const w0 = packWord(STOREP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0xDEAD] });
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0xDEAD] });
 
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.registers.T).toBe(0x15555); // T popped, S was 0x15555
     expect(n.ram[1]).toBe(0xDEAD);
@@ -543,9 +519,9 @@ describe('memory access instructions', () => {
 
   it('!+ — stores T to [A], pops T, increments A', () => {
     const w0 = packWord(STOREPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 5, stack: [0xBEEF] });
+    const { snap: s, step } = makeProgram(304, [w0], { a: 5, stack: [0xBEEF] });
 
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.ram[5]).toBe(0xBEEF);
     expect(n.registers.A).toBe(6);
@@ -553,9 +529,9 @@ describe('memory access instructions', () => {
 
   it('!b — stores T to [B], pops T, B unchanged', () => {
     const w0 = packWord(STOREB, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { b: 5, stack: [0xCAFE] });
+    const { snap: s, step } = makeProgram(304, [w0], { b: 5, stack: [0xCAFE] });
 
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.ram[5]).toBe(0xCAFE);
     expect(n.registers.B).toBe(5);
@@ -563,9 +539,9 @@ describe('memory access instructions', () => {
 
   it('! — stores T to [A], pops T, A unchanged', () => {
     const w0 = packWord(STORE, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 5, stack: [0xFACE] });
+    const { snap: s, step } = makeProgram(304, [w0], { a: 5, stack: [0xFACE] });
 
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.ram[5]).toBe(0xFACE);
     expect(n.registers.A).toBe(5);
@@ -579,87 +555,87 @@ describe('memory access instructions', () => {
 describe('arithmetic instructions', () => {
   it('2* — left shift', () => {
     const w0 = packWord(SHL, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x100] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x100] });
+    step(1);
     expect(s().registers.T).toBe(0x200);
   });
 
   it('2* overflow — bit 17 shifted out', () => {
     const w0 = packWord(SHL, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x20000] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x20000] });
+    step(1);
     expect(s().registers.T).toBe(0);
   });
 
   it('2/ — right arithmetic shift', () => {
     const w0 = packWord(SHR, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x100] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x100] });
+    step(1);
     expect(s().registers.T).toBe(0x80);
   });
 
   it('2/ sign extend — preserves bit 17', () => {
     // T = 0x20000 (bit 17 set). JS >> on 0x20000 gives 0x10000.
     const w0 = packWord(SHR, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x20000] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x20000] });
+    step(1);
     expect(s().registers.T).toBe(0x10000);
   });
 
   it('- (NOT) — inverts all bits', () => {
     const w0 = packWord(NOT, NOP, NOP, RET);
-    const { ga: ga1, snap: s1 } = makeProgram(304, [w0], { stack: [0] });
-    stepN(ga1, 1);
+    const { snap: s1, step: step1 } = makeProgram(304, [w0], { stack: [0] });
+    step1(1);
     expect(s1().registers.T).toBe(0x3FFFF);
 
-    const { ga: ga2, snap: s2 } = makeProgram(305, [w0], { stack: [0x3FFFF] });
-    stepN(ga2, 1);
+    const { snap: s2, step: step2 } = makeProgram(305, [w0], { stack: [0x3FFFF] });
+    step2(1);
     expect(s2().registers.T).toBe(0);
   });
 
   it('+ — adds T and S', () => {
     // stack: [5, 3] → push 5 then 3 → T=3, S=5. + → T=8
     const w0 = packWord(ADD, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [5, 3] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [5, 3] });
+    step(1);
     expect(s().registers.T).toBe(8);
   });
 
   it('+ overflow — wraps at 18 bits', () => {
     const w0 = packWord(ADD, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [1, 0x3FFFF] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [1, 0x3FFFF] });
+    step(1);
     expect(s().registers.T).toBe(0);
   });
 
   it('and — bitwise AND of T and S', () => {
     const w0 = packWord(AND, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0xFF00, 0x0FF0] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0xFF00, 0x0FF0] });
+    step(1);
     expect(s().registers.T).toBe(0x0F00);
   });
 
   it('or (XOR) — bitwise XOR of T and S', () => {
     const w0 = packWord(XOR, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0xFF00, 0x0FF0] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0xFF00, 0x0FF0] });
+    step(1);
     expect(s().registers.T).toBe(0xF0F0);
   });
 
   it('drop — pops T', () => {
     const w0 = packWord(DROP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [2, 1] });
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [2, 1] });
     // T=1, S=2. drop → T=2
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.T).toBe(2);
   });
 
   it('+* A[0]=0 — shifts T:A right without add', () => {
     const w0 = packWord(MULSTEP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x04, stack: [0x100] });
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x04, stack: [0x100] });
 
     // A=4 (bit0=0), T=0x100. No add, just shift T:A right.
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.registers.T).toBe(0x80);    // T >> 1, sign bit preserved (was 0)
     expect(n.registers.A).toBe(0x02);     // A >> 1, T bit0 (0) into A bit17
@@ -667,10 +643,10 @@ describe('arithmetic instructions', () => {
 
   it('+* A[0]=1 — adds T+S then shifts', () => {
     const w0 = packWord(MULSTEP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x01, stack: [5, 3] });
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x01, stack: [5, 3] });
 
     // T=3, S=5, A=1 (bit0=1). sum=T+S=8. Then shift T:A right.
-    stepN(ga, 1);
+    step(1);
     const n = s();
     // Just verify it executed without error; exact result depends on T:A combined shift
     expect(typeof n.registers.T).toBe('number');
@@ -685,8 +661,8 @@ describe('arithmetic instructions', () => {
 describe('stack & register instructions', () => {
   it('dup — duplicates T', () => {
     const w0 = packWord(DUP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [42] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [42] });
+    step(1);
     const n = s();
     expect(n.registers.T).toBe(42);
     expect(n.registers.S).toBe(42);
@@ -695,19 +671,19 @@ describe('stack & register instructions', () => {
   it('pop — moves R to T', () => {
     // push then pop: word0 = [push, pop, NOP, ;]
     const w0 = packWord(PUSH, POP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [99] });
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [99] });
 
-    stepN(ga, 1); // push → R=99
+    step(1); // push → R=99
     expect(s().registers.R).toBe(99);
-    stepN(ga, 1); // pop → T=99
+    step(1); // pop → T=99
     expect(s().registers.T).toBe(99);
   });
 
   it('over — pushes S on top', () => {
     const w0 = packWord(OVER, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [2, 1] });
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [2, 1] });
     // T=1, S=2. over pushes S → T=2, S=old_T=1
-    stepN(ga, 1);
+    step(1);
     const n = s();
     expect(n.registers.T).toBe(2);
     expect(n.registers.S).toBe(1);
@@ -715,16 +691,16 @@ describe('stack & register instructions', () => {
 
   it('a — reads A register onto stack', () => {
     const w0 = packWord(AREAD, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x123 });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x123 });
+    step(1);
     expect(s().registers.T).toBe(0x123);
   });
 
   it('. (nop) — state unchanged', () => {
     const w0 = packWord(NOP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [42] });
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [42] });
     const before = s();
-    stepN(ga, 1);
+    step(1);
     const after = s();
     expect(after.registers.T).toBe(before.registers.T);
     expect(after.registers.A).toBe(before.registers.A);
@@ -732,29 +708,29 @@ describe('stack & register instructions', () => {
 
   it('push — moves T to R', () => {
     const w0 = packWord(PUSH, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [77] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [77] });
+    step(1);
     expect(s().registers.R).toBe(77);
   });
 
   it('b! — stores T to B (9-bit mask)', () => {
     const w0 = packWord(BSTORE, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x1FF] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x1FF] });
+    step(1);
     expect(s().registers.B).toBe(0x1FF);
   });
 
   it('b! mask — only 9 bits stored', () => {
     const w0 = packWord(BSTORE, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x3FFFF] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x3FFFF] });
+    step(1);
     expect(s().registers.B).toBe(0x1FF);
   });
 
   it('a! — stores T to A (full 18-bit)', () => {
     const w0 = packWord(ASTORE, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { stack: [0x3ABCD] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { stack: [0x3ABCD] });
+    step(1);
     expect(s().registers.A).toBe(0x3ABCD & WORD_MASK);
   });
 });
@@ -766,45 +742,45 @@ describe('stack & register instructions', () => {
 describe('address increment (incr)', () => {
   it('RAM: 0x3F → 0x40', () => {
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x3F });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x3F });
+    step(1);
     expect(s().registers.A).toBe(0x40);
   });
 
   it('RAM wrap: 0x7F → 0x00', () => {
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x7F });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x7F });
+    step(1);
     expect(s().registers.A).toBe(0x00);
   });
 
   it('ROM: 0xBF → 0xC0', () => {
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0xBF });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0xBF });
+    step(1);
     expect(s().registers.A).toBe(0xC0);
   });
 
   it('ROM wrap: 0xFF → 0x80', () => {
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0xFF });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0xFF });
+    step(1);
     expect(s().registers.A).toBe(0x80);
   });
 
   it('IO space: no increment', () => {
     // A = PORT.IO = 0x15D (bit 8 set) → incr returns same address
     const w0 = packWord(STOREPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: PORT.IO, stack: [0x100] });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: PORT.IO, stack: [0x100] });
+    step(1);
     expect(s().registers.A).toBe(PORT.IO);
   });
 
   it('preserves bit 9 (extended arith flag)', () => {
     // A = 0x205 (bit 9 set). incr should produce 0x206.
     const w0 = packWord(ATPLUS, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0], { a: 0x205 });
-    stepN(ga, 1);
+    const { snap: s, step } = makeProgram(304, [w0], { a: 0x205 });
+    step(1);
     expect(s().registers.A).toBe(0x206);
   });
 });
@@ -823,10 +799,7 @@ describe('port communication', () => {
   it('write→read sync — value transferred between adjacent nodes', () => {
     // Node 304 (x=4 even) east→RIGHT, Node 305 (x=5 odd) west→RIGHT.
     // Both use RIGHT port (0x1D5) for the link between them.
-    //
-    // IMPORTANT: After the port transfer, the `;` at slot 3 sets P=R (init value)
-    // and jumps into ROM code that eventually corrupts T. We must check T
-    // BEFORE that happens — within 3 rounds of the transfer (slots 1-2 are NOP).
+    // After transfer, 305 loops via jump-0 to preserve T.
     const ga = new GA144('test');
     ga.reset();
 
@@ -837,7 +810,8 @@ describe('port communication', () => {
           coord: 304,
           mem: (() => {
             const m = new Array(64).fill(null) as (number | null)[];
-            m[0] = packWord(STORE, NOP, NOP, RET); // ! stores T to [A=RIGHT]
+            // ! stores T, then jump 0 to re-read port (blocks)
+            m[0] = packWord(STORE, NOP, NOP, NOP);
             return m;
           })(),
           len: 1,
@@ -849,7 +823,8 @@ describe('port communication', () => {
           coord: 305,
           mem: (() => {
             const m = new Array(64).fill(null) as (number | null)[];
-            m[0] = packWord(AT, NOP, NOP, RET); // @ reads from [A=RIGHT]
+            // @ reads from port, then jump 0 to loop (blocks again on read)
+            m[0] = packOpJump(AT, 0);
             return m;
           })(),
           len: 1,
@@ -860,9 +835,9 @@ describe('port communication', () => {
       errors: [],
     });
 
-    // Round 1: 305 reads (blocks), 304 writes (finds reader, completes transfer).
-    // 305 wakes with T=0x42. Rounds 2-3: NOP slots, T preserved.
-    ga.stepProgramN(3);
+    // 305 reads (blocks), 304 writes (finds reader, completes transfer).
+    // 305 wakes with T=0x42, then jumps back to read again (blocks).
+    ga.stepProgramN(1000);
 
     const n305 = snap(ga, 305);
     expect(n305.registers.T).toBe(0x42);
@@ -890,7 +865,7 @@ describe('port communication', () => {
       errors: [],
     });
 
-    ga.stepProgramN(200);
+    ga.stepProgramN(1000);
 
     const n400 = snap(ga, 400);
     expect(n400.state).toBe(NodeState.BLOCKED_WRITE);
@@ -916,7 +891,7 @@ describe('port communication', () => {
       errors: [],
     });
 
-    ga.stepProgramN(200);
+    ga.stepProgramN(1000);
 
     const n400 = snap(ga, 400);
     expect(n400.state).toBe(NodeState.BLOCKED_READ);
@@ -974,7 +949,7 @@ describe('port communication', () => {
     // R8: 304 NEXT R=0 → falls through, fetches word2.
     // R9: 304 slot0: STORE → writes 0x99 to port, 305 wakes with T=0x99.
     // R10-11: 305 NOPs (slots 1-2). T=0x99 preserved.
-    ga.stepProgramN(11);
+    ga.stepProgramN(2000);
 
     const n305 = snap(ga, 305);
     expect(n305.registers.T).toBe(0x99);
@@ -1030,7 +1005,7 @@ describe('port communication', () => {
     // R6: 305 falls through, fetches word2.
     // R7: 305 STORE → multiport write, 304 wakes with T=0xBEEF.
     // R8-9: 304 NOPs.
-    ga.stepProgramN(9);
+    ga.stepProgramN(2000);
 
     const n304 = snap(ga, 304);
     expect(n304.registers.T).toBe(0xBEEF);
@@ -1064,7 +1039,7 @@ describe('IO register', () => {
       errors: [],
     });
 
-    ga.stepProgramN(10);
+    ga.stepProgramN(1000);
     const n = snap(ga, 304);
     expect(typeof n.registers.T).toBe('number');
     // Interior node with 4 neighbors — all port status bits are in mask
@@ -1091,7 +1066,7 @@ describe('IO register', () => {
       errors: [],
     });
 
-    ga.stepProgramN(10);
+    ga.stepProgramN(1000);
     const n = snap(ga, 304);
     expect(n.registers.IO).toBe(0);
   });
@@ -1117,7 +1092,7 @@ describe('IO register', () => {
       errors: [],
     });
 
-    ga.stepProgramN(10);
+    ga.stepProgramN(1000);
     const n = snap(ga, 304);
     expect(n.registers.IO).toBe(wdValue);
   });
@@ -1178,24 +1153,24 @@ describe('LUDR parity mapping', () => {
 describe('execution flow', () => {
   it('4-slot word executes all 4 slots in order', () => {
     const w0 = packWord(NOP, NOP, NOP, RET);
-    const { ga, snap: s } = makeProgram(304, [w0]);
+    const { snap: s, step } = makeProgram(304, [w0]);
 
-    stepN(ga, 1);
+    step(1);
     expect(s().slotIndex).toBe(1);
-    stepN(ga, 1);
+    step(1);
     expect(s().slotIndex).toBe(2);
-    stepN(ga, 1);
+    step(1);
     expect(s().slotIndex).toBe(3);
-    stepN(ga, 1);
+    step(1);
     expect(s().slotIndex).toBe(0); // fetched next word
   });
 
   it('control flow at slot 0 ends word early', () => {
     // jump 0x02 at slot 0 → P=0x02, fetchI → P=0x03
     const w0 = packJump(JUMP, 0x02);
-    const { ga, snap: s } = makeProgram(304, [w0]);
+    const { snap: s, step } = makeProgram(304, [w0]);
 
-    stepN(ga, 1);
+    step(1);
     expect(s().slotIndex).toBe(0);
     expect(s().registers.P & 0x3F).toBe(0x03); // 0x02 + 1 from fetchI
   });
@@ -1205,27 +1180,27 @@ describe('execution flow', () => {
     // word1: [NOP, NOP, NOP, UNEXT] — looped by unext, no push to corrupt R
     const w0 = packOpJump(PUSH, 1);
     const w1 = packWord(NOP, NOP, NOP, UNEXT);
-    const { ga, snap: s } = makeProgram(304, [w0, w1], { stack: [2] });
+    const { snap: s, step } = makeProgram(304, [w0, w1], { stack: [2] });
 
     // Slot 0: push → R=2
-    stepN(ga, 1);
+    step(1);
     expect(s().registers.R).toBe(2);
     // Slot 1: jump 1 → fetchI fetches word1
-    stepN(ga, 1);
+    step(1);
 
     // word1: 3 NOPs + unext
     // R=2>0 → R=1, re-execute word
-    stepN(ga, 4); // NOP, NOP, NOP, UNEXT
+    step(4); // NOP, NOP, NOP, UNEXT
     expect(s().registers.R).toBe(1);
     expect(s().slotIndex).toBe(0);
 
     // R=1>0 → R=0, re-execute word
-    stepN(ga, 4);
+    step(4);
     expect(s().registers.R).toBe(0);
     expect(s().slotIndex).toBe(0);
 
     // R=0 → pop R, continue to next word
-    stepN(ga, 4);
+    step(4);
     expect(s().registers.R).toBe(0x15555); // old rstack init value
   });
 
@@ -1254,13 +1229,13 @@ describe('execution flow', () => {
       errors: [],
     });
 
-    ga.stepProgramN(50);
+    ga.stepProgramN(1000);
     const n1 = snap(ga, 400);
     expect(n1.state).toBe(NodeState.BLOCKED_READ);
     const steps1 = n1.stepCount;
 
     // Step more — step count should NOT increase since node is suspended
-    ga.stepProgramN(50);
+    ga.stepProgramN(1000);
     const n2 = snap(ga, 400);
     expect(n2.stepCount).toBe(steps1);
   });

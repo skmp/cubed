@@ -89,7 +89,7 @@ export class F18ANode {
   // Thermal model
   thermal: ThermalState;
 
-  // VCO clock source (SharedArrayBuffer-backed, null = fallback to performance.now)
+  // VCO clock source (SharedArrayBuffer-backed, required for analog nodes)
   private vcoCounter: Uint32Array | null = null;
   private vcoSlotIndex = 0;
 
@@ -223,22 +223,16 @@ export class F18ANode {
   // Suspension and wakeup
   // ========================================================================
 
-  private removeFromActiveList(): void {
+  private suspend(): void {
     this.ga144.removeFromActiveList(this);
+    this.ga144.deactivateNode(this);
     this.suspended = true;
   }
 
-  private addToActiveList(): void {
-    this.ga144.addToActiveList(this);
-    this.suspended = false;
-  }
-
-  private suspend(): void {
-    this.removeFromActiveList();
-  }
-
   private wakeup(): void {
-    this.addToActiveList();
+    this.ga144.addToActiveList(this);
+    this.ga144.enqueueNode(this);
+    this.suspended = false;
   }
 
   // ========================================================================
@@ -877,32 +871,15 @@ export class F18ANode {
 
     // DATA port — on analog nodes this is the VCO-based ADC counter.
     // The real VCO runs at ~2-4 GHz, driven by input voltage.
-    // We approximate it using Date.now()/performance.now() divided to
-    // produce a realistic 18-bit counter value.
-    //
-    // VCO nominal frequency: ~3 GHz (midpoint of 2-4 GHz range)
-    // 1 ms = 3,000,000 ticks at 3 GHz
-    // 18-bit counter wraps every 262,144 ticks = ~87.4 μs
-    //
-    // performance.now() gives ms with sub-ms precision:
-    //   ticks = performance.now() * 3_000_000
-    //   counter = ticks mod 2^18
+    // The clock worker computes counter values from thermal state
+    // and writes them to SharedArrayBuffer slots.
     if (ANALOG_NODES.includes(this.coord)) {
       this.memory[PORT.DATA] = {
         read: () => {
           if (this.vcoCounter) {
-            // SharedArrayBuffer path: clock worker bakes in node offset + thermal
             this.fetchedData = Atomics.load(this.vcoCounter, this.vcoSlotIndex);
           } else {
-            // Fallback: derive from wall clock when SAB is unavailable
-            const VCO_TICKS_PER_MS = 3_000_000; // 3 GHz
-            const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-            const wrapPeriodMs = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
-            const phase = (nowMs % (wrapPeriodMs * 256)) / wrapPeriodMs;
-            const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
-            const nodeOffset = (this.coord * 40499 + 112771) & 0x3FFFF;
-            const thermalOffset = Math.floor(this.thermal.temperature * 17) & 0x3FFFF;
-            this.fetchedData = (baseTicks + nodeOffset + thermalOffset) & 0x3FFFF;
+            this.fetchedData = 0; // SAB not yet wired
           }
           return true;
         },

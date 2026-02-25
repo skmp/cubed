@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { ThemeProvider, CssBaseline, Box } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, Dialog, DialogTitle, DialogContent, DialogContentText } from '@mui/material';
 import { theme } from './ui/theme';
 import { MainLayout } from './ui/layout/MainLayout';
 import { CodeEditor } from './ui/editor/CodeEditor';
@@ -33,7 +33,7 @@ function App() {
     compileAndLoad,
     selectNode,
     bootStreamBytes,
-    sabActive,
+    emulatorError,
     setLanguage,
   } = useEmulator();
 
@@ -131,7 +131,6 @@ function App() {
             totalSimTimeNS={snapshot.totalSimTimeNS}
             language={language}
             isRunning={isRunning}
-            sabActive={sabActive}
             onCompile={handleCompileButton}
             onSetLanguage={(lang) => {
               setLanguage(lang);
@@ -202,6 +201,12 @@ function App() {
           />
         }
       />
+      <Dialog open={emulatorError !== null}>
+        <DialogTitle>Emulator Error</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{emulatorError}</DialogContentText>
+        </DialogContent>
+      </Dialog>
     </ThemeProvider>
   );
 }

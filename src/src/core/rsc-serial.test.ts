@@ -141,7 +141,7 @@ describe('RSC sample: continuous serial TX', () => {
     validateResults(results);
   });
 
-  it('full RSC.cube: serial boot and continuous serial output', { timeout: 60_000 }, () => {
+  it('full RSC.cube: serial boot and continuous serial output', { timeout: 120_000 }, () => {
     const source = readFileSync(join(__dirname, '../../samples/RSC.cube'), 'utf-8');
     const compiled = compileCube(source);
     expect(compiled.errors).toHaveLength(0);

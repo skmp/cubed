@@ -46,7 +46,7 @@ describe('NIC10 sample: 10baseT NIC', () => {
       // Re-compile node by node to get individual stats
       const _lines = source.split('\n');
       console.log('\nPer-node compilation (allowing errors):');
-      // Extract node blocks from source for individual compilation
+      // Extract node blocks from source for individual compilationa) make sure the power averages use the guest wall clock. 
     }
 
     expect(compiled.errors).toHaveLength(0);

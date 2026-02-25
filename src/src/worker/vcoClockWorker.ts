@@ -3,12 +3,12 @@
  *
  * Reads thermal temperatures of all 144 nodes from SAB to compute VCO values
  * that reflect both per-node and neighborhood thermal conditions (substrate
- * thermal coupling). Updates at ~1 kHz via setInterval.
+ * thermal coupling). Runs a tight loop, checking a control flag for exit.
  *
  * SAB layout:
  *   [0..4]     VCO counters (written here)
  *   [5..148]   Thermal temps × 1000 for 144 nodes (read here)
- *   [149..150] Guest wall clock (not used here)
+ *   [149]      Control flag (0 = run, non-zero = exit)
  */
 
 interface AnalogNodeInit {
@@ -24,6 +24,7 @@ interface VcoClockInit {
 const VCO_TICKS_PER_MS = 3_000_000; // ~3 GHz nominal VCO frequency
 const WRAP_PERIOD_MS = 0x40000 / VCO_TICKS_PER_MS; // ~0.0874 ms per 18-bit wrap
 const THERMAL_OFFSET = 5; // thermal slots start at index 5
+const CONTROL_SLOT = THERMAL_OFFSET + 144; // = 149
 
 /** Convert YXX coord to linear index (0-143). Inlined to avoid importing core. */
 function coordToIndex(coord: number): number {
@@ -61,7 +62,10 @@ self.onmessage = (e: MessageEvent<VcoClockInit>) => {
     neighborSlots: getNeighborIndices(coord).map(i => THERMAL_OFFSET + i),
   }));
 
-  const tick = () => {
+  // Tight loop — exits when control flag is set
+  for (;;) {
+    if (Atomics.load(counters, CONTROL_SLOT) !== 0) break;
+
     const nowMs = performance.now();
     const phase = (nowMs % (WRAP_PERIOD_MS * 256)) / WRAP_PERIOD_MS;
     const baseTicks = Math.floor(phase * 0x40000) & 0x3FFFF;
@@ -84,8 +88,5 @@ self.onmessage = (e: MessageEvent<VcoClockInit>) => {
       const value = (baseTicks + node.nodeOffset + thermalOffset + neighborEffect) & 0x3FFFF;
       Atomics.store(counters, node.slotIndex, value);
     }
-  };
-
-  setInterval(tick, 1);
-  tick();
+  }
 };

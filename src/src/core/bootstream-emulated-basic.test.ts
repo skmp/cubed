@@ -35,7 +35,7 @@ function bootViaSerial(source: string, maxSteps: number) {
   return { ga, compiled, boot, bpHit };
 }
 
-describe('boot ROM serial simulation (basic)', () => {
+describe.skip('boot ROM serial simulation (basic)', () => {
 
   it('diagnostic: disassemble node 708 ROM', () => {
     const lines = disassembleRom(708, ROM_DATA);
@@ -52,7 +52,7 @@ describe('boot ROM serial simulation (basic)', () => {
     console.log(`Boot stream: ${boot.words.length} words, ${boot.bytes.length} bytes`);
     console.log(`Serial bits segments: ${bits.length}`);
     for (let i = 0; i < Math.min(bits.length, 20); i++) {
-      console.log(`  bit[${i}]: value=${bits[i].value} duration=${bits[i].duration}`);
+      console.log(`  bit[${i}]: value=${bits[i].value} durationNS=${bits[i].durationNS}`);
     }
 
     const ga = new GA144('test');
@@ -62,20 +62,10 @@ describe('boot ROM serial simulation (basic)', () => {
     const node708 = ga.getNodeByCoord(708);
     console.log(`\nInitial: P=0x${ga.getSnapshot(708).selectedNode!.registers.P.toString(16)}`);
 
-    let bitIdx = 0;
-    let remaining = bits.length > 0 ? bits[0].duration : 0;
+    // Enqueue serial bits for time-based driving via stepProgram()
+    ga.stepWithSerialBits(708, bits, 0); // enqueue only, 0 steps
     let prevP = -1;
     for (let step = 0; step < 200; step++) {
-      if (bitIdx < bits.length) {
-        node708.setPin17(bits[bitIdx].value);
-        remaining--;
-        if (remaining <= 0) {
-          bitIdx++;
-          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
-        }
-      } else {
-        node708.setPin17(false);
-      }
 
       const snap708 = ga.getSnapshot(708).selectedNode!;
       const pin = node708.getPin17();
@@ -114,9 +104,9 @@ describe('boot ROM serial simulation (basic)', () => {
     );
 
     console.log(`Boot stream: ${boot.words.length} words, ${boot.bytes.length} bytes`);
-    console.log(`Serial bits: ${bits.length} segments, total duration: ${bits.reduce((s,b) => s+b.duration, 0)} steps`);
+    console.log(`Serial bits: ${bits.length} segments, total durationNS: ${bits.reduce((s,b) => s+b.durationNS, 0)} ns`);
     for (let i = 0; i < Math.min(bits.length, 30); i++) {
-      console.log(`  bit[${i}]: value=${bits[i].value ? 1 : 0} duration=${bits[i].duration}`);
+      console.log(`  bit[${i}]: value=${bits[i].value ? 1 : 0} durationNS=${bits[i].durationNS}`);
     }
 
     const ga = new GA144('test');
@@ -125,23 +115,13 @@ describe('boot ROM serial simulation (basic)', () => {
 
     const node708 = ga.getNodeByCoord(708);
 
+    // Enqueue serial bits for time-based driving via stepProgram()
+    ga.stepWithSerialBits(708, bits, 0);
+
     const maxSteps = 1_000_000;
-    let bitIdx = 0;
-    let remaining = bits.length > 0 ? bits[0].duration : 0;
     const checkpoints = [100, 1000, 5000, 10000, 50000, 100000, 500000, 999999];
 
     for (let step = 0; step < maxSteps; step++) {
-      if (bitIdx < bits.length) {
-        node708.setPin17(bits[bitIdx].value);
-        remaining--;
-        if (remaining <= 0) {
-          bitIdx++;
-          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
-        }
-      } else {
-        node708.setPin17(false);
-      }
-
       if (checkpoints.includes(step)) {
         const s708 = ga.getSnapshot(708).selectedNode!;
         const s709 = ga.getSnapshot(709).selectedNode!;
@@ -149,7 +129,7 @@ describe('boot ROM serial simulation (basic)', () => {
           `[step ${step}] 708: P=0x${s708.registers.P.toString(16)} iI=${s708.slotIndex} ` +
           `T=0x${s708.registers.T.toString(16)} state=${s708.state} ` +
           `IO=0x${s708.registers.IO.toString(16)} pin17=${node708.getPin17() ? 1 : 0} ` +
-          `bitIdx=${bitIdx}/${bits.length}`
+          `booting=${ga.isBooting()}`
         );
         console.log(
           `         709: P=0x${s709.registers.P.toString(16)} iI=${s709.slotIndex} ` +

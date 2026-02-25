@@ -24,7 +24,7 @@ export function readIoWrite(ioWrites: number[], start: number, idx: number): num
   return ioWrites[pos >= cap ? pos - cap : pos];
 }
 
-/** Read the timestamp (global step count) for an IO write from the ring buffer. */
+/** Read the timestamp (simulated time in ns) for an IO write from the ring buffer. */
 export function readIoTimestamp(timestamps: number[], start: number, idx: number): number {
   const cap = timestamps.length;
   if (cap === 0) return 0;
@@ -111,7 +111,7 @@ export function detectResolution(
       // belongs to the current line (before the line break).
       if (pendingHsyncTs >= 0) {
         const rTs = timestamps ? readIoTimestamp(timestamps, start, i) : -1;
-        if (rTs !== pendingHsyncTs) {
+        if (Math.abs(rTs - pendingHsyncTs) > 10) {
           // Different step — HSYNC legitimately precedes this R write.
           // Apply the deferred line break BEFORE counting this R write.
           // Undo the x++ for this R write, apply HSYNC, then re-count it.

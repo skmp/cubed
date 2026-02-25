@@ -6,7 +6,14 @@ import { F18ANode } from './f18a';
 import { NUM_NODES, coordToIndex, indexToCoord, ANALOG_NODES } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
+import { recordIdle } from './thermal';
 import type { ThermalState } from './thermal';
+import {
+  createEventQueue, enqueue, dequeue, peekTime, isEmpty,
+  removeByTypeAndPayload, clearQueue,
+  EVT_NODE, EVT_SERIAL,
+  type EventQueue,
+} from './event-queue';
 
 export interface IoWriteDelta {
   writes: number[];
@@ -21,7 +28,20 @@ export class GA144 {
   private activeNodes: F18ANode[];
   private lastActiveIndex: number = NUM_NODES - 1;
   private totalSteps = 0;
+  private guestWallClock = 0;
   private _breakpointHit = false;
+  private eventsSinceIdleSweep = 0;
+
+  // Event queue for discrete event simulation
+  private eventQueue: EventQueue = createEventQueue();
+  private readonly _evt = { time: 0, type: 0, payload: 0 }; // reusable dequeue scratch
+
+  // Serial bit state — only one EVT_SERIAL event in the queue at a time
+  private serialBitValues: boolean[] = [];
+  private serialBitTimes: number[] = [];  // absolute start time for each bit
+  private serialEndTime: number = 0;      // absolute end time of last bit
+  private serialBitIndex: number = 0;     // next bit to fire
+  private serialNode: F18ANode | null = null;
 
   // IO write capture for VGA display — ring buffer of recent writes
   private static readonly IO_WRITE_CAPACITY = 2_000_000;
@@ -39,15 +59,9 @@ export class GA144 {
   // SharedArrayBuffer VCO counters for analog nodes (null = fallback)
   private vcoCounters: Uint32Array | null = null;
 
-  // Serial boot stream state — bits are driven into node 708's pin17
-  // each step, consumed during normal stepProgram() calls.
-  private serialBits: { value: boolean; duration: number }[] = [];
-  private serialBitIdx = 0;
-  private serialRemaining = 0;
-  private serialNode: F18ANode | null = null;
-
   // Stored boot stream bytes for re-enqueuing serial bits on reset
   private pendingBootBytes: Uint8Array | null = null;
+  private pendingBootBaud: number = GA144.BOOT_BAUD_PERIOD;
 
   constructor(name: string = 'chip1') {
     this.name = name;
@@ -87,8 +101,7 @@ export class GA144 {
    * to the SharedArrayBuffer. Called periodically by the emulator worker
    * so the clock worker can incorporate thermal jitter into VCO counter values.
    *
-   * SAB layout: [0..4] VCO counters, [5..148] thermal temps × 1000,
-   *             [149..150] guest clock (ns, lo/hi Uint32)
+   * SAB layout: [0..4] VCO counters, [5..148] thermal temps × 1000
    */
   flushVcoTemperatures(): void {
     if (!this.vcoCounters) return;
@@ -97,22 +110,6 @@ export class GA144 {
       const temp = this.nodes[i].thermal.temperature;
       Atomics.store(this.vcoCounters, thermalOffset + i, Math.floor(temp * 1000));
     }
-    // Write guest wall clock (64-bit nanoseconds as two 32-bit words)
-    const guestClockOffset = thermalOffset + NUM_NODES; // = 149
-    const maxSimTime = this.getMaxSimulatedTime();
-    Atomics.store(this.vcoCounters, guestClockOffset, maxSimTime >>> 0);
-    Atomics.store(this.vcoCounters, guestClockOffset + 1, Math.floor(maxSimTime / 0x100000000) >>> 0);
-  }
-
-  /** Return the maximum simulated time (ns) across all nodes. */
-  private getMaxSimulatedTime(): number {
-    let max = 0;
-    for (let i = 0; i < NUM_NODES; i++) {
-      if (this.nodes[i].thermal.simulatedTime > max) {
-        max = this.nodes[i].thermal.simulatedTime;
-      }
-    }
-    return max;
   }
 
   // ========================================================================
@@ -146,92 +143,137 @@ export class GA144 {
   }
 
   // ========================================================================
-  // Stepping
+  // Event queue node scheduling
   // ========================================================================
 
-  /** Step all active nodes once. Returns true if breakpoint hit. */
+  /** Remove a node from the event queue (called when node suspends). */
+  deactivateNode(node: F18ANode): void {
+    removeByTypeAndPayload(this.eventQueue, EVT_NODE, node.index);
+  }
+
+  /** Enqueue a node into the event queue (called when node wakes up). */
+  enqueueNode(node: F18ANode): void {
+    enqueue(this.eventQueue, node.thermal.simulatedTime, EVT_NODE, node.index);
+  }
+
+  // ========================================================================
+  // Stepping — event-driven discrete event simulation
+  // ========================================================================
+
+  /**
+   * Pop the soonest event and execute it. Returns true if breakpoint hit.
+   */
   stepProgram(): boolean {
+    this.stepProgramN(1);
+    return this._breakpointHit;
+  }
+
+  /**
+   * Step up to N node-events. Returns true if a breakpoint was hit.
+   *
+   * Hot-loop optimization: after executing a node event, if the node's
+   * next timestamp is still earlier than the new queue head, re-execute
+   * it immediately without touching the queue.
+   */
+  stepProgramN(n: number): boolean {
     this._breakpointHit = false;
-    this.totalSteps++;
+    const q = this.eventQueue;
+    const evt = this._evt;
+    let remaining = n;
 
-    // Drive serial boot stream into node 708's pin17
-    if (this.serialNode) {
-      if (this.serialBitIdx < this.serialBits.length) {
-        this.serialNode.setPin17(this.serialBits[this.serialBitIdx].value);
-        this.serialRemaining--;
-        if (this.serialRemaining <= 0) {
-          this.serialBitIdx++;
-          this.serialRemaining = this.serialBitIdx < this.serialBits.length
-            ? this.serialBits[this.serialBitIdx].duration : 0;
+    while (remaining > 0) {
+      if (!dequeue(q, evt)) return false; // queue empty — chip idle
+
+      this.guestWallClock = evt.time;
+
+      if (evt.type === EVT_SERIAL) {
+        // Serial pin17 edge — set pin and enqueue next bit
+        const bitIdx = evt.payload;
+        if (this.serialNode && bitIdx < this.serialBitValues.length) {
+          this.serialNode.setPin17(this.serialBitValues[bitIdx]);
         }
-      } else {
-        this.serialNode.setPin17(false); // idle after all bits sent
-        this.serialNode = null; // done with serial stream
-        this.serialBits = [];
+        this.serialBitIndex = bitIdx + 1;
+        if (this.serialBitIndex < this.serialBitValues.length) {
+          enqueue(q, this.serialBitTimes[this.serialBitIndex], EVT_SERIAL, this.serialBitIndex);
+        }
+        this.idleSweepTick();
+        continue; // serial events don't consume budget
       }
-    }
 
-    for (let i = this.lastActiveIndex; i >= 0; i--) {
-      this.activeNodes[i].stepProgram();
+      // EVT_NODE — step one instruction
+      const node = this.nodes[evt.payload];
+      node.stepProgram();
+      this.totalSteps++;
+      remaining--;
+      if (this._breakpointHit) {
+        if (!node.isSuspended()) {
+          enqueue(q, node.thermal.simulatedTime, EVT_NODE, node.index);
+        }
+        return true;
+      }
+
+      // Hot loop: keep re-executing this node while it's the soonest
+      if (!node.isSuspended() && remaining > 0 && !isEmpty(q)) {
+        let nextTime = node.thermal.simulatedTime;
+        const headTime = peekTime(q);
+        while (remaining > 0 && nextTime <= headTime) {
+          this.guestWallClock = nextTime;
+          node.stepProgram();
+          this.totalSteps++;
+          remaining--;
+          if (this._breakpointHit || node.isSuspended()) break;
+          nextTime = node.thermal.simulatedTime;
+          this.idleSweepTick();
+        }
+      }
+
+      // Re-enqueue if still active
+      if (!node.isSuspended()) {
+        enqueue(q, node.thermal.simulatedTime, EVT_NODE, node.index);
+      }
+
+      this.idleSweepTick();
     }
 
     return this._breakpointHit;
   }
 
-  /** Step N times. Returns true if breakpoint hit. */
-  stepProgramN(n: number): boolean {
-    for (let i = 0; i < n; i++) {
-      if (this.stepProgram()) return true;
+  private idleSweepTick(): void {
+    this.eventsSinceIdleSweep++;
+    if (this.eventsSinceIdleSweep >= 1000) {
+      this.eventsSinceIdleSweep = 0;
+      for (let i = NUM_NODES - 1; i > this.lastActiveIndex; i--) {
+        const node = this.activeNodes[i];
+        const dt = this.guestWallClock - node.thermal.simulatedTime;
+        if (dt > 0) {
+          recordIdle(node.thermal, dt);
+        }
+      }
     }
-    return false;
   }
 
   /** Step until all nodes are suspended or breakpoint hit */
   stepUntilDone(maxSteps: number = 1000000): boolean {
-    for (let i = 0; i < maxSteps; i++) {
-      if (this.stepProgram()) return true;
-      if (this.lastActiveIndex < 0) return false; // all suspended
-    }
-    return false;
+    return this.stepProgramN(maxSteps);
   }
 
   /**
-   * Step the simulation while driving pin17 of a given node according to
-   * a serial bit stream with RS232 polarity (idle = LOW, start = HIGH).
+   * Enqueue serial bits and step the simulation until serial delivery
+   * completes or maxSteps is reached.
    *
-   * `bits` is an array of {value: boolean, duration: number} pairs where
-   * duration is measured in GA144 step ticks.  Pin17 is set to each value for
-   * `duration` ticks, then the next entry is used.  After all bits are sent
-   * pin17 is left at idle (false = RS232 idle / mark).
+   * `bits` is an array of {value: boolean, durationNS: number} pairs
+   * with relative durations. They are converted to absolute times
+   * relative to guestWallClock and enqueued as EVT_SERIAL events.
    *
    * Returns true if a breakpoint was hit.
    */
   stepWithSerialBits(
     coord: number,
-    bits: { value: boolean; duration: number }[],
+    bits: { value: boolean; durationNS: number }[],
     maxSteps: number = 10_000_000,
   ): boolean {
-    const node = this.getNodeByCoord(coord);
-    let bitIdx = 0;
-    let remaining = bits.length > 0 ? bits[0].duration : 0;
-
-    for (let step = 0; step < maxSteps; step++) {
-      // Update pin17 from current bit
-      if (bitIdx < bits.length) {
-        node.setPin17(bits[bitIdx].value);
-        remaining--;
-        if (remaining <= 0) {
-          bitIdx++;
-          remaining = bitIdx < bits.length ? bits[bitIdx].duration : 0;
-        }
-      } else {
-        node.setPin17(false); // idle = RS232 mark (LOW on pin17)
-      }
-
-      if (this.stepProgram()) return true;
-      if (this.lastActiveIndex < 0) return false;
-    }
-    return false;
+    this.enqueueSerialBits(coord, bits);
+    return this.stepUntilDone(maxSteps);
   }
 
   /**
@@ -252,36 +294,40 @@ export class GA144 {
    * 6 bits) that produces the sequence 1101101 on pin17 (start + 6 bits),
    * enabling auto-baud detection via a double-wide HIGH pulse.
    */
+  /** Nominal nanoseconds per step tick (one ALU instruction). */
+  static readonly NS_PER_TICK = 1.5;
+
   static buildSerialBits(
     bytes: number[],
     baudPeriod: number,
     idlePeriod: number = 0,
-  ): { value: boolean; duration: number }[] {
-    const bits: { value: boolean; duration: number }[] = [];
+  ): { value: boolean; durationNS: number }[] {
+    const bits: { value: boolean; durationNS: number }[] = [];
+    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
 
-    const push = (value: boolean, duration: number) => {
+    const push = (value: boolean, durationNS: number) => {
       if (bits.length > 0 && bits[bits.length - 1].value === value) {
-        bits[bits.length - 1].duration += duration;
+        bits[bits.length - 1].durationNS += durationNS;
       } else {
-        bits.push({ value, duration });
+        bits.push({ value, durationNS });
       }
     };
 
     // Lead-in idle (RS232 idle = LOW on pin17)
-    if (idlePeriod > 0) push(false, idlePeriod);
+    if (idlePeriod > 0) push(false, toNS(idlePeriod));
 
     for (const byte of bytes) {
       // RS232 inverts all levels compared to standard UART
-      push(true, baudPeriod); // start bit: HIGH on pin17
+      push(true, toNS(baudPeriod)); // start bit: HIGH on pin17
       for (let bit = 0; bit < 8; bit++) {
         // Invert each data bit (RS232 inversion)
-        push(((byte >> bit) & 1) === 0, baudPeriod); // LSB first, inverted
+        push(((byte >> bit) & 1) === 0, toNS(baudPeriod)); // LSB first, inverted
       }
-      push(false, baudPeriod); // stop bit: LOW on pin17
+      push(false, toNS(baudPeriod)); // stop bit: LOW on pin17
     }
 
     // Trailing idle (RS232 idle = LOW)
-    push(false, baudPeriod * 2);
+    push(false, toNS(baudPeriod * 2));
     return bits;
   }
 
@@ -307,10 +353,10 @@ export class GA144 {
       }
       this.lastVsyncSeq = this.ioWriteSeq;
     }
-    this.pushIoWrite(tagged, thermal?.lastJitteredTime ?? 0);
+    this.pushIoWrite(tagged, thermal?.simulatedTime ?? 0, thermal?.lastJitteredTime ?? 0);
   }
 
-  private pushIoWrite(value: number, jitteredTime: number = 0): void {
+  private pushIoWrite(value: number, simulatedTime: number, jitteredTime: number = 0): void {
     const capacity = this.ioWriteBuffer.length;
     const size = this.ioWriteSeq - this.ioWriteStartSeq;
     if (size >= capacity) {
@@ -320,7 +366,7 @@ export class GA144 {
     }
     const idx = (this.ioWriteStart + (this.ioWriteSeq - this.ioWriteStartSeq)) % capacity;
     this.ioWriteBuffer[idx] = value;
-    this.ioWriteTimestamps[idx] = this.totalSteps;
+    this.ioWriteTimestamps[idx] = simulatedTime;
     this.ioWriteJitter[idx] = jitteredTime;
     this.ioWriteSeq++;
   }
@@ -359,30 +405,75 @@ export class GA144 {
    * The bytes are converted to serial bits and driven into pin17.
    * Stored for re-enqueuing on each reset().
    */
-  loadViaBootStream(bytes: Uint8Array): void {
+  loadViaBootStream(bytes: Uint8Array, baudPeriod: number = GA144.BOOT_BAUD_PERIOD): void {
     if (bytes.length === 0) return;
 
     this.pendingBootBytes = bytes;
-    this.enqueueBootStream(bytes);
+    this.pendingBootBaud = baudPeriod;
+    this.enqueueBootStream(bytes, baudPeriod);
 
     // Reset step counter and IO buffer for clean starting state
     this.totalSteps = 0;
+    this.guestWallClock = 0;
     this.ioWriteStart = 0;
     this.ioWriteStartSeq = 0;
     this.ioWriteSeq = 0;
     this.lastVsyncSeq = null;
   }
 
-  /** Enqueue serial bits from raw boot stream bytes into node 708's pin17. */
-  private enqueueBootStream(bytes: Uint8Array): void {
-    this.serialBits = GA144.buildSerialBits(
+  /**
+   * Enqueue serial bits as EVT_SERIAL events into the event queue.
+   * Converts relative {value, durationNS} pairs to absolute times.
+   */
+  private enqueueBootStream(bytes: Uint8Array, baudPeriod: number = GA144.BOOT_BAUD_PERIOD): void {
+    const bits = GA144.buildSerialBits(
       Array.from(bytes),
-      GA144.BOOT_BAUD_PERIOD,
-      GA144.BOOT_BAUD_PERIOD * 10, // idle lead-in for auto-baud detection
+      baudPeriod,
+      baudPeriod * 10, // idle lead-in for auto-baud detection
     );
-    this.serialBitIdx = 0;
-    this.serialRemaining = this.serialBits.length > 0 ? this.serialBits[0].duration : 0;
-    this.serialNode = this.getNodeByCoord(708);
+    this.enqueueSerialBits(708, bits);
+  }
+
+  /** Inter-stream gap in ns when appending serial bits. */
+  private static readonly SERIAL_GAP_NS = 100;
+
+  /**
+   * Append serial bits and enqueue the first new edge event if no serial
+   * event is currently in-flight. Can be called multiple times to extend
+   * an ongoing serial stream.
+   *
+   * Bit durations are relative (each is the hold time for that bit value).
+   * When appending to an existing stream, the new bits are time-shifted to
+   * start after the last existing bit's end time + a gap.
+   */
+  private enqueueSerialBits(
+    coord: number,
+    bits: { value: boolean; durationNS: number }[],
+  ): void {
+    if (bits.length === 0) return;
+    this.serialNode = this.getNodeByCoord(coord);
+
+    const baseIdx = this.serialBitValues.length;
+
+    // Start time: after the last bit ends (+ gap), or guestWallClock
+    let absTime = baseIdx > 0
+      ? this.serialEndTime + GA144.SERIAL_GAP_NS
+      : this.guestWallClock;
+
+    // Append values and pre-compute absolute times
+    for (let i = 0; i < bits.length; i++) {
+      this.serialBitValues.push(bits[i].value);
+      this.serialBitTimes.push(absTime);
+      absTime += bits[i].durationNS;
+    }
+    this.serialEndTime = absTime;
+
+    // Enqueue first new bit only if no serial event is already in-flight.
+    // If a chain is running (serialBitIndex < baseIdx), it will naturally
+    // reach the appended bits via the bitIdx+1 chain in the handler.
+    if (this.serialBitIndex >= baseIdx) {
+      enqueue(this.eventQueue, this.serialBitTimes[baseIdx], EVT_SERIAL, baseIdx);
+    }
   }
 
   /** Returns true if serial boot stream is still being delivered. */
@@ -396,13 +487,18 @@ export class GA144 {
 
   reset(): void {
     this.totalSteps = 0;
+    this.guestWallClock = 0;
     this._breakpointHit = false;
+    this.eventsSinceIdleSweep = 0;
     this.ioWriteStart = 0;
     this.ioWriteStartSeq = 0;
     this.ioWriteSeq = 0;
     this.ioWriteJitter = new Float32Array(GA144.IO_WRITE_CAPACITY);
     this.lastVsyncSeq = null;
     this.lastActiveIndex = NUM_NODES - 1;
+
+    // Clear the event queue
+    clearQueue(this.eventQueue);
 
     for (let i = 0; i < NUM_NODES; i++) {
       this.activeNodes[i] = this.nodes[i];
@@ -426,13 +522,19 @@ export class GA144 {
       node.fetchI();
     }
 
+    // Enqueue all 144 nodes at simulatedTime=0 (with collision nudging)
+    for (let i = 0; i < NUM_NODES; i++) {
+      enqueue(this.eventQueue, this.nodes[i].thermal.simulatedTime, EVT_NODE, i);
+    }
+
     // Re-enqueue serial boot stream if boot bytes were loaded
     if (this.pendingBootBytes) {
-      this.enqueueBootStream(this.pendingBootBytes);
+      this.enqueueBootStream(this.pendingBootBytes, this.pendingBootBaud);
     } else {
-      this.serialBits = [];
-      this.serialBitIdx = 0;
-      this.serialRemaining = 0;
+      this.serialBitValues = [];
+      this.serialBitTimes = [];
+      this.serialEndTime = 0;
+      this.serialBitIndex = 0;
       this.serialNode = null;
     }
   }
@@ -489,8 +591,6 @@ export class GA144 {
       coords[i] = this.nodes[i].getCoord();
       totalEnergyPJ += this.nodes[i].thermal.totalEnergy;
     }
-    const maxSimTimeNS = this.getMaxSimulatedTime();
-
     // Instantaneous power estimate: active nodes at typical power, idle at leakage
     const active = this.lastActiveIndex + 1;
     const idle = NUM_NODES - active;
@@ -518,7 +618,7 @@ export class GA144 {
       ioWriteSeq: this.ioWriteSeq,
       totalEnergyPJ,
       chipPowerMW,
-      totalSimTimeNS: maxSimTimeNS,
+      totalSimTimeNS: this.guestWallClock,
     };
   }
 }

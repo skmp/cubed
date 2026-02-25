@@ -18,7 +18,6 @@ interface DebugToolbarProps {
   totalSimTimeNS: number;
   language: EditorLanguage;
   isRunning: boolean;
-  sabActive: boolean;
   onCompile: () => void;
   onSetLanguage: (lang: EditorLanguage) => void;
   onStep: () => void;
@@ -57,7 +56,7 @@ function formatPower(mw: number): string {
 
 export const DebugToolbar: React.FC<DebugToolbarProps> = ({
   activeCount, totalSteps, totalEnergyPJ, chipPowerMW, totalSimTimeNS,
-  language, isRunning, sabActive,
+  language, isRunning,
   onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset,
 }) => {
   const totalStepsRef = useRef(totalSteps);
@@ -190,15 +189,6 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
             label={`avg ${formatPower(avgPowerMW)}`}
             variant="outlined"
             title="Average power (1s rolling window)"
-            sx={{ fontSize: '10px', height: 20 }}
-          />
-        )}
-        {sabActive && (
-          <Chip
-            size="small"
-            label="SAB"
-            color="success"
-            title="SharedArrayBuffer VCO clocks active"
             sx={{ fontSize: '10px', height: 20 }}
           />
         )}
