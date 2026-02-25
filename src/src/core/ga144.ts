@@ -83,19 +83,36 @@ export class GA144 {
   }
 
   /**
-   * Flush analog nodes' thermal temperatures to the SharedArrayBuffer.
-   * Called periodically by the emulator worker so clock workers can
-   * incorporate thermal jitter into their VCO counter values.
-   * Temperatures are stored as scaled integers (×1000) at offset ANALOG_NODES.length.
+   * Flush all 144 nodes' thermal temperatures and the guest wall clock
+   * to the SharedArrayBuffer. Called periodically by the emulator worker
+   * so the clock worker can incorporate thermal jitter into VCO counter values.
+   *
+   * SAB layout: [0..4] VCO counters, [5..148] thermal temps × 1000,
+   *             [149..150] guest clock (ns, lo/hi Uint32)
    */
   flushVcoTemperatures(): void {
     if (!this.vcoCounters) return;
-    const thermalOffset = ANALOG_NODES.length;
-    for (let i = 0; i < ANALOG_NODES.length; i++) {
-      const node = this.getNodeByCoord(ANALOG_NODES[i]);
-      const temp = node.getThermalTemperature();
+    const thermalOffset = ANALOG_NODES.length; // = 5
+    for (let i = 0; i < NUM_NODES; i++) {
+      const temp = this.nodes[i].thermal.temperature;
       Atomics.store(this.vcoCounters, thermalOffset + i, Math.floor(temp * 1000));
     }
+    // Write guest wall clock (64-bit nanoseconds as two 32-bit words)
+    const guestClockOffset = thermalOffset + NUM_NODES; // = 149
+    const maxSimTime = this.getMaxSimulatedTime();
+    Atomics.store(this.vcoCounters, guestClockOffset, maxSimTime >>> 0);
+    Atomics.store(this.vcoCounters, guestClockOffset + 1, Math.floor(maxSimTime / 0x100000000) >>> 0);
+  }
+
+  /** Return the maximum simulated time (ns) across all nodes. */
+  private getMaxSimulatedTime(): number {
+    let max = 0;
+    for (let i = 0; i < NUM_NODES; i++) {
+      if (this.nodes[i].thermal.simulatedTime > max) {
+        max = this.nodes[i].thermal.simulatedTime;
+      }
+    }
+    return max;
   }
 
   // ========================================================================
@@ -467,15 +484,12 @@ export class GA144 {
     const coords: number[] = new Array(NUM_NODES);
 
     let totalEnergyPJ = 0;
-    let maxSimTimeNS = 0;
     for (let i = 0; i < NUM_NODES; i++) {
       states[i] = this.nodes[i].getState();
       coords[i] = this.nodes[i].getCoord();
       totalEnergyPJ += this.nodes[i].thermal.totalEnergy;
-      if (this.nodes[i].thermal.simulatedTime > maxSimTimeNS) {
-        maxSimTimeNS = this.nodes[i].thermal.simulatedTime;
-      }
     }
+    const maxSimTimeNS = this.getMaxSimulatedTime();
 
     // Instantaneous power estimate: active nodes at typical power, idle at leakage
     const active = this.lastActiveIndex + 1;
