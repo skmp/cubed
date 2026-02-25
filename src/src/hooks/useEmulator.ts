@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { GA144 } from '../core/ga144';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GA144Snapshot, CompileError, CompiledProgram } from '../core/types';
 import { ROM_DATA } from '../core/rom-data';
 import { compile } from '../core/assembler';
@@ -7,87 +6,98 @@ import { compileCube, tokenizeCube, parseCube } from '../core/cube';
 import type { CubeProgram, CubeCompileResult } from '../core/cube';
 import type { EditorLanguage } from '../ui/editor/CodeEditor';
 import { buildBootStream } from '../core/bootstream';
+import type { MainToWorker, WorkerToMain, WorkerSnapshot } from '../worker/emulatorProtocol';
+import { IoWriteBuffer } from '../worker/ioWriteBuffer';
 
 export function useEmulator() {
-  const ga144 = useMemo(() => {
-    const chip = new GA144('evb001');
-    chip.setRomData(ROM_DATA);
-    return chip;
-  }, []);
+  const workerRef = useRef<Worker | null>(null);
+  const ioBufferRef = useRef(new IoWriteBuffer());
+  const workerSnapshotRef = useRef<WorkerSnapshot | null>(null);
+
+  const [snapshot, setSnapshot] = useState<GA144Snapshot | null>(null);
   const [selectedCoord, setSelectedCoord] = useState<number | null>(null);
-  const [snapshot, setSnapshot] = useState<GA144Snapshot | null>(() => {
-    return ga144.getSnapshot();
-  });
   const [isRunning, setIsRunning] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
-  const [stepsPerFrame, setStepsPerFrame] = useState(1000);
   const [language, setLanguage] = useState<EditorLanguage>('cube');
   const [cubeAst, setCubeAst] = useState<CubeProgram | null>(null);
   const [cubeCompileResult, setCubeCompileResult] = useState<CubeCompileResult | null>(null);
   const [compiledProgram, setCompiledProgram] = useState<CompiledProgram | null>(null);
   const [bootStreamBytes, setBootStreamBytes] = useState<Uint8Array | null>(null);
-  const runningRef = useRef(false);
-  const animFrameRef = useRef<number>(0);
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      runningRef.current = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+  // Compose a GA144Snapshot-compatible object from worker snapshot + IO buffer
+  const buildSnapshot = useCallback((): GA144Snapshot | null => {
+    const ws = workerSnapshotRef.current;
+    if (!ws) return null;
+    const io = ioBufferRef.current;
+    return {
+      nodeStates: ws.nodeStates,
+      nodeCoords: ws.nodeCoords,
+      activeCount: ws.activeCount,
+      totalSteps: ws.totalSteps,
+      selectedNode: ws.selectedNode,
+      ioWrites: io.writes,
+      ioWriteTimestamps: io.timestamps,
+      ioWriteJitter: new Float32Array(0), // not used by UI
+      ioWriteStart: io.start,
+      ioWriteCount: io.count,
+      ioWriteSeq: io.seq,
     };
   }, []);
 
-  const updateSnapshot = useCallback(() => {
-    setSnapshot(ga144.getSnapshot(selectedCoord ?? undefined));
-  }, [ga144, selectedCoord]);
+  // Initialize worker
+  useEffect(() => {
+    const worker = new Worker(
+      new URL('../worker/emulatorWorker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    workerRef.current = worker;
 
-  const step = useCallback(() => {
-    ga144.stepProgram();
-    updateSnapshot();
-  }, [ga144, updateSnapshot]);
+    worker.onmessage = (e: MessageEvent<WorkerToMain>) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case 'ready':
+          break;
+        case 'snapshot':
+          workerSnapshotRef.current = msg.snapshot;
+          setSnapshot(buildSnapshot());
+          break;
+        case 'ioWriteBatch':
+          ioBufferRef.current.appendBatch(msg.batch);
+          setSnapshot(buildSnapshot());
+          break;
+        case 'stopped':
+          setIsRunning(false);
+          break;
+      }
+    };
 
-  const stepN = useCallback((n: number) => {
-    ga144.stepProgramN(n);
-    updateSnapshot();
-  }, [ga144, updateSnapshot]);
+    worker.postMessage({ type: 'init', romData: ROM_DATA } satisfies MainToWorker);
+    return () => worker.terminate();
+  }, [buildSnapshot]);
+
+  const post = useCallback((msg: MainToWorker) => {
+    workerRef.current?.postMessage(msg);
+  }, []);
+
+  const step = useCallback(() => post({ type: 'step' }), [post]);
+
+  const stepN = useCallback((n: number) => post({ type: 'stepN', count: n }), [post]);
 
   const run = useCallback(() => {
-    runningRef.current = true;
     setIsRunning(true);
-
-    const tick = () => {
-      if (!runningRef.current) {
-        setIsRunning(false);
-        return;
-      }
-      const hit = ga144.stepProgramN(stepsPerFrame);
-      updateSnapshot();
-      if (hit) {
-        runningRef.current = false;
-        setIsRunning(false);
-        return;
-      }
-      animFrameRef.current = requestAnimationFrame(tick);
-    };
-    tick();
-  }, [ga144, stepsPerFrame, updateSnapshot]);
+    post({ type: 'run' });
+  }, [post]);
 
   const stop = useCallback(() => {
-    runningRef.current = false;
-    setIsRunning(false);
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-  }, []);
+    post({ type: 'stop' });
+  }, [post]);
 
   const reset = useCallback(() => {
-    stop();
-    ga144.reset();
-    updateSnapshot();
-  }, [ga144, stop, updateSnapshot]);
+    ioBufferRef.current.reset();
+    post({ type: 'reset' });
+  }, [post]);
 
   const compileAndLoad = useCallback((source: string, options?: { asLanguage?: EditorLanguage }) => {
-    stop();
-    ga144.reset();
-
     const effectiveLang = options?.asLanguage ?? language;
 
     if (effectiveLang === 'cube') {
@@ -110,8 +120,10 @@ export function useEmulator() {
       setCubeCompileResult(result.errors.length === 0 ? result : null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        setBootStreamBytes(buildBootStream(result.nodes).bytes);
-        ga144.loadViaBootStream(result);
+        const bytes = buildBootStream(result.nodes).bytes;
+        setBootStreamBytes(bytes);
+        ioBufferRef.current.reset();
+        post({ type: 'loadBootStream', bytes });
       }
     } else {
       const result = compile(source);
@@ -119,24 +131,24 @@ export function useEmulator() {
       setCubeCompileResult(null);
       setCompiledProgram(result.errors.length === 0 ? result : null);
       if (result.errors.length === 0) {
-        setBootStreamBytes(buildBootStream(result.nodes).bytes);
-        ga144.loadViaBootStream(result);
+        const bytes = buildBootStream(result.nodes).bytes;
+        setBootStreamBytes(bytes);
+        ioBufferRef.current.reset();
+        post({ type: 'loadBootStream', bytes });
       }
     }
-    updateSnapshot();
-  }, [stop, updateSnapshot, language, ga144]);
+  }, [language, post]);
 
   const selectNode = useCallback((coord: number | null) => {
     setSelectedCoord(coord);
-    setSnapshot(ga144.getSnapshot(coord ?? undefined));
-  }, [ga144]);
+    post({ type: 'selectNode', coord });
+  }, [post]);
 
   return {
     snapshot,
     selectedCoord,
     isRunning,
     compileErrors,
-    stepsPerFrame,
     language,
     cubeAst,
     cubeCompileResult,
@@ -149,7 +161,6 @@ export function useEmulator() {
     reset,
     compileAndLoad,
     selectNode,
-    setStepsPerFrame,
     setLanguage,
   };
 }

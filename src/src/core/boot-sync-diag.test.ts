@@ -32,7 +32,7 @@ fill{value=0x0AA, count=3}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(2_000_000);
 
     const ns = ga.getSnapshot(709).selectedNode!;
@@ -55,7 +55,7 @@ fill{value=0x222, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(709).selectedNode!.registers.B).toBe(0x1D5);
@@ -81,7 +81,7 @@ fill{value=0x333, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(709).selectedNode!.registers.B).toBe(0x1D5);
@@ -103,7 +103,7 @@ fill{value=0x717, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(717).selectedNode!.registers.B).toBe(0x1D5);
@@ -137,7 +137,7 @@ std.loop{n=3}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(5_000_000);
 
     const snap = ga.getSnapshot();
@@ -175,7 +175,7 @@ std.loop{n=3}
     const gaBoot = new GA144('boot');
     gaBoot.setRomData(ROM_DATA);
     gaBoot.reset();
-    gaBoot.loadViaBootStream(compiled);
+    gaBoot.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     gaBoot.stepUntilDone(50_000_000);
 
     const snapBoot = gaBoot.getSnapshot();

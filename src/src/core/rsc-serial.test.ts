@@ -19,6 +19,7 @@ import { dirname, join } from 'path';
 import { GA144 } from './ga144';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
+import { buildBootStream } from './bootstream';
 import { readIoWrite, taggedCoord, taggedValue } from '../ui/emulator/vgaResolution';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -127,7 +128,7 @@ describe('RSC sample: continuous serial TX', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
 
     ga.stepUntilDone(50_000_000);
 
@@ -148,7 +149,7 @@ describe('RSC sample: continuous serial TX', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
 
     ga.stepUntilDone(50_000_000);
 

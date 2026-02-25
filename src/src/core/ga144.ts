@@ -7,7 +7,13 @@ import { NUM_NODES, coordToIndex, indexToCoord } from './constants';
 import { NodeState } from './types';
 import type { GA144Snapshot, CompiledProgram } from './types';
 import type { ThermalState } from './thermal';
-import { buildBootStream } from './bootstream';
+
+export interface IoWriteDelta {
+  writes: number[];
+  timestamps: number[];
+  startSeq: number;
+  totalSeq: number;
+}
 
 export class GA144 {
   readonly name: string;
@@ -26,7 +32,6 @@ export class GA144 {
   private ioWriteStartSeq = 0;  // sequence number at ring start
   private ioWriteSeq = 0;       // next sequence number to write
   private lastVsyncSeq: number | null = null;
-  private loadedNodes: Set<number> = new Set();
 
   // ROM data loaded externally
   private romData: Record<number, number[]> = {};
@@ -38,8 +43,8 @@ export class GA144 {
   private serialRemaining = 0;
   private serialNode: F18ANode | null = null;
 
-  // Stored compiled program for re-enqueuing serial bits on reset
-  private pendingProgram: CompiledProgram | null = null;
+  // Stored boot stream bytes for re-enqueuing serial bits on reset
+  private pendingBootBytes: Uint8Array | null = null;
 
   constructor(name: string = 'chip1') {
     this.name = name;
@@ -243,21 +248,19 @@ export class GA144 {
    *  sync signals from GPIO nodes.  Stored as (coord << 18) | value.
    *  The thermal state provides jittered timing for analog output recording. */
   onIoWrite(nodeIndex: number, value: number, thermal?: ThermalState): void {
-    if (this.loadedNodes.size === 0 || this.loadedNodes.has(nodeIndex)) {
-      const coord = indexToCoord(nodeIndex);
-      const tagged = coord * 0x40000 + value;  // coord << 18 | value
-      // On VSYNC (node 217 pin17 driven high: bits 17:16 = 11),
-      // drop everything before the previous VSYNC to keep one full frame.
-      if (coord === 217 && (value & 0x30000) === 0x30000) {
-        if (this.lastVsyncSeq !== null && this.lastVsyncSeq > this.ioWriteStartSeq) {
-          const drop = this.lastVsyncSeq - this.ioWriteStartSeq;
-          this.ioWriteStart = (this.ioWriteStart + drop) % this.ioWriteBuffer.length;
-          this.ioWriteStartSeq = this.lastVsyncSeq;
-        }
-        this.lastVsyncSeq = this.ioWriteSeq;
+    const coord = indexToCoord(nodeIndex);
+    const tagged = coord * 0x40000 + value;  // coord << 18 | value
+    // On VSYNC (node 217 pin17 driven high: bits 17:16 = 11),
+    // drop everything before the previous VSYNC to keep one full frame.
+    if (coord === 217 && (value & 0x30000) === 0x30000) {
+      if (this.lastVsyncSeq !== null && this.lastVsyncSeq > this.ioWriteStartSeq) {
+        const drop = this.lastVsyncSeq - this.ioWriteStartSeq;
+        this.ioWriteStart = (this.ioWriteStart + drop) % this.ioWriteBuffer.length;
+        this.ioWriteStartSeq = this.lastVsyncSeq;
       }
-      this.pushIoWrite(tagged, thermal?.lastJitteredTime ?? 0);
+      this.lastVsyncSeq = this.ioWriteSeq;
     }
+    this.pushIoWrite(tagged, thermal?.lastJitteredTime ?? 0);
   }
 
   private pushIoWrite(value: number, jitteredTime: number = 0): void {
@@ -280,12 +283,10 @@ export class GA144 {
   // ========================================================================
 
   load(compiled: CompiledProgram): void {
-    this.loadedNodes.clear();
     for (const nodeData of compiled.nodes) {
       const index = coordToIndex(nodeData.coord);
       if (index >= 0 && index < NUM_NODES) {
         this.nodes[index].load(nodeData);
-        this.loadedNodes.add(index);
       }
     }
   }
@@ -307,25 +308,15 @@ export class GA144 {
   static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
 
   /**
-   * Store a compiled program for boot stream loading.
-   * The serial bits are enqueued immediately and re-enqueued on each reset().
-   * Call reset() first if you want a clean chip state before loading.
+   * Load a boot stream for serial delivery to node 708.
+   * The bytes are converted to serial bits and driven into pin17.
+   * Stored for re-enqueuing on each reset().
    */
-  loadViaBootStream(compiled: CompiledProgram): void {
-    if (compiled.nodes.length === 0) return;
+  loadViaBootStream(bytes: Uint8Array): void {
+    if (bytes.length === 0) return;
 
-    this.pendingProgram = compiled;
-
-    // Track loaded nodes for IO write filtering
-    this.loadedNodes.clear();
-    for (const nodeData of compiled.nodes) {
-      const index = coordToIndex(nodeData.coord);
-      if (index >= 0 && index < NUM_NODES) {
-        this.loadedNodes.add(index);
-      }
-    }
-
-    this.enqueueBootStream(compiled);
+    this.pendingBootBytes = bytes;
+    this.enqueueBootStream(bytes);
 
     // Reset step counter and IO buffer for clean starting state
     this.totalSteps = 0;
@@ -335,11 +326,10 @@ export class GA144 {
     this.lastVsyncSeq = null;
   }
 
-  /** Enqueue serial bits from a compiled program into node 708's pin17. */
-  private enqueueBootStream(compiled: CompiledProgram): void {
-    const boot = buildBootStream(compiled.nodes);
+  /** Enqueue serial bits from raw boot stream bytes into node 708's pin17. */
+  private enqueueBootStream(bytes: Uint8Array): void {
     this.serialBits = GA144.buildSerialBits(
-      Array.from(boot.bytes),
+      Array.from(bytes),
       GA144.BOOT_BAUD_PERIOD,
       GA144.BOOT_BAUD_PERIOD * 10, // idle lead-in for auto-baud detection
     );
@@ -382,9 +372,9 @@ export class GA144 {
       node.fetchI();
     }
 
-    // Re-enqueue serial boot stream if a program was loaded
-    if (this.pendingProgram) {
-      this.enqueueBootStream(this.pendingProgram);
+    // Re-enqueue serial boot stream if boot bytes were loaded
+    if (this.pendingBootBytes) {
+      this.enqueueBootStream(this.pendingBootBytes);
     } else {
       this.serialBits = [];
       this.serialBitIdx = 0;
@@ -416,6 +406,24 @@ export class GA144 {
   // ========================================================================
   // Snapshots for React UI
   // ========================================================================
+
+  /** Extract IO writes since a given sequence number (for delta transfer). */
+  getIoWritesDelta(sinceSeq: number): IoWriteDelta {
+    const from = Math.max(sinceSeq, this.ioWriteStartSeq);
+    const count = this.ioWriteSeq - from;
+    if (count <= 0) {
+      return { writes: [], timestamps: [], startSeq: from, totalSeq: this.ioWriteSeq };
+    }
+    const writes = new Array(count);
+    const timestamps = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const offset = from - this.ioWriteStartSeq + i;
+      const idx = (this.ioWriteStart + offset) % this.ioWriteBuffer.length;
+      writes[i] = this.ioWriteBuffer[idx];
+      timestamps[i] = this.ioWriteTimestamps[idx];
+    }
+    return { writes, timestamps, startSeq: from, totalSeq: this.ioWriteSeq };
+  }
 
   getSnapshot(selectedCoord?: number): GA144Snapshot {
     const states: NodeState[] = new Array(NUM_NODES);

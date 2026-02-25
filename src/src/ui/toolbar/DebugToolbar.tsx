@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  Box, Button, ButtonGroup, Chip, Slider, ToggleButtonGroup, ToggleButton, Typography,
+  Box, Button, ButtonGroup, Chip, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import BuildIcon from '@mui/icons-material/Build';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -15,7 +15,6 @@ interface DebugToolbarProps {
   totalSteps: number;
   language: EditorLanguage;
   isRunning: boolean;
-  stepsPerFrame: number;
   onCompile: () => void;
   onSetLanguage: (lang: EditorLanguage) => void;
   onStep: () => void;
@@ -23,13 +22,43 @@ interface DebugToolbarProps {
   onRun: () => void;
   onStop: () => void;
   onReset: () => void;
-  onSetStepsPerFrame: (n: number) => void;
+}
+
+function formatRate(rate: number): string {
+  if (rate >= 1e9) return `${(rate / 1e9).toFixed(1)}G`;
+  if (rate >= 1e6) return `${(rate / 1e6).toFixed(1)}M`;
+  if (rate >= 1e3) return `${(rate / 1e3).toFixed(1)}K`;
+  return `${Math.round(rate)}`;
 }
 
 export const DebugToolbar: React.FC<DebugToolbarProps> = ({
-  activeCount, totalSteps, language, isRunning, stepsPerFrame,
-  onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset, onSetStepsPerFrame,
+  activeCount, totalSteps, language, isRunning,
+  onCompile, onSetLanguage, onStep, onStepN, onRun, onStop, onReset,
 }) => {
+  const lastStepsRef = useRef(totalSteps);
+  const lastTimeRef = useRef(performance.now());
+  const [stepsPerSec, setStepsPerSec] = useState(0);
+
+  useEffect(() => {
+    if (!isRunning) {
+      setStepsPerSec(0);
+      lastStepsRef.current = totalSteps;
+      lastTimeRef.current = performance.now();
+      return;
+    }
+    const interval = setInterval(() => {
+      const now = performance.now();
+      const dt = (now - lastTimeRef.current) / 1000;
+      if (dt > 0) {
+        const ds = totalSteps - lastStepsRef.current;
+        setStepsPerSec(ds / dt);
+      }
+      lastStepsRef.current = totalSteps;
+      lastTimeRef.current = now;
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isRunning, totalSteps]);
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, height: 40 }}>
       <ToggleButtonGroup
@@ -82,22 +111,15 @@ export const DebugToolbar: React.FC<DebugToolbarProps> = ({
         </Button>
       </ButtonGroup>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: 180 }}>
-        <Typography variant="caption" sx={{ color: '#888', fontSize: '9px', whiteSpace: 'nowrap' }}>
-          Steps/frame: {stepsPerFrame}
-        </Typography>
-        <Slider
-          size="small"
-          value={stepsPerFrame}
-          onChange={(_, v) => onSetStepsPerFrame(v as number)}
-          min={1}
-          max={10000}
-          step={1}
-          sx={{ py: 0 }}
-        />
-      </Box>
-
       <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        {isRunning && stepsPerSec > 0 && (
+          <Chip
+            size="small"
+            label={`${formatRate(stepsPerSec)} steps/s`}
+            variant="outlined"
+            sx={{ fontSize: '10px', height: 20 }}
+          />
+        )}
         <Chip
           size="small"
           label={`Active: ${activeCount}/144`}

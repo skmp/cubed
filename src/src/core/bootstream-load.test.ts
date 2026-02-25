@@ -51,7 +51,7 @@ describe('boot stream loading', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
 
     // Run until boot completes and program settles
     ga.stepUntilDone(2_000_000);

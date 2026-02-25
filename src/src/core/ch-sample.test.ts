@@ -43,7 +43,7 @@ describe('CH.cube Swiss flag sample', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(compiled);
+    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
     ga.stepUntilDone(50_000_000);
     const snap = ga.getSnapshot();
 

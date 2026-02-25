@@ -21,7 +21,6 @@ function App() {
     selectedCoord,
     isRunning,
     compileErrors,
-    stepsPerFrame,
     language,
     cubeAst,
     cubeCompileResult,
@@ -34,7 +33,6 @@ function App() {
     compileAndLoad,
     selectNode,
     bootStreamBytes,
-    setStepsPerFrame,
     setLanguage,
   } = useEmulator();
 
@@ -129,7 +127,6 @@ function App() {
             totalSteps={snapshot.totalSteps}
             language={language}
             isRunning={isRunning}
-            stepsPerFrame={stepsPerFrame}
             onCompile={handleCompileButton}
             onSetLanguage={(lang) => {
               setLanguage(lang);
@@ -140,7 +137,6 @@ function App() {
             onRun={run}
             onStop={stop}
             onReset={reset}
-            onSetStepsPerFrame={setStepsPerFrame}
           />
         }
         wysiwygTab={
