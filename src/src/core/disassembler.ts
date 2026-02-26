@@ -99,10 +99,15 @@ const SLOT_MASKS = [0x3FC00, 0x3FE00, 0x3FEF8];
  * Compute the effective jump/branch target address for a given slot,
  * accounting for the F18A's P-relative masking where short address fields
  * only replace the lower bits of P.
+ *
+ * At runtime, P has already been incremented past the current word when the
+ * instruction executes (P = wordAddr + 1 after the fetch).  The short address
+ * field replaces the lower bits of this post-fetch P, not the word's own address.
  */
 function effectiveAddress(rawAddr: number, slot: number, wordAddr: number): number {
   if (slot >= SLOT_MASKS.length) return rawAddr;
-  return (wordAddr & SLOT_MASKS[slot]) | rawAddr;
+  const postFetchP = wordAddr + 1;
+  return (postFetchP & SLOT_MASKS[slot]) | rawAddr;
 }
 
 /**
