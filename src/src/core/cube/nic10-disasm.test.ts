@@ -98,7 +98,7 @@ describe('NIC10 per-node disassembly', () => {
       '[11] push|.|.|.',
       '[12] drop|@b|.|+*',
       '[13] -if(0)',
-      '[14] .|.|next(4)',
+      '[14] .|.|next(12)',
       '[15] drop|!b|!b|.',
       '[16] jump(9)',
       '[17] drop|jump(9)',
@@ -325,7 +325,7 @@ describe('NIC10 per-node disassembly', () => {
       '[ 4] 0x00007 (data)',
       '[ 5] push|.|.|.',
       '[ 6] over|over|and|.',
-      '[ 7] !b|2/|next(6)',
+      '[ 7] !b|2/|next(14)',
       '[ 8] drop|;',
       '[ 9] @p|.|.|.',
       '[10] 0x20000 (data)',
@@ -379,7 +379,7 @@ describe('NIC10 per-node disassembly', () => {
       '[23] 0x00001 (data)',
       '[24] or|call(0)',
       '[25] next(21)',
-      '[26] dup|!b|call(0)',
+      '[26] dup|!b|call(24)',
       '[27] over|.|.|.',
       '[28] @|jump(29)',
       '[29] -if(26)',
@@ -405,7 +405,7 @@ describe('NIC10 per-node disassembly', () => {
       '[49] or|dup|.|+',
       '[50] @p|.|.|.',
       '[51] 0x00001 (data)',
-      '[52] or|!b|next(6)',
+      '[52] or|!b|next(54)',
       '[53] jump(12)',
     ]);
   });
@@ -427,12 +427,12 @@ describe('NIC10 per-node disassembly', () => {
       '[10] push|@p|.|.',
       '[11] 0x0001f (data)',
       '[12] push|.|.|.',
-      '[13] dup|!b|next(5)',
+      '[13] dup|!b|next(13)',
       '[14] @p|.|.|.',
       '[15] 0x0001f (data)',
       '[16] push|.|.|.',
       '[17] @|!b|unext|.',
-      '[18] pop|!b|jump(0)',
+      '[18] pop|!b|jump(16)',
       '[19] !b|jump(8)',
     ]);
   });
@@ -480,7 +480,7 @@ describe('NIC10 per-node disassembly', () => {
       '[34] jump(7)',
       '[35] !b|@p|.|.',
       '[36] 0x00001 (data)',
-      '[37] .|+|jump(5)',
+      '[37] .|+|jump(37)',
       '[38] drop|over|over|.',
       '[39] or|.|.|.',
       '[40] drop|next(21)',
@@ -532,7 +532,7 @@ describe('NIC10 per-node disassembly', () => {
       '[37] 0x00001 (data)',
       '[38] or|call(0)',
       '[39] next(32)',
-      '[40] dup|!b|call(0)',
+      '[40] dup|!b|call(40)',
       '[41] over|.|.|.',
       '[42] @|jump(43)',
       '[43] -if(40)',
@@ -576,7 +576,7 @@ describe('NIC10 per-node disassembly', () => {
       '[27] if(0)',
       '[28] drop|2/|over|.',
       '[29] or|jump(7)',
-      '[30] drop|2/|jump(7)',
+      '[30] drop|2/|jump(31)',
     ]);
   });
 
@@ -690,7 +690,7 @@ describe('NIC10 per-node disassembly', () => {
       '[19] 0x00175 (data)',
       '[20] a!|over|!|.',
       '[21] a!|drop|;',
-      '[22] dup|or|call(2)',
+      '[22] dup|or|call(18)',
       '[23] @p|.|.|.',
       '[24] 0x00004 (data)',
       '[25] push|.|.|.',
@@ -705,7 +705,7 @@ describe('NIC10 per-node disassembly', () => {
       '[34] 0x186a0 (data)',
       '[35] call(52)',
       '[36] if(52)',
-      '[37] dup|or|call(2)',
+      '[37] dup|or|call(34)',
       '[38] call(18)',
       '[39] @p|.|.|.',
       '[40] 0x00096 (data)',
@@ -722,7 +722,7 @@ describe('NIC10 per-node disassembly', () => {
       '[51] jump(32)',
       '[52] call(4)',
       '[53] if(57)',
-      '[54] dup|or|call(4)',
+      '[54] dup|or|call(52)',
       '[55] if(57)',
       '[56] jump(22)',
       '[57] call(0)',
@@ -781,7 +781,7 @@ describe('NIC10 per-node disassembly', () => {
       '[11] .|+|;',
       '[12] @p|.|.|.',
       '[13] 0x00000 (data)',
-      '[14] @b|drop|jump(6)',
+      '[14] @b|drop|jump(14)',
     ]);
   });
 
