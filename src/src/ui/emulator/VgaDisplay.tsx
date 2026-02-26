@@ -179,8 +179,8 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     return detectSyncClocks(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
   }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, resolution.hasSyncSignals]);
 
-  const displayWidth = resolution.hasSyncSignals ? resolution.width : NOISE_W;
-  const displayHeight = resolution.hasSyncSignals ? resolution.height : NOISE_H;
+  const displayWidth = resolution.complete ? resolution.width : NOISE_W;
+  const displayHeight = resolution.complete ? resolution.height : NOISE_H;
 
   const effectiveScale = pixelScale > 0 ? pixelScale
     : displayWidth >= 320 ? 1 : displayWidth >= 64 ? 4 : 12;
@@ -337,7 +337,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', fontSize: '10px' }}>
           VGA Output
         </Typography>
-        {resolution.hasSyncSignals && (
+        {resolution.complete && (
           <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
         {syncClocks.hsyncHz !== null && (
