@@ -359,7 +359,7 @@ export class GA144 {
   }
 
   /** Inter-stream gap in ns when appending serial bits. */
-  private static readonly SERIAL_GAP_NS = 100;
+  private static readonly SERIAL_GAP_NS = 1_000_000; // 1 ms gap between streams to ensure clear separation
 
   /**
    * Append serial bits and enqueue the first new edge event if no serial
@@ -379,10 +379,10 @@ export class GA144 {
 
     const baseIdx = this.serialBitValues.length;
 
-    // Start time: after the last bit ends (+ gap), or guestWallClock
-    let absTime = baseIdx > 0
-      ? this.serialEndTime + GA144.SERIAL_GAP_NS
-      : this.guestWallClock;
+    // Start time: after the last bit ends (+ gap), or guestWallClock,
+    // whichever is later. This ensures new bits are always scheduled in
+    // the future even if called long after the previous stream ended.
+    let absTime = Math.max(this.serialEndTime, this.guestWallClock) + GA144.SERIAL_GAP_NS;
 
     // Append values and pre-compute absolute times
     for (let i = 0; i < bits.length; i++) {
