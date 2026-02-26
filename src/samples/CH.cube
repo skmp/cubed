@@ -4,11 +4,13 @@
 --
 -- Written in raw F18A assembly (f18a.*, lit.*, label{}).
 --
--- Architecture: 11-node feeder-relay pipeline for synchronized RGB output.
---   R channel: feeder 116 → relay DAC 117 (+ sync trigger to 217)
+-- Architecture: 12-node feeder-relay pipeline for synchronized RGB output.
+--   R channel: feeder 116 → relay DAC 117
 --   G channel: upstream feeder 615 → main feeder 616 → relay DAC 617
 --   B channel: upstream feeder 715 → main feeder 716 → relay DAC 717
---   Sync: node 217 receives row-end signals from 117, emits HSYNC/VSYNC
+--   Sync master: 217 sends "go" north (→317→417→517→617→717) then south (→117)
+--     per row, ensuring G/B DACs update before R. After R signals "done",
+--     217 emits HSYNC. VSYNC at frame end.
 --
 -- G/B channels are split across 2 feeder nodes each because the full
 -- cross pattern (5 distinct row regions) exceeds 64-word RAM per node.
@@ -132,7 +134,9 @@ f18a.jump{addr=top}
 -- RED DAC RELAY (node 117)
 -- ============================================================
 -- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
--- After each row of 640 pixels, signals sync node 217 via north (UP=0x145).
+-- Each row: waits for "go" from 217, relays 640 pixels, signals 217 "done".
+-- This ensures R starts after G/B have been triggered, keeping G/B
+-- slightly ahead so their DAC values are current at R-write timestamps.
 
 node 117
 
@@ -160,6 +164,14 @@ label{name=row}
 
 /\
 
+-- Wait for "go" from 217 via north (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
 -- Relay 640 pixels: read from west port, write to IO
 lit.hex18{value=0x1D5}
 /\ f18a.astore
@@ -172,7 +184,7 @@ lit.hex18{value=0x1D5}
 
 /\
 
--- Signal sync node 217 via north (UP=0x145)
+-- Signal 217 "done" via north (UP=0x145)
 lit.hex18{value=0x145}
 /\ f18a.astore
 /\ lit.hex18{value=0}
@@ -189,10 +201,12 @@ f18a.jump{addr=frame}
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
--- Waits for signal from R relay (117) after each row via south (UP=0x145),
--- emits HSYNC, then broadcasts "next row" north to 317 (DOWN=0x115)
--- so that G/B DAC relays (617, 717) stay row-synchronized.
--- VSYNC at end of frame, also broadcast north.
+-- Master row synchronizer. Each row:
+--   1. Send "go" north to 317→417→517→617→717 (G/B start first)
+--   2. Send "go" south to 117 (R starts after G/B)
+--   3. Wait for 117 "done" (all 640 R pixels written)
+--   4. Emit HSYNC
+-- This ensures G/B DAC values are current at R-write timestamps.
 
 node 217
 
@@ -212,7 +226,23 @@ label{name=row}
 
 /\
 
--- Wait for signal from 117 via south (UP=0x145)
+-- Send "go" north to chain → 617/717 (G/B start first)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+-- Send "go" south to 117 (R starts after G/B triggered)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+-- Wait for 117 "done" via south (UP=0x145)
 lit.hex18{value=0x145}
 /\ f18a.astore
 /\ f18a.fetch
@@ -226,20 +256,11 @@ lit.hex18{value=0x20000}
 
 /\
 
--- Broadcast row sync north to 317 (DOWN=0x115)
-lit.hex18{value=0x115}
-/\ f18a.astore
-/\ lit.hex18{value=0}
-/\ f18a.store
-
-/\
-
 f18a.next{addr=row}
 
 /\
 
 -- VSYNC: pin17 drive high = 0x30000 (write to B=0x15D)
--- No broadcast for VSYNC — 617/717 loop exactly 480 rows matching the row syncs
 lit.hex18{value=0x30000}
 /\ f18a.storeb
 
@@ -554,8 +575,8 @@ f18a.jump{addr=top}
 -- GREEN DAC RELAY (node 617)
 -- ============================================================
 -- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
--- After each row, waits for row sync from 517 south (UP=0x145),
--- then forwards sync north to 717 (DOWN=0x115).
+-- Each row: wait for sync from 517, forward to 717, then relay 640 pixels.
+-- This ensures G starts before R, keeping G DAC values current.
 
 node 617
 
@@ -582,18 +603,6 @@ label{name=row}
 
 /\
 
--- Relay 640 pixels: read from west (RIGHT=0x1D5)
-lit.hex18{value=0x1D5}
-/\ f18a.astore
-/\ lit.hex18{value=639}
-/\ f18a.push
-/\ label{name=px}
-/\ f18a.fetch
-/\ f18a.storeb
-/\ f18a.next{addr=px}
-
-/\
-
 -- Wait for row sync from 517 south (UP=0x145)
 lit.hex18{value=0x145}
 /\ f18a.astore
@@ -607,6 +616,18 @@ lit.hex18{value=0x115}
 /\ f18a.astore
 /\ lit.hex18{value=0}
 /\ f18a.store
+
+/\
+
+-- Relay 640 pixels: read from west (RIGHT=0x1D5)
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ lit.hex18{value=639}
+/\ f18a.push
+/\ label{name=px}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=px}
 
 /\
 
@@ -826,7 +847,8 @@ f18a.jump{addr=top}
 -- BLUE DAC RELAY (node 717)
 -- ============================================================
 -- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
--- After each row, waits for row sync from 617 south (DOWN=0x115).
+-- Each row: wait for sync from 617, then relay 640 pixels.
+-- This ensures B starts before R, keeping B DAC values current.
 
 node 717
 
@@ -853,6 +875,14 @@ label{name=row}
 
 /\
 
+-- Wait for row sync from 617 south (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
 -- Relay 640 pixels: read from west (RIGHT=0x1D5)
 lit.hex18{value=0x1D5}
 /\ f18a.astore
@@ -862,14 +892,6 @@ lit.hex18{value=0x1D5}
 /\ f18a.fetch
 /\ f18a.storeb
 /\ f18a.next{addr=px}
-
-/\
-
--- Wait for row sync from 617 south (DOWN=0x115)
-lit.hex18{value=0x115}
-/\ f18a.astore
-/\ f18a.fetch
-/\ f18a.drop
 
 /\
 
