@@ -14,6 +14,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import {
   WORD_MASK,
 } from './types';
@@ -25,10 +26,13 @@ import {
 // Constants
 // ============================================================================
 
-const BAUD_PERIOD = GA144.BOOT_BAUD_PERIOD; // ~723 steps per bit at 921600 baud
 const NS_PER_TICK = GA144.NS_PER_TICK;
+/** Baud period in ticks: how many ALU steps per bit at boot baud rate. */
+const BAUD_PERIOD = Math.round(1e9 / (GA144.BOOT_BAUD * NS_PER_TICK)); // ~723
 /** Convert step ticks to nanoseconds. */
 const toNS = (ticks: number) => ticks * NS_PER_TICK;
+/** Convert a tick-based baud period to Hz. */
+const ticksToHz = (ticks: number) => 1e9 / (ticks * NS_PER_TICK);
 
 // Opcodes
 const _RET   = 0;   // ;
@@ -120,7 +124,7 @@ function buildSerialBits(
   baudPeriod: number = BAUD_PERIOD,
   idlePeriod: number = 0,
 ): { value: boolean; durationNS: number }[] {
-  return GA144.buildSerialBits(bytes, baudPeriod, idlePeriod);
+  return SerialBits.buildBits(bytes, ticksToHz(baudPeriod), idlePeriod * NS_PER_TICK / 1e9);
 }
 
 /**
@@ -777,11 +781,10 @@ describe('IO simulation: serial input at 921600 baud', () => {
 
   describe('baud timing', () => {
 
-    it('BOOT_BAUD_PERIOD is correct for 921600 baud', () => {
+    it('BAUD_PERIOD is correct for 921600 baud at 1.5 ns/tick', () => {
       expect(GA144.BOOT_BAUD).toBe(921_600);
-      expect(GA144.GA144_MOPS).toBe(666_000_000);
-      expect(BAUD_PERIOD).toBe(Math.round(666_000_000 / 921_600));
-      // ~722.66 rounds to 723
+      expect(BAUD_PERIOD).toBe(Math.round(1e9 / (921_600 * 1.5)));
+      // 1e9 / (921600 * 1.5) = ~722.66 → rounds to 723
       expect(BAUD_PERIOD).toBe(723);
     });
 

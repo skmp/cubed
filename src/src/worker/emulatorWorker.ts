@@ -5,6 +5,8 @@
  * Communicates with the main thread via postMessage.
  */
 import { GA144 } from '../core/ga144';
+import { SerialBits } from '../core/serial';
+import type { SerialBit } from '../core/serial';
 import type { MainToWorker, WorkerToMain, WorkerSnapshot } from './emulatorProtocol';
 import { createVcoClocks } from './vcoClock';
 
@@ -13,6 +15,7 @@ const SNAPSHOT_INTERVAL_MS = 50;  // 20 Hz
 const IO_BATCH_INTERVAL_MS = 33; // 30 Hz
 
 let ga144: GA144 | null = null;
+let lastBootBits: SerialBit[] | null = null;
 let running = false;
 let selectedCoord: number | null = null;
 let lastIoSeq = 0;
@@ -127,8 +130,9 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
     case 'loadBootStream':
       running = false;
       if (ga144) {
+        lastBootBits = SerialBits.bootStreamBits(Array.from(msg.bytes), GA144.BOOT_BAUD);
         ga144.reset();
-        ga144.loadViaBootStream(msg.bytes);
+        ga144.enqueueSerialBits(708, lastBootBits);
         lastIoSeq = 0;
         sendSnapshot();
         sendIoBatch();
@@ -168,6 +172,7 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
       running = false;
       if (ga144) {
         ga144.reset();
+        if (lastBootBits) ga144.enqueueSerialBits(708, lastBootBits);
         lastIoSeq = 0;
         sendSnapshot();
         sendIoBatch();

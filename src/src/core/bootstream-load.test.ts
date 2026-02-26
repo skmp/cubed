@@ -1,8 +1,8 @@
 /**
  * Integration test: boot stream loading.
  *
- * The single-node test uses loadViaBootStream() which exercises the real
- * serial boot path (serial bits → boot ROM → mesh relay).
+ * The single-node test exercises the real serial boot path
+ * (serial bits → boot ROM → mesh relay).
  *
  * The 144-node test uses load() (direct RAM injection) for speed, since
  * full serial boot of 144 nodes takes ~17 minutes.  The full serial boot
@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
@@ -52,7 +53,7 @@ describe('boot stream loading', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     // Run until boot completes and program settles
     ga.stepUntilDone(2_000_000);

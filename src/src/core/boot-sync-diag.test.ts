@@ -1,13 +1,14 @@
 /**
  * Boot stream integration tests.
  *
- * Tests that loadViaBootStream() correctly delivers code via serial boot
+ * Tests that serial boot correctly delivers code via enqueueSerialBits
  * and that programs execute properly afterward. Serial bits are enqueued
- * by loadViaBootStream and consumed during normal stepProgram() calls.
+ * and consumed during normal stepProgram() calls.
  */
 import { describe, it, expect } from 'vitest';
 import { compileCube } from './cube';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { buildBootStream } from './bootstream';
 
@@ -33,7 +34,7 @@ fill{value=0x0AA, count=3}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(2_000_000);
 
     const ns = ga.getSnapshot(709).selectedNode!;
@@ -56,7 +57,7 @@ fill{value=0x222, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(709).selectedNode!.registers.B).toBe(0x1D5);
@@ -82,7 +83,7 @@ fill{value=0x333, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(709).selectedNode!.registers.B).toBe(0x1D5);
@@ -104,7 +105,7 @@ fill{value=0x717, count=1}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(2_000_000);
 
     expect(ga.getSnapshot(717).selectedNode!.registers.B).toBe(0x1D5);
@@ -138,7 +139,7 @@ std.loop{n=3}
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(5_000_000);
 
     const snap = ga.getSnapshot();
@@ -176,7 +177,7 @@ std.loop{n=3}
     const gaBoot = new GA144('boot');
     gaBoot.setRomData(ROM_DATA);
     gaBoot.reset();
-    gaBoot.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    gaBoot.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     gaBoot.stepUntilDone(50_000_000);
 
     const snapBoot = gaBoot.getSnapshot();

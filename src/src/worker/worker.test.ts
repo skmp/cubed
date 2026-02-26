@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { IoWriteBuffer } from './ioWriteBuffer';
 import { GA144 } from '../core/ga144';
+import { SerialBits } from '../core/serial';
 import { ROM_DATA } from '../core/rom-data';
 import { compileCube } from '../core/cube';
 import { buildBootStream } from '../core/bootstream';
@@ -83,7 +84,7 @@ describe('GA144.getIoWritesDelta', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(10_000_000);
 
     // Should have some IO writes from RSC serial output
@@ -101,7 +102,7 @@ describe('GA144.getIoWritesDelta', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     // Step partially
     ga.stepProgramN(2_000_000);
@@ -128,7 +129,7 @@ describe('GA144.getIoWritesDelta', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     const buf = new IoWriteBuffer();
     let lastSeq = 0;

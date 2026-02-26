@@ -14,6 +14,8 @@ import {
   EVT_NODE, EVT_SERIAL,
   type EventQueue,
 } from './event-queue';
+import { SerialBits } from './serial';
+import type { SerialBit } from './serial';
 
 export interface IoWriteDelta {
   writes: number[];
@@ -59,14 +61,11 @@ export class GA144 {
   // SharedArrayBuffer VCO counters for analog nodes (null = fallback)
   private vcoCounters: Uint32Array | null = null;
 
-  // Boot stream constants
-  static readonly BOOT_BAUD = 921_600;
-  static readonly GA144_MOPS = 666_000_000;
-  static readonly BOOT_BAUD_PERIOD = Math.round(GA144.GA144_MOPS / GA144.BOOT_BAUD); // ~723
+  /** Nominal nanoseconds per step tick (one ALU instruction). */
+  static readonly NS_PER_TICK = 1.5;
 
-  // Stored boot stream bytes for re-enqueuing serial bits on reset
-  private pendingBootBytes: Uint8Array | null = null;
-  private pendingBootBaud: number = GA144.BOOT_BAUD_PERIOD;
+  /** Boot UART baud rate. */
+  static readonly BOOT_BAUD = 921_600;
 
   constructor(name: string = 'chip1') {
     this.name = name;
@@ -300,61 +299,6 @@ export class GA144 {
     return this.stepUntilDone(maxSteps);
   }
 
-  /**
-   * Build a serial bit sequence with RS232 polarity for GA144 async boot.
-   *
-   * On real hardware, the RS232 level converter inverts all levels:
-   *   UART idle (mark/HIGH) → RS232 -12V → pin17 LOW
-   *   UART start (space/LOW) → RS232 +12V → pin17 HIGH
-   *   UART data 0 (space) → pin17 HIGH
-   *   UART data 1 (mark) → pin17 LOW
-   *   UART stop (mark/HIGH) → pin17 LOW
-   *
-   * The bytes are already XOR'd with 0xFF by encodeAsyncBootromBytes (host-side
-   * inversion per BOOT-02 spec).  The RS232 inversion here cancels with
-   * the host XOR, so the F18A reads data bits "high true."
-   *
-   * The first byte of each word has a calibration pattern (0x2D in the low
-   * 6 bits) that produces the sequence 1101101 on pin17 (start + 6 bits),
-   * enabling auto-baud detection via a double-wide HIGH pulse.
-   */
-  /** Nominal nanoseconds per step tick (one ALU instruction). */
-  static readonly NS_PER_TICK = 1.5;
-
-  static buildSerialBits(
-    bytes: number[],
-    baudPeriod: number,
-    idlePeriod: number = 0,
-  ): { value: boolean; durationNS: number }[] {
-    const bits: { value: boolean; durationNS: number }[] = [];
-    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
-
-    const push = (value: boolean, durationNS: number) => {
-      if (bits.length > 0 && bits[bits.length - 1].value === value) {
-        bits[bits.length - 1].durationNS += durationNS;
-      } else {
-        bits.push({ value, durationNS });
-      }
-    };
-
-    // Lead-in idle (RS232 idle = LOW on pin17)
-    if (idlePeriod > 0) push(false, toNS(idlePeriod));
-
-    for (const byte of bytes) {
-      // RS232 inverts all levels compared to standard UART
-      push(true, toNS(baudPeriod)); // start bit: HIGH on pin17
-      for (let bit = 0; bit < 8; bit++) {
-        // Invert each data bit (RS232 inversion)
-        push(((byte >> bit) & 1) === 0, toNS(baudPeriod)); // LSB first, inverted
-      }
-      push(false, toNS(baudPeriod)); // stop bit: LOW on pin17
-    }
-
-    // Trailing idle (RS232 idle = LOW)
-    push(false, toNS(baudPeriod * 2));
-    return bits;
-  }
-
   onBreakpoint(): void {
     this._breakpointHit = true;
   }
@@ -414,66 +358,6 @@ export class GA144 {
     }
   }
 
-  /**
-   * Load compiled nodes via the real serial boot path.
-   *
-   * Builds a boot stream from compiled nodes, converts it to serial bits,
-   * and drives them into node 708's pin17.  The boot ROM receives the
-   * serial data, decodes it, and relays code across the mesh to all
-   * target nodes — exactly as real GA144 hardware boots.
-   *
-   * Serial bits are enqueued and consumed during normal stepProgram()
-   * calls — boot and program execution happen naturally together,
-   * exactly as on real hardware.
-   */
-
-  /**
-   * Load a boot stream for serial delivery to node 708.
-   * The bytes are converted to serial bits and driven into pin17.
-   * Stored for re-enqueuing on each reset().
-   */
-  loadViaBootStream(bytes: Uint8Array, baudPeriod: number = GA144.BOOT_BAUD_PERIOD): void {
-    if (bytes.length === 0) return;
-
-    this.pendingBootBytes = bytes;
-    this.pendingBootBaud = baudPeriod;
-
-    // Clear serial state left by reset()'s re-enqueue of the old
-    // pendingBootBytes. Remove the in-flight EVT_SERIAL event (there's
-    // at most one in the queue at any time due to the chaining design).
-    if (this.serialBitValues.length > 0 && this.serialBitIndex < this.serialBitValues.length) {
-      removeByTypeAndPayload(this.eventQueue, EVT_SERIAL, this.serialBitIndex);
-    }
-    this.serialBitValues = [];
-    this.serialBitTimes = [];
-    this.serialEndTime = 0;
-    this.serialBitIndex = 0;
-    this.serialNode = null;
-
-    this.enqueueBootStream(bytes, baudPeriod);
-
-    // Reset step counter and IO buffer for clean starting state
-    this.totalSteps = 0;
-    this.guestWallClock = 0;
-    this.ioWriteStart = 0;
-    this.ioWriteStartSeq = 0;
-    this.ioWriteSeq = 0;
-    this.lastVsyncSeq = null;
-  }
-
-  /**
-   * Enqueue serial bits as EVT_SERIAL events into the event queue.
-   * Converts relative {value, durationNS} pairs to absolute times.
-   */
-  private enqueueBootStream(bytes: Uint8Array, baudPeriod: number = GA144.BOOT_BAUD_PERIOD): void {
-    const bits = GA144.buildSerialBits(
-      Array.from(bytes),
-      baudPeriod,
-      baudPeriod * 10, // idle lead-in for auto-baud detection
-    );
-    this.enqueueSerialBits(708, bits);
-  }
-
   /** Inter-stream gap in ns when appending serial bits. */
   private static readonly SERIAL_GAP_NS = 100;
 
@@ -486,9 +370,9 @@ export class GA144 {
    * When appending to an existing stream, the new bits are time-shifted to
    * start after the last existing bit's end time + a gap.
    */
-  private enqueueSerialBits(
+  enqueueSerialBits(
     coord: number,
-    bits: { value: boolean; durationNS: number }[],
+    bits: SerialBit[],
   ): void {
     if (bits.length === 0) return;
     this.serialNode = this.getNodeByCoord(coord);
@@ -527,7 +411,7 @@ export class GA144 {
    */
   sendSerialInput(bytes: number[]): void {
     if (bytes.length === 0) return;
-    const bits = GA144.buildSerialBits(bytes, GA144.BOOT_BAUD_PERIOD);
+    const bits = SerialBits.buildBits(bytes, GA144.BOOT_BAUD);
     this.enqueueSerialBits(708, bits);
   }
 
@@ -577,17 +461,12 @@ export class GA144 {
       enqueue(this.eventQueue, this.nodes[i].thermal.simulatedTime, EVT_NODE, i);
     }
 
-    // Always clear serial state before re-enqueuing
+    // Clear serial state
     this.serialBitValues = [];
     this.serialBitTimes = [];
     this.serialEndTime = 0;
     this.serialBitIndex = 0;
     this.serialNode = null;
-
-    // Re-enqueue serial boot stream if boot bytes were loaded
-    if (this.pendingBootBytes) {
-      this.enqueueBootStream(this.pendingBootBytes, this.pendingBootBaud);
-    }
   }
 
   // ========================================================================

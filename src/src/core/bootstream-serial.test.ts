@@ -4,20 +4,17 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
 
-const GA144_MOPS  = GA144.GA144_MOPS;
-const BOOT_BAUD   = GA144.BOOT_BAUD;
-const BAUD_PERIOD = GA144.BOOT_BAUD_PERIOD;
+const BOOT_BAUD = GA144.BOOT_BAUD;
+const BIT_NS    = 1e9 / BOOT_BAUD;  // nanoseconds per bit period
 
 describe('boot stream serial encoding at 921600 baud', () => {
 
-  it('BOOT_BAUD_PERIOD is correct for 921600 baud at 666 MHz', () => {
-    const expected = Math.round(GA144_MOPS / BOOT_BAUD);
-    expect(BAUD_PERIOD).toBe(expected);
-    expect(BAUD_PERIOD).toBeGreaterThan(700);
-    expect(BAUD_PERIOD).toBeLessThan(750);
+  it('BOOT_BAUD is 921600', () => {
+    expect(BOOT_BAUD).toBe(921_600);
   });
 
   it('encodeAsyncBootromBytes produces 3 bytes per word, all valid uint8', () => {
@@ -49,24 +46,23 @@ describe('boot stream serial encoding at 921600 baud', () => {
     }
   });
 
-  it('buildSerialBits at 921600 baud has correct total duration', () => {
+  it('buildBits at 921600 baud has correct total duration', () => {
     const compiled = compileCube(`node 709\n/\\\nfill{value=0x42, count=1}\n`);
     expect(compiled.errors).toHaveLength(0);
     const boot = buildBootStream(compiled.nodes);
     const byteArray = Array.from(boot.bytes);
-    const idlePeriod = BAUD_PERIOD * 10;
-    const bits = GA144.buildSerialBits(byteArray, BAUD_PERIOD, idlePeriod);
-    const toNS = (ticks: number) => ticks * GA144.NS_PER_TICK;
+    const idleS = 10 / BOOT_BAUD;
+    const bits = SerialBits.buildBits(byteArray, BOOT_BAUD, idleS);
     const totalDuration = bits.reduce((s, b) => s + b.durationNS, 0);
-    const expectedTotal = toNS(idlePeriod + boot.bytes.length * 10 * BAUD_PERIOD + BAUD_PERIOD * 2);
-    expect(totalDuration).toBe(expectedTotal);
+    const expectedTotal = idleS * 1e9 + boot.bytes.length * 10 * BIT_NS + BIT_NS * 2;
+    expect(totalDuration).toBeCloseTo(expectedTotal, 3);
   });
 
   it('serial bit stream starts with idle then start bit', () => {
     const boot = buildBootStream(
       compileCube(`node 709\n/\\\nfill{value=1, count=1}\n`).nodes
     );
-    const bits = GA144.buildSerialBits(Array.from(boot.bytes), BAUD_PERIOD, BAUD_PERIOD * 5);
+    const bits = SerialBits.buildBits(Array.from(boot.bytes), BOOT_BAUD, 5 / BOOT_BAUD);
     expect(bits.length).toBeGreaterThanOrEqual(2);
     expect(bits[0].value).toBe(false);  // RS232 idle = LOW on pin17
     expect(bits[1].value).toBe(true);   // RS232 start bit = HIGH on pin17
@@ -74,13 +70,12 @@ describe('boot stream serial encoding at 921600 baud', () => {
 
   it('bit timing is uniform across all bytes', () => {
     const testBytes = [0xAE, 0x00, 0xFF, 0x55, 0xAA];
-    const bits = GA144.buildSerialBits(testBytes, BAUD_PERIOD, 0);
+    const bits = SerialBits.buildBits(testBytes, BOOT_BAUD);
     let totalBitPeriods = 0;
-    const baudNS = BAUD_PERIOD * GA144.NS_PER_TICK;
     for (const seg of bits) {
-      expect(seg.durationNS % baudNS).toBe(0);
-      totalBitPeriods += seg.durationNS / baudNS;
+      expect(seg.durationNS % BIT_NS).toBeCloseTo(0, 3);
+      totalBitPeriods += seg.durationNS / BIT_NS;
     }
-    expect(totalBitPeriods).toBe(testBytes.length * 10 + 2);
+    expect(totalBitPeriods).toBeCloseTo(testBytes.length * 10 + 2, 3);
   });
 });

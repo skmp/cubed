@@ -9,7 +9,7 @@
  * asynctx tags each data write with bit 17 (0x20000) so we can
  * distinguish them from serial drive bits (values 2/3).
  *
- * Uses loadViaBootStream() which exercises the real serial boot path:
+ * Boots via enqueueSerialBits which exercises the real serial boot path:
  *   compiled nodes → boot stream → serial bits on 708 pin17 → boot ROM RX → mesh relay
  */
 import { describe, it, expect } from 'vitest';
@@ -17,6 +17,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
@@ -128,7 +129,7 @@ describe('RSC sample: continuous serial TX', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     ga.stepUntilDone(50_000_000);
 
@@ -149,7 +150,7 @@ describe('RSC sample: continuous serial TX', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     ga.stepUntilDone(50_000_000);
 

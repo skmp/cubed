@@ -6,25 +6,19 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
 import { PORT } from './constants';
 import { disassembleNode } from './disassembler';
 
-const BOOT_BAUD_PERIOD = GA144.BOOT_BAUD_PERIOD;
-const IDLE_PERIOD = BOOT_BAUD_PERIOD * 10;
-
 function bootViaSerial(source: string, maxSteps: number) {
   const compiled = compileCube(source);
   expect(compiled.errors).toHaveLength(0);
 
   const boot = buildBootStream(compiled.nodes);
-  const bits = GA144.buildSerialBits(
-    Array.from(boot.bytes),
-    BOOT_BAUD_PERIOD,
-    IDLE_PERIOD,
-  );
+  const bits = SerialBits.bootStreamBits(Array.from(boot.bytes), GA144.BOOT_BAUD);
 
   const ga = new GA144('test');
   ga.setRomData(ROM_DATA);
@@ -132,7 +126,7 @@ describe('boot ROM serial simulation (diagnostics)', () => {
         continue;
       }
       const boot = buildBootStream(compiled.nodes);
-      const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
+      const bits = SerialBits.bootStreamBits(Array.from(boot.bytes), GA144.BOOT_BAUD);
       const ga = new GA144('test');
       ga.setRomData(ROM_DATA);
       ga.reset();
@@ -190,7 +184,7 @@ describe('boot ROM serial simulation (diagnostics)', () => {
       }
       const node = compiled.nodes[0];
       const boot = buildBootStream(compiled.nodes);
-      const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
+      const bits = SerialBits.bootStreamBits(Array.from(boot.bytes), GA144.BOOT_BAUD);
       const ga = new GA144('test');
       ga.setRomData(ROM_DATA);
       ga.reset();
@@ -246,7 +240,7 @@ describe('boot ROM serial simulation (diagnostics)', () => {
         console.log(`  mem[${i}]: ${v === null ? 'null' : '0x' + v.toString(16).padStart(5, '0')}`);
       }
 
-      const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
+      const bits = SerialBits.bootStreamBits(Array.from(boot.bytes), GA144.BOOT_BAUD);
       const ga = new GA144('test');
       ga.setRomData(ROM_DATA);
       ga.reset();
@@ -286,7 +280,7 @@ describe('boot ROM serial simulation (diagnostics)', () => {
     const compiled = compileCube(source);
     expect(compiled.errors).toHaveLength(0);
     const boot = buildBootStream(compiled.nodes);
-    const bits = GA144.buildSerialBits(Array.from(boot.bytes), BOOT_BAUD_PERIOD, IDLE_PERIOD);
+    const bits = SerialBits.bootStreamBits(Array.from(boot.bytes), GA144.BOOT_BAUD);
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();

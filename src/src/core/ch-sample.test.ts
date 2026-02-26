@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { compileCube } from './cube';
 import { GA144 } from './ga144';
+import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { buildBootStream } from './bootstream';
 
@@ -44,7 +45,7 @@ describe('CH.cube Swiss flag sample', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
     ga.stepUntilDone(50_000_000);
     const snap = ga.getSnapshot();
 
@@ -76,7 +77,7 @@ describe('CH.cube Swiss flag sample', () => {
     const ga = new GA144('test');
     ga.setRomData(ROM_DATA);
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     // Mimic the worker run loop: step in 50K chunks, check active count,
     // advance idle time when all nodes suspended (like the worker does)
@@ -108,7 +109,7 @@ describe('CH.cube Swiss flag sample', () => {
     expect(res.height).toBe(480);
   });
 
-  it('works after double load (reset + loadViaBootStream twice)', { timeout: 120_000 }, () => {
+  it('works after double load (reset + enqueueSerialBits twice)', { timeout: 120_000 }, () => {
     const source = readFileSync(samplePath, 'utf-8');
     const compiled = compileCube(source);
     expect(compiled.errors).toHaveLength(0);
@@ -118,11 +119,11 @@ describe('CH.cube Swiss flag sample', () => {
     ga.reset();
 
     // First load (like initial page load auto-compile)
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     // Second load (like auto-compile debounce firing again)
     ga.reset();
-    ga.loadViaBootStream(buildBootStream(compiled.nodes).bytes);
+    ga.enqueueSerialBits(708, SerialBits.bootStreamBits(Array.from(buildBootStream(compiled.nodes).bytes), GA144.BOOT_BAUD));
 
     ga.stepUntilDone(50_000_000);
     const snap = ga.getSnapshot();
