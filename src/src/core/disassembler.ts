@@ -88,19 +88,44 @@ export function formatDisassembly(word: number): string {
 }
 
 /**
+ * Per-slot address masks matching f18a.ts doStep().
+ * Slot 0: 10-bit address, mask preserves bits 17-10
+ * Slot 1: 8-bit address, mask preserves bits 17-9
+ * Slot 2: 3-bit address, mask preserves bits 17-9 and 7-3
+ */
+const SLOT_MASKS = [0x3FC00, 0x3FE00, 0x3FEF8];
+
+/**
+ * Compute the effective jump/branch target address for a given slot,
+ * accounting for the F18A's P-relative masking where short address fields
+ * only replace the lower bits of P.
+ */
+function effectiveAddress(rawAddr: number, slot: number, wordAddr: number): number {
+  if (slot >= SLOT_MASKS.length) return rawAddr;
+  return (wordAddr & SLOT_MASKS[slot]) | rawAddr;
+}
+
+/**
  * Format the instruction slots of a disassembled word with pipe separators.
  * Branch/jump instructions show their target address in parentheses.
+ * When wordAddr is provided, addresses are resolved to effective targets
+ * accounting for per-slot masking.
  */
-function formatSlots(dis: DisassembledWord): string {
+function formatSlots(dis: DisassembledWord, wordAddr?: number): string {
   const parts: string[] = [];
+  let slotIdx = 0;
   for (const slot of dis.slots) {
     if (!slot) break;
     if (slot.address !== undefined) {
+      const addr = wordAddr !== undefined
+        ? effectiveAddress(slot.address, slotIdx, wordAddr)
+        : slot.address;
       const ea = slot.extendedArith ? '[ea]' : '';
-      parts.push(`${slot.opcode}(${slot.address})${ea}`);
+      parts.push(`${slot.opcode}(${addr})${ea}`);
     } else {
       parts.push(slot.opcode);
     }
+    slotIdx++;
   }
   return parts.join('|');
 }
@@ -127,7 +152,7 @@ function hasLiteralFetch(dis: DisassembledWord): boolean {
  *   formatWord(word, 42)   → "[42] @b|.|jump(6)"
  */
 export function formatWord(word: number, addr?: number): string {
-  const instr = formatSlots(disassembleWord(word));
+  const instr = formatSlots(disassembleWord(word), addr);
   if (addr !== undefined) {
     return `[${String(addr).padStart(2)}] ${instr}`;
   }
@@ -158,7 +183,7 @@ export function disassembleRange(words: number[], baseAddr: number = 0): string[
     }
 
     const dis = disassembleWord(words[i]);
-    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    lines.push(`${addrStr} ${formatSlots(dis, addr)}`);
     nextIsData = hasLiteralFetch(dis);
   }
 
@@ -189,8 +214,9 @@ export function disassembleRom(coord: number, romData: Record<number, number[]>)
       continue;
     }
 
+    const romAddr = 0x80 + i;
     const dis = disassembleWord(rom[i]);
-    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    lines.push(`${addrStr} ${formatSlots(dis, romAddr)}`);
     nextIsData = hasLiteralFetch(dis);
   }
 
@@ -228,7 +254,7 @@ export function disassembleNode(node: { mem: (number | null)[]; len: number; coo
     }
 
     const dis = disassembleWord(word);
-    lines.push(`${addrStr} ${formatSlots(dis)}`);
+    lines.push(`${addrStr} ${formatSlots(dis, i)}`);
     nextIsData = hasLiteralFetch(dis);
   }
 
