@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Box, TextField, IconButton } from '@mui/material';
+import { Box, Chip, TextField, IconButton } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import { VgaDisplay } from '../emulator/VgaDisplay';
 import { SerialOutput } from '../emulator/SerialOutput';
@@ -46,6 +46,11 @@ export const IoPanel: React.FC<IoPanelProps> = ({
         ioWriteStart={ioWriteStart}
         ioWriteSeq={ioWriteSeq}
       />
+      {ioWriteCount > 0 && (
+        <Box sx={{ px: 1, py: 0.5 }}>
+          <Chip label={`${ioWriteCount} IO writes`} size="small" sx={{ fontSize: '9px', height: 18 }} />
+        </Box>
+      )}
       <SerialOutput
         ioWrites={ioWrites}
         ioWriteCount={ioWriteCount}

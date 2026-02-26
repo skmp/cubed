@@ -139,7 +139,6 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   const dirtyRef = useRef(true);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
-  const [manualWidth, setManualWidth] = useState(4);
   const [lastDrawnSeqSnapshot, setLastDrawnSeqSnapshot] = useState(0);
   const [cachedRes, setCachedRes] = useState<Resolution | null>(null);
 
@@ -180,10 +179,8 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     return detectSyncClocks(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
   }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, resolution.hasSyncSignals]);
 
-  const displayWidth = resolution.hasSyncSignals ? resolution.width : (ioWriteCount > 0 ? manualWidth : NOISE_W);
-  const displayHeight = resolution.hasSyncSignals
-    ? resolution.height
-    : (ioWriteCount > 0 ? Math.max(1, Math.ceil(ioWriteCount / manualWidth)) : NOISE_H);
+  const displayWidth = resolution.hasSyncSignals ? resolution.width : NOISE_W;
+  const displayHeight = resolution.hasSyncSignals ? resolution.height : NOISE_H;
 
   const effectiveScale = pixelScale > 0 ? pixelScale
     : displayWidth >= 320 ? 1 : displayWidth >= 64 ? 4 : 12;
@@ -330,7 +327,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLastDrawnSeqSnapshot(0);
     setCachedRes(null);
-  }, [effectiveScale, manualWidth]);
+  }, [effectiveScale]);
 
   // ---- Render ----
 
@@ -340,8 +337,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', fontSize: '10px' }}>
           VGA Output
         </Typography>
-        <Chip label={`${ioWriteCount} writes`} size="small" sx={{ fontSize: '9px', height: 18 }} />
-        {ioWriteCount > 0 && (
+        {resolution.hasSyncSignals && (
           <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
         {syncClocks.hsyncHz !== null && (
@@ -349,17 +345,6 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         )}
         {syncClocks.vsyncHz !== null && (
           <Chip label={`V: ${syncClocks.vsyncHz.toFixed(1)}Hz`} size="small" sx={{ fontSize: '9px', height: 18 }} />
-        )}
-        {!resolution.hasSyncSignals && ioWriteCount > 0 && (
-          <>
-            <Typography variant="caption" sx={{ color: '#555', fontSize: '9px' }}>W:</Typography>
-            <TextField
-              type="number" size="small" value={manualWidth}
-              onChange={(e) => setManualWidth(Math.max(1, parseInt(e.target.value) || 4))}
-              slotProps={{ htmlInput: { min: 1, max: 640 } }}
-              sx={{ width: 48, '& input': { fontSize: '10px', py: 0.25, px: 0.5, color: '#ccc' }, '& fieldset': { borderColor: '#444' } }}
-            />
-          </>
         )}
         {ioWriteCount > 0 && (
           <>
