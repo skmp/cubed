@@ -694,7 +694,7 @@ export class F18ANode {
 
   fetchI(): void {
     this.IIndex = this.P;
-    if (this.onFirstRamInstruction !== null && (this.P & 0xFF) < 0x40) {
+    if (this.onFirstRamInstruction !== null && this.P < 0x40) {
       const cb = this.onFirstRamInstruction;
       this.onFirstRamInstruction = null;
       cb();
