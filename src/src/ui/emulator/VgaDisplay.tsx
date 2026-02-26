@@ -13,6 +13,24 @@ import {
   type VgaRenderState,
 } from './vgaRenderer';
 
+// ---- Recording helpers ----
+
+function pickMimeType(): string {
+  for (const t of ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ---- Constants ----
 
 const NOISE_W = 640;
@@ -137,9 +155,16 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   const texHRef = useRef(0);
   const renderStateRef = useRef<VgaRenderState>(createRenderState());
   const dirtyRef = useRef(true);
+  const vsyncPendingRef = useRef(false);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
   const resTrackerRef = useRef(new ResolutionTracker());
+
+  // ---- Recording state ----
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const captureStreamRef = useRef<MediaStream | null>(null);
 
   const handleExport = useCallback(() => {
     const canvas = canvasRef.current;
@@ -154,6 +179,41 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
       URL.revokeObjectURL(url);
     }, 'image/png');
   }, []);
+
+  const handleRecordToggle = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (!isRecording) {
+      // Start recording
+      const mimeType = pickMimeType();
+      const stream = canvas.captureStream(0);
+      captureStreamRef.current = stream;
+      recordedChunksRef.current = [];
+
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+    } else {
+      // Stop recording and download
+      const mr = mediaRecorderRef.current;
+      if (mr) {
+        mr.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: mr.mimeType || 'video/webm' });
+          downloadBlob(blob, `vga-recording-${Date.now()}.webm`);
+          recordedChunksRef.current = [];
+          captureStreamRef.current = null;
+          mediaRecorderRef.current = null;
+        };
+        mr.stop();
+      }
+      setIsRecording(false);
+    }
+  }, [isRecording]);
 
   // ---- Resolution (stateful incremental tracker) ----
 
@@ -256,6 +316,15 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
       g.bindTexture(g.TEXTURE_2D, tex);
       g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, w, h, 0, g.RGBA, g.UNSIGNED_BYTE, texDataRef.current);
       g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
+
+      // Capture frame into recording stream on vsync boundaries
+      if (vsyncPendingRef.current && captureStreamRef.current) {
+        vsyncPendingRef.current = false;
+        const track = captureStreamRef.current.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined;
+        track?.requestFrame();
+      } else {
+        vsyncPendingRef.current = false;
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
 
@@ -274,7 +343,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   useEffect(() => {
     if (!glStateRef.current || ioWriteCount === 0) return;
 
-    const dirty = renderIoWrites(
+    const result = renderIoWrites(
       renderStateRef.current,
       texDataRef.current,
       texWRef.current,
@@ -286,7 +355,8 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
       resolution.hasSyncSignals,
       ioWriteTimestamps,
     );
-    if (dirty) dirtyRef.current = true;
+    if (result.dirty) dirtyRef.current = true;
+    if (result.vsyncCount > 0) vsyncPendingRef.current = true;
   }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution, ioWrites, ioWriteTimestamps]);
 
   // Force full redraw when user changes scale/width settings
@@ -333,9 +403,20 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         <Button
           size="small"
           variant="outlined"
+          onClick={handleRecordToggle}
+          disabled={ioWriteCount === 0}
+          color={isRecording ? 'error' : 'primary'}
+          sx={{ ml: 'auto', textTransform: 'none', fontSize: '10px', height: 22, minWidth: 0, px: 1 }}
+          aria-label={isRecording ? 'Stop recording and download' : 'Start recording'}
+        >
+          {isRecording ? 'Stop Rec' : 'Record'}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
           onClick={handleExport}
           disabled={ioWriteCount === 0}
-          sx={{ ml: 'auto', textTransform: 'none', fontSize: '10px', height: 22, minWidth: 0, px: 1 }}
+          sx={{ textTransform: 'none', fontSize: '10px', height: 22, minWidth: 0, px: 1 }}
           aria-label="Export VGA frame as PNG"
         >
           Export PNG

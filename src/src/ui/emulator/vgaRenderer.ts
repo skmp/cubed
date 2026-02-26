@@ -65,6 +65,12 @@ interface RowData {
   isAfterVsync: boolean;
 }
 
+export interface RenderResult {
+  dirty: boolean;
+  /** Number of VSYNC boundaries encountered in this render call. */
+  vsyncCount: number;
+}
+
 /**
  * Render IO writes into an RGBA texture buffer.
  *
@@ -74,7 +80,7 @@ interface RowData {
  * value each channel had written by that point. This matches real VGA DAC
  * behavior and correctly handles channels running at different rates.
  *
- * Returns true if the texture was modified (dirty).
+ * Returns dirty flag and vsync count.
  */
 export function renderIoWrites(
   state: VgaRenderState,
@@ -87,8 +93,8 @@ export function renderIoWrites(
   ioWriteSeq: number,
   hasSyncSignals: boolean,
   ioWriteTimestamps: number[],
-): boolean {
-  if (ioWriteCount === 0) return false;
+): RenderResult {
+  if (ioWriteCount === 0) return { dirty: false, vsyncCount: 0 };
 
   const cursor = state.cursor;
   const startSeq = ioWriteSeq - ioWriteCount;
@@ -186,10 +192,12 @@ export function renderIoWrites(
   }
 
   // Render each row by time-sampling
+  let vsyncCount = 0;
   for (const row of rows) {
     if (row.isAfterVsync) {
       cursor.x = 0;
       cursor.y = 0;
+      vsyncCount++;
     }
 
     if (row.rWrites.length === 0 && row.gWrites.length === 0 && row.bWrites.length === 0) continue;
@@ -237,7 +245,7 @@ export function renderIoWrites(
   }
 
   state.lastDrawnSeq = ioWriteSeq;
-  return true;
+  return { dirty: true, vsyncCount };
 }
 
 /** Render a row sequentially when all writes share the same timestamp. */
