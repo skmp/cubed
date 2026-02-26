@@ -8,7 +8,7 @@ import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { buildBootStream } from './bootstream';
 
-import { detectResolution, taggedCoord, readIoWrite, isHsync, isVsync } from '../ui/emulator/vgaResolution';
+import { detectResolution, ResolutionTracker, taggedCoord, readIoWrite, isHsync, isVsync } from '../ui/emulator/vgaResolution';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -61,7 +61,7 @@ describe('CH.cube Swiss flag sample', () => {
     console.log('IO write counts:', Object.fromEntries(counts));
     console.log(`HSYNC: ${hsyncCount}, VSYNC: ${vsyncCount}`);
 
-    const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+    const res = detectResolution(new ResolutionTracker(), snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteSeq, snap.ioWriteTimestamps);
     console.log('Resolution:', res);
 
     expect(res.hasSyncSignals).toBe(true);
@@ -101,7 +101,7 @@ describe('CH.cube Swiss flag sample', () => {
     }
 
     const snap = ga.getSnapshot();
-    const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+    const res = detectResolution(new ResolutionTracker(), snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteSeq, snap.ioWriteTimestamps);
     console.log('Chunked resolution:', res, 'total idle advances:', totalIdleAdvances);
 
     expect(res.hasSyncSignals).toBe(true);
@@ -127,7 +127,7 @@ describe('CH.cube Swiss flag sample', () => {
 
     ga.stepUntilDone(50_000_000);
     const snap = ga.getSnapshot();
-    const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+    const res = detectResolution(new ResolutionTracker(), snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteSeq, snap.ioWriteTimestamps);
     console.log('Double-load resolution:', res);
 
     expect(res.hasSyncSignals).toBe(true);

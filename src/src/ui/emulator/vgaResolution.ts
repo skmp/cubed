@@ -119,81 +119,176 @@ export function detectSyncClocks(
   };
 }
 
-export function detectResolution(
-  ioWrites: number[],
-  count: number,
-  start: number = 0,
-  timestamps?: number[],
-): Resolution & { complete: boolean } {
-  let x = 0;
-  let maxX = 0;
-  let y = 0;
-  let hasSyncSignals = false;
-  let pendingHsyncTs = -1; // timestamp of deferred HSYNC (-1 = none)
+/**
+ * Stateful resolution tracker. Processes IO writes incrementally and
+ * determines width/height from sync pulses:
+ *   - Width is set when an HSYNC arrives (= R-writes since the previous HSYNC)
+ *   - Height is set when a VSYNC arrives (= HSYNC count since the previous VSYNC)
+ * Until the first VSYNC, width/height remain at their defaults (640×480).
+ */
+export class ResolutionTracker {
+  /** Detected width (R-writes per line). */
+  width = 640;
+  /** Detected height (lines per frame). */
+  height = 480;
+  /** True once we have seen at least one sync signal. */
+  hasSyncSignals = false;
+  /** True once we have a VSYNC-confirmed frame size. */
+  complete = false;
+  /** HSYNC frequency in Hz (null if not enough data). */
+  hsyncHz: number | null = null;
+  /** VSYNC frequency in Hz (null if not enough data). */
+  vsyncHz: number | null = null;
 
-  for (let i = 0; i < count; i++) {
-    const tagged = readIoWrite(ioWrites, start, i);
-    if (isVsync(tagged)) {
-      hasSyncSignals = true;
-      if (y > 0 || x > 0) {
-        if (x > maxX) maxX = x;
-        const height = Math.max(y + (x > 0 ? 1 : 0), 1);
-        return { width: maxX || 1, height, hasSyncSignals: true, complete: true };
-      }
-      pendingHsyncTs = -1;
-    } else if (isHsync(tagged)) {
-      hasSyncSignals = true;
-      if (timestamps) {
-        // Record HSYNC timestamp — defer line break until we see
-        // the next R write and can compare timestamps.
-        pendingHsyncTs = readIoTimestamp(timestamps, start, i);
-      } else if (x > 0) {
-        if (x > maxX) maxX = x;
-        y++;
-        x = 0;
-      }
-    } else if (taggedCoord(tagged) === VGA_NODE_R) {
-      x++;
-      // Apply deferred HSYNC: if the R write has the same timestamp
-      // as the HSYNC, it was produced in the same global step, so it
-      // belongs to the current line (before the line break).
-      if (pendingHsyncTs >= 0) {
-        const rTs = timestamps ? readIoTimestamp(timestamps, start, i) : -1;
-        if (Math.abs(rTs - pendingHsyncTs) > 10) {
-          // Different step — HSYNC legitimately precedes this R write.
-          // Apply the deferred line break BEFORE counting this R write.
-          // Undo the x++ for this R write, apply HSYNC, then re-count it.
-          x--;
-          if (x > maxX) maxX = x;
-          y++;
-          x = 1; // this R write starts the new row
-          pendingHsyncTs = -1;
-        } else {
-          // Same step — R belongs to the line before HSYNC.
-          // Apply HSYNC after this R write.
-          if (x > maxX) maxX = x;
-          y++;
-          x = 0;
-          pendingHsyncTs = -1;
+  // ---- internal counters ----
+  private rCountSinceHsync = 0;
+  private hsyncCountSinceVsync = 0;
+  private pendingHsyncTs = -1;
+  private lastProcessedSeq = 0;
+  // Sync clock tracking — store last timestamp to compute period
+  private lastHsyncTs = -1;
+  private lastVsyncTs = -1;
+  // Use the first R-write timestamp as frame start for V-rate on first frame
+  private firstPixelTs = -1;
+
+  /** Reset all state (e.g. on stream reset). */
+  reset(): void {
+    this.width = 640;
+    this.height = 480;
+    this.hasSyncSignals = false;
+    this.complete = false;
+    this.hsyncHz = null;
+    this.vsyncHz = null;
+    this.rCountSinceHsync = 0;
+    this.hsyncCountSinceVsync = 0;
+    this.pendingHsyncTs = -1;
+    this.lastProcessedSeq = 0;
+    this.lastHsyncTs = -1;
+    this.lastVsyncTs = -1;
+    this.firstPixelTs = -1;
+  }
+
+  /** Process new IO writes since the last call. */
+  process(
+    ioWrites: number[],
+    ioWriteCount: number,
+    ioWriteStart: number,
+    ioWriteSeq: number,
+    timestamps?: number[],
+  ): void {
+    const startSeq = ioWriteSeq - ioWriteCount;
+
+    // Detect stream reset (seq went backwards) — full reset
+    if (ioWriteSeq < this.lastProcessedSeq) {
+      this.reset();
+    }
+    // Data drop (ring buffer overwrote unprocessed entries) — reset
+    // counters for the current line/frame but keep confirmed resolution
+    if (this.lastProcessedSeq < startSeq) {
+      this.hsyncCountSinceVsync = 0;
+      this.rCountSinceHsync = 0;
+      this.pendingHsyncTs = -1;
+      this.lastProcessedSeq = startSeq;
+    }
+
+    const fromSeq = Math.max(this.lastProcessedSeq, startSeq);
+    for (let s = fromSeq; s < ioWriteSeq; s++) {
+      const offset = s - startSeq;
+      if (offset < 0 || offset >= ioWriteCount) continue;
+      const tagged = readIoWrite(ioWrites, ioWriteStart, offset);
+
+      if (isVsync(tagged)) {
+        this.hasSyncSignals = true;
+        // Flush any pending HSYNC
+        if (this.pendingHsyncTs >= 0) {
+          this.applyHsync();
         }
+        // Count the in-progress line if it has pixels
+        const lines = this.hsyncCountSinceVsync + (this.rCountSinceHsync > 0 ? 1 : 0);
+        if (lines > 0) {
+          this.height = lines;
+          this.complete = true;
+        }
+        // Update VSYNC clock — use firstPixelTs as start of first frame
+        if (timestamps) {
+          const ts = readIoTimestamp(timestamps, ioWriteStart, offset);
+          const prevTs = this.lastVsyncTs >= 0 ? this.lastVsyncTs : this.firstPixelTs;
+          if (prevTs >= 0 && ts > prevTs) {
+            this.vsyncHz = 1e9 / (ts - prevTs);
+          }
+          this.lastVsyncTs = ts;
+        }
+        this.hsyncCountSinceVsync = 0;
+        this.rCountSinceHsync = 0;
+        this.pendingHsyncTs = -1;
+      } else if (isHsync(tagged)) {
+        this.hasSyncSignals = true;
+        // Update HSYNC clock
+        if (timestamps) {
+          const ts = readIoTimestamp(timestamps, ioWriteStart, offset);
+          if (this.lastHsyncTs >= 0 && ts > this.lastHsyncTs) {
+            this.hsyncHz = 1e9 / (ts - this.lastHsyncTs);
+          }
+          this.lastHsyncTs = ts;
+          this.pendingHsyncTs = ts;
+        } else {
+          this.applyHsync();
+        }
+      } else if (taggedCoord(tagged) === VGA_NODE_R) {
+        // Track first pixel timestamp for V-rate on first frame
+        if (this.firstPixelTs < 0 && timestamps) {
+          this.firstPixelTs = readIoTimestamp(timestamps, ioWriteStart, offset);
+        }
+        // Resolve deferred HSYNC
+        if (this.pendingHsyncTs >= 0 && timestamps) {
+          const rTs = readIoTimestamp(timestamps, ioWriteStart, offset);
+          if (Math.abs(rTs - this.pendingHsyncTs) <= 10) {
+            // Same step — R belongs to the line before HSYNC
+            this.rCountSinceHsync++;
+            this.applyHsync();
+            continue;
+          } else {
+            // Different step — HSYNC was a real line break before this R
+            this.applyHsync();
+          }
+        }
+        this.rCountSinceHsync++;
       }
     }
+
+    this.lastProcessedSeq = ioWriteSeq;
   }
 
-  // No complete frame found — use what we have from HSYNC-delimited rows
-  if (hasSyncSignals && maxX > 0) {
+  private applyHsync(): void {
+    if (this.rCountSinceHsync > 0) {
+      this.width = this.rCountSinceHsync;
+    }
+    this.hsyncCountSinceVsync++;
+    this.rCountSinceHsync = 0;
+    this.pendingHsyncTs = -1;
+  }
+
+  /** Return a snapshot of the current resolution state. */
+  getResolution(): Resolution & { complete: boolean } {
     return {
-      width: maxX,
-      height: Math.max(y + (x > 0 ? 1 : 0), 1),
-      hasSyncSignals,
-      complete: false,
+      width: this.width,
+      height: this.height,
+      hasSyncSignals: this.hasSyncSignals,
+      complete: this.complete,
     };
   }
-  if (x > maxX) maxX = x;
-  return {
-    width: maxX || 1,
-    height: Math.max(y + (x > 0 ? 1 : 0), 1),
-    hasSyncSignals,
-    complete: false,
-  };
+}
+
+/** Process IO writes into a tracker and return the current resolution.
+ *  Pass the same tracker across calls for incremental updates. */
+export function detectResolution(
+  tracker: ResolutionTracker,
+  ioWrites: number[],
+  count: number,
+  start: number,
+  ioWriteSeq: number,
+  timestamps?: number[],
+): Resolution & { complete: boolean } {
+  tracker.process(ioWrites, count, start, ioWriteSeq, timestamps);
+  return tracker.getResolution();
 }

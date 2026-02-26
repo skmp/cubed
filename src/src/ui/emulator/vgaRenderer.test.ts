@@ -11,6 +11,7 @@ import {
 import {
   DAC_XOR,
   detectResolution,
+  ResolutionTracker,
   readIoWrite,
   taggedCoord,
   isHsync as isHsyncCheck,
@@ -539,7 +540,7 @@ describe('vgaRenderer', () => {
     });
 
     it('renders Swiss flag with correct color distribution', () => {
-      const res = detectResolution(snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteTimestamps);
+      const res = detectResolution(new ResolutionTracker(), snap.ioWrites, snap.ioWriteCount, snap.ioWriteStart, snap.ioWriteSeq, snap.ioWriteTimestamps);
       expect(res.hasSyncSignals).toBe(true);
       expect(res.complete).toBe(true);
 

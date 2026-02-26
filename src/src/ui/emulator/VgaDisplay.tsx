@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Box, Chip, TextField, Typography, Button } from '@mui/material';
 import {
   detectResolution,
-  detectSyncClocks,
+  ResolutionTracker,
   type Resolution,
   type SyncClocks,
 } from './vgaResolution';
@@ -139,8 +139,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
   const dirtyRef = useRef(true);
   const rafRef = useRef(0);
   const [pixelScale, setPixelScale] = useState(0);
-  const [lastDrawnSeqSnapshot, setLastDrawnSeqSnapshot] = useState(0);
-  const [cachedRes, setCachedRes] = useState<Resolution | null>(null);
+  const resTrackerRef = useRef(new ResolutionTracker());
 
   const handleExport = useCallback(() => {
     const canvas = canvasRef.current;
@@ -156,31 +155,17 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     }, 'image/png');
   }, []);
 
-  // ---- Resolution (cached after first complete frame) ----
+  // ---- Resolution (stateful incremental tracker) ----
 
-  const ioWriteStartSeq = ioWriteSeq - ioWriteCount;
-  const streamReset = ioWriteSeq < lastDrawnSeqSnapshot;
-  const dataDropped = lastDrawnSeqSnapshot < ioWriteStartSeq;
-  const needsResReset = streamReset || dataDropped;
   const resolution = useMemo<Resolution & { complete: boolean }>(() => {
-    if (needsResReset) {
-      return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
-    }
-    if (cachedRes) {
-      return { ...cachedRes, complete: true };
-    }
-    return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
-  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, needsResReset, cachedRes]);
+    return detectResolution(resTrackerRef.current, ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq, ioWriteTimestamps);
+  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq, ioWriteTimestamps]);
 
-  const syncClocks = useMemo<SyncClocks>(() => {
-    if (!resolution.hasSyncSignals || ioWriteTimestamps.length === 0) {
-      return { hsyncHz: null, vsyncHz: null };
-    }
-    return detectSyncClocks(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
-  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, resolution.hasSyncSignals]);
+  const tracker = resTrackerRef.current;
+  const syncClocks: SyncClocks = { hsyncHz: tracker.hsyncHz, vsyncHz: tracker.vsyncHz };
 
-  const displayWidth = resolution.complete ? resolution.width : NOISE_W;
-  const displayHeight = resolution.complete ? resolution.height : NOISE_H;
+  const displayWidth = resolution.width;
+  const displayHeight = resolution.height;
 
   const effectiveScale = pixelScale > 0 ? pixelScale
     : displayWidth >= 320 ? 1 : displayWidth >= 64 ? 4 : 12;
@@ -302,16 +287,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
       ioWriteTimestamps,
     );
     if (dirty) dirtyRef.current = true;
-    // Sync lastDrawnSeq to state for resolution reset detection
-    setLastDrawnSeqSnapshot(renderStateRef.current.lastDrawnSeq);
-    // Cache resolution after first complete detection
-    if (!cachedRes && resolution.complete) {
-      setCachedRes({ width: resolution.width, height: resolution.height, hasSyncSignals: resolution.hasSyncSignals });
-    }
-    if (needsResReset && cachedRes) {
-      setCachedRes(null);
-    }
-  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution, ioWrites, ioWriteTimestamps, cachedRes, needsResReset]);
+  }, [ioWriteCount, ioWriteSeq, ioWriteStart, resolution, ioWrites, ioWriteTimestamps]);
 
   // Force full redraw when user changes scale/width settings
   useEffect(() => {
@@ -323,10 +299,7 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     rs.hasReceivedSignal = false;
     fillNoise(texDataRef.current);
     dirtyRef.current = true;
-    // Reset resolution tracking state — necessary to sync with ref reset above
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLastDrawnSeqSnapshot(0);
-    setCachedRes(null);
+    resTrackerRef.current.reset();
   }, [effectiveScale]);
 
   // ---- Render ----
