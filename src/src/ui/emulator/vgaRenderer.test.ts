@@ -213,10 +213,10 @@ describe('vgaRenderer', () => {
       expect(readPixel(texData, 4, 0, 0).r).toBe(255);
     });
 
-    it('clears to black when VSYNC has subsequent DAC writes', () => {
+    it('preserves background when VSYNC has subsequent DAC writes', () => {
       const { texData, state } = setup(4, 4);
 
-      // Pre-fill with white to detect clearing
+      // Pre-fill with white (simulating noise background)
       for (let i = 0; i < texData.length; i += 4) {
         texData[i] = texData[i+1] = texData[i+2] = 255;
         texData[i+3] = 255;
@@ -229,7 +229,7 @@ describe('vgaRenderer', () => {
       ];
       renderIoWrites(state, texData, 4, 4, batch1, batch1.length, 0, batch1.length, true);
 
-      // Re-fill with white to detect clearing in next render
+      // Re-fill with white to simulate noise background
       for (let i = 0; i < texData.length; i += 4) {
         texData[i] = texData[i+1] = texData[i+2] = 255;
         texData[i+3] = 255;
@@ -245,8 +245,8 @@ describe('vgaRenderer', () => {
 
       // (0,0) should be red (rendered after VSYNC reset cursor)
       expect(readPixel(texData, 4, 0, 0).r).toBe(255);
-      // (1,0) should be cleared to black (not white)
-      expect(readPixel(texData, 4, 1, 0)).toEqual({ r: 0, g: 0, b: 0, a: 255 });
+      // (1,0) should remain as background (white noise), not cleared to black
+      expect(readPixel(texData, 4, 1, 0)).toEqual({ r: 255, g: 255, b: 255, a: 255 });
     });
   });
 

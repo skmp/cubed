@@ -99,25 +99,6 @@ export function renderIoWrites(
     if (streamReset) {
       state.hasReceivedSignal = false;
       fillNoise(texData);
-    } else if (state.hasReceivedSignal) {
-      let hasSubsequentDacWrite = false;
-      for (let lookSeq = seq + 1; lookSeq < ioWriteSeq; lookSeq++) {
-        const lookOffset = lookSeq - startSeq;
-        if (lookOffset < 0 || lookOffset >= ioWriteCount) continue;
-        const lookTagged = readIoWrite(ioWrites, ioWriteStart, lookOffset);
-        const lookCoord = taggedCoord(lookTagged);
-        if (
-          lookCoord === VGA_NODE_R ||
-          lookCoord === VGA_NODE_G ||
-          lookCoord === VGA_NODE_B
-        ) {
-          hasSubsequentDacWrite = true;
-          break;
-        }
-      }
-      if (hasSubsequentDacWrite) {
-        clearToBlack(texData);
-      }
     }
   }
 
@@ -157,7 +138,6 @@ export function renderIoWrites(
     if (coord === VGA_NODE_R) {
       if (!state.hasReceivedSignal) {
         state.hasReceivedSignal = true;
-        clearToBlack(texData);
       }
       // Resolve deferred HSYNC
       if (pendingHsyncTs >= 0 && ioWriteTimestamps) {
