@@ -2,7 +2,9 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Box, Chip, TextField, Typography, Button } from '@mui/material';
 import {
   detectResolution,
+  detectSyncClocks,
   type Resolution,
+  type SyncClocks,
 } from './vgaResolution';
 import {
   renderIoWrites,
@@ -171,6 +173,13 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     return detectResolution(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
   }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, needsResReset, cachedRes]);
 
+  const syncClocks = useMemo<SyncClocks>(() => {
+    if (!resolution.hasSyncSignals || ioWriteTimestamps.length === 0) {
+      return { hsyncHz: null, vsyncHz: null };
+    }
+    return detectSyncClocks(ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps);
+  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteTimestamps, resolution.hasSyncSignals]);
+
   const displayWidth = resolution.hasSyncSignals ? resolution.width : (ioWriteCount > 0 ? manualWidth : NOISE_W);
   const displayHeight = resolution.hasSyncSignals
     ? resolution.height
@@ -334,6 +343,12 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         <Chip label={`${ioWriteCount} writes`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         {ioWriteCount > 0 && (
           <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
+        )}
+        {syncClocks.hsyncHz !== null && (
+          <Chip label={`H: ${syncClocks.hsyncHz >= 1000 ? (syncClocks.hsyncHz / 1000).toFixed(1) + 'kHz' : syncClocks.hsyncHz.toFixed(1) + 'Hz'}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
+        )}
+        {syncClocks.vsyncHz !== null && (
+          <Chip label={`V: ${syncClocks.vsyncHz.toFixed(1)}Hz`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
         {!resolution.hasSyncSignals && ioWriteCount > 0 && (
           <>

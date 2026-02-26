@@ -71,6 +71,54 @@ export function isDacWrite(tagged: number): boolean {
   return coord === VGA_NODE_R || coord === VGA_NODE_G || coord === VGA_NODE_B;
 }
 
+export interface SyncClocks {
+  hsyncHz: number | null;  // HSYNC frequency in Hz (null if not enough data)
+  vsyncHz: number | null;  // VSYNC frequency in Hz (null if not enough data)
+}
+
+/**
+ * Calculate HSYNC and VSYNC clock frequencies from IO write timestamps.
+ * Measures the median period between consecutive HSYNC/VSYNC signals.
+ * Timestamps are in nanoseconds (guest wall clock).
+ */
+export function detectSyncClocks(
+  ioWrites: number[],
+  count: number,
+  start: number,
+  timestamps: number[],
+): SyncClocks {
+  const hsyncTs: number[] = [];
+  const vsyncTs: number[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const tagged = readIoWrite(ioWrites, start, i);
+    if (isHsync(tagged)) {
+      hsyncTs.push(readIoTimestamp(timestamps, start, i));
+    } else if (isVsync(tagged)) {
+      vsyncTs.push(readIoTimestamp(timestamps, start, i));
+    }
+  }
+
+  function medianFreqHz(ts: number[]): number | null {
+    if (ts.length < 2) return null;
+    const periods: number[] = [];
+    for (let i = 1; i < ts.length; i++) {
+      const dt = ts[i] - ts[i - 1];
+      if (dt > 0) periods.push(dt);
+    }
+    if (periods.length === 0) return null;
+    periods.sort((a, b) => a - b);
+    const median = periods[Math.floor(periods.length / 2)];
+    if (median <= 0) return null;
+    return 1e9 / median;  // nanoseconds → Hz
+  }
+
+  return {
+    hsyncHz: medianFreqHz(hsyncTs),
+    vsyncHz: medianFreqHz(vsyncTs),
+  };
+}
+
 export function detectResolution(
   ioWrites: number[],
   count: number,
