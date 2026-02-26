@@ -86,6 +86,9 @@ export class F18ANode {
   // Step counter
   stepCount = 0;
 
+  // Callback fired once on the first instruction fetched from RAM (addr < 0x40)
+  onFirstRamInstruction: (() => void) | null = null;
+
   // Thermal model
   thermal: ThermalState;
 
@@ -691,6 +694,11 @@ export class F18ANode {
 
   fetchI(): void {
     this.IIndex = this.P;
+    if (this.onFirstRamInstruction !== null && (this.P & 0xFF) < 0x40) {
+      const cb = this.onFirstRamInstruction;
+      this.onFirstRamInstruction = null;
+      cb();
+    }
     if (this.readMemory(this.P)) {
       this.finishIFetch();
     } else {
