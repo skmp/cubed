@@ -310,7 +310,7 @@ export class GA144 {
    *   UART data 1 (mark) → pin17 LOW
    *   UART stop (mark/HIGH) → pin17 LOW
    *
-   * The bytes are already XOR'd with 0xFF by encodeAsyncBytes (host-side
+   * The bytes are already XOR'd with 0xFF by encodeAsyncBootromBytes (host-side
    * inversion per BOOT-02 spec).  The RS232 inversion here cancels with
    * the host XOR, so the F18A reads data bits "high true."
    *

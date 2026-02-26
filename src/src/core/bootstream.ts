@@ -358,13 +358,13 @@ function makeAsyncFrame1(
 // ---------------------------------------------------------------------------
 
 /**
- * Encode boot stream words as bytes for async serial transmission.
+ * Encode boot stream words as bytes for the node 708 bootrom protocol.
  * Matches reference `sget-convert`.
  *
- * Each 18-bit word is encoded as 3 bytes with XOR inversion for the
- * GA144 node 708 boot ROM's auto-baud detection protocol.
+ * Each 18-bit word is encoded as 3 bytes with XOR inversion and a 0x2D
+ * calibration pattern in the low 6 bits of byte 0 for auto-baud detection.
  */
-export function encodeAsyncBytes(words: number[]): Uint8Array {
+export function encodeAsyncBootromBytes(words: number[]): Uint8Array {
   const bytes = new Uint8Array(words.length * 3);
   for (let i = 0; i < words.length; i++) {
     const n = words[i] & WORD_MASK;
@@ -431,7 +431,7 @@ export function buildBootStream(
   ];
 
   const words = [...frame1, ...frame2];
-  const bytes = encodeAsyncBytes(words);
+  const bytes = encodeAsyncBootromBytes(words);
 
   return {
     words,

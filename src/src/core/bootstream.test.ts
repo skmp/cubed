@@ -3,7 +3,7 @@ import {
   assembleWord,
   getAsyncPath1,
   trimPath,
-  encodeAsyncBytes,
+  encodeAsyncBootromBytes,
   buildBootStream,
 } from './bootstream';
 import type { CompiledNode } from './types';
@@ -160,17 +160,17 @@ describe('trimPath', () => {
 });
 
 // ---------------------------------------------------------------------------
-// encodeAsyncBytes
+// encodeAsyncBootromBytes
 // ---------------------------------------------------------------------------
 
-describe('encodeAsyncBytes', () => {
+describe('encodeAsyncBootromBytes', () => {
   it('produces 3 bytes per word', () => {
-    const bytes = encodeAsyncBytes([0, 1, 0x3FFFF]);
+    const bytes = encodeAsyncBootromBytes([0, 1, 0x3FFFF]);
     expect(bytes).toHaveLength(9);
   });
 
   it('encodes zero correctly', () => {
-    const bytes = encodeAsyncBytes([0]);
+    const bytes = encodeAsyncBootromBytes([0]);
     // n=0:
     // byte0 = ((0<<6) & 0xC0 | 0x2D) ^ 0xFF = 0x2D ^ 0xFF = 0xD2
     // byte1 = ((0>>2) & 0xFF) ^ 0xFF = 0 ^ 0xFF = 0xFF
@@ -181,7 +181,7 @@ describe('encodeAsyncBytes', () => {
   });
 
   it('encodes 0xAE correctly (boot magic)', () => {
-    const bytes = encodeAsyncBytes([0xAE]);
+    const bytes = encodeAsyncBootromBytes([0xAE]);
     const n = 0xAE;
     const b0 = (((n << 6) & 0xC0) | 0x2D) ^ 0xFF;
     const b1 = ((n >> 2) & 0xFF) ^ 0xFF;
@@ -193,7 +193,7 @@ describe('encodeAsyncBytes', () => {
 
   it('all bytes are valid uint8', () => {
     const testWords = [0, 1, 0x155, 0xAE, 0x1D5, 0x3FFFF];
-    const bytes = encodeAsyncBytes(testWords);
+    const bytes = encodeAsyncBootromBytes(testWords);
     for (let i = 0; i < bytes.length; i++) {
       expect(bytes[i]).toBeGreaterThanOrEqual(0);
       expect(bytes[i]).toBeLessThanOrEqual(255);

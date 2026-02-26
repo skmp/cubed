@@ -20,7 +20,7 @@ describe('boot stream serial encoding at 921600 baud', () => {
     expect(BAUD_PERIOD).toBeLessThan(750);
   });
 
-  it('encodeAsyncBytes produces 3 bytes per word, all valid uint8', () => {
+  it('encodeAsyncBootromBytes produces 3 bytes per word, all valid uint8', () => {
     const compiled = compileCube(`node 709\n/\\\nfill{value=0xAA, count=1}\n`);
     expect(compiled.errors).toHaveLength(0);
     const boot = buildBootStream(compiled.nodes);
@@ -31,7 +31,7 @@ describe('boot stream serial encoding at 921600 baud', () => {
     }
   });
 
-  it('encodeAsyncBytes round-trips: bytes decode back to original words', () => {
+  it('encodeAsyncBootromBytes round-trips: bytes decode back to original words', () => {
     const compiled = compileCube(`node 709\n/\\\nfill{value=0xBB, count=1}\n`);
     expect(compiled.errors).toHaveLength(0);
     const boot = buildBootStream(compiled.nodes);
