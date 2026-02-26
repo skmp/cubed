@@ -336,6 +336,15 @@ export class CodeBuilder {
         } else {
           const encoded = this.mem[ref.wordAddr];
           if (encoded !== null) {
+            // Check if address fits in the available bits for this slot
+            const maxAddr = [0x3FF, 0xFF, 0x7][ref.slot] ?? 0;
+            if (addr > maxAddr) {
+              errors.push({
+                message: `Forward reference '${ref.name}' resolves to 0x${addr.toString(16)} ` +
+                  `but slot ${ref.slot} only holds ${[10, 8, 3][ref.slot]}-bit addresses ` +
+                  `(max 0x${maxAddr.toString(16)}) in ${context}`,
+              });
+            }
             // Address bits are stored raw (not XOR-encoded), so we can
             // patch them directly by clearing and OR'ing.
             let patched: number;

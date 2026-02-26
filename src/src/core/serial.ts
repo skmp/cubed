@@ -36,6 +36,36 @@ export class SerialBits {
   }
 
   /**
+   * Build a non-inverted bit sequence for user data (not boot ROM protocol).
+   * Polarity: idle = LOW, start bit = HIGH, data bits direct, stop = LOW.
+   * Use this for sending data to user code that reads pin17 directly
+   * without the boot ROM's RS232 inversion handling.
+   */
+  static dataBits(bytes: number[], baud: number): SerialBit[] {
+    const bits: SerialBit[] = [];
+    const bitNS = 1e9 / baud;
+
+    const push = (value: boolean, durationNS: number) => {
+      if (bits.length > 0 && bits[bits.length - 1].value === value) {
+        bits[bits.length - 1].durationNS += durationNS;
+      } else {
+        bits.push({ value, durationNS });
+      }
+    };
+
+    for (const byte of bytes) {
+      push(true, bitNS);                                         // start bit: HIGH
+      for (let bit = 0; bit < 8; bit++) {
+        push(((byte >> bit) & 1) !== 0, bitNS);                  // data bits direct, LSB first
+      }
+      push(false, bitNS);                                        // stop bit: LOW
+    }
+
+    push(false, bitNS * 2);                                      // trailing idle
+    return bits;
+  }
+
+  /**
    * Build boot stream bits with a lead-in idle for auto-baud detection.
    * Defaults to 10 bit-periods of idle.
    */

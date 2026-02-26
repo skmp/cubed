@@ -6,11 +6,17 @@
  * - String literal tokenization and parsing
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { tokenizeCube, CubeTokenType } from './tokenizer';
 import { parseCube } from './parser';
 import { compileCube } from './compiler';
 import { OPCODE_MAP } from '../constants';
 import { XOR_ENCODING } from '../types';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ---- Helpers ----
 
@@ -501,5 +507,55 @@ describe('node boot descriptor syntax', () => {
     expect(node.a).toBe(0x1D5);
     expect(node.b).toBe(0x15D);
     expect(node.p).toBe(0x3C);
+  });
+});
+
+// ---- ROM function address resolution in f18a address opcodes ----
+
+describe('ROM function address resolution', () => {
+  it('f18a.call{addr=rom.byte} resolves on node 708', () => {
+    const source = 'node 708\n/\\\nf18a.call{addr=rom.byte}';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(1);
+    const mem = result.nodes[0].mem;
+    const decoded = mem[0] ^ XOR_ENCODING;
+    expect((decoded >> 13) & 0x1F).toBe(OPCODE_MAP.get('call')!);
+    expect(mem[0] & 0x3FF).toBe(0xd0); // rom.byte = 0xd0
+  });
+
+  it('f18a.jump{addr=rom.sync} resolves on node 708', () => {
+    const source = 'node 708\n/\\\nf18a.jump{addr=rom.sync}';
+    const result = compileCube(source);
+    expect(result.errors).toHaveLength(0);
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0].mem[0] & 0x3FF).toBe(0xbe); // rom.sync = 0xbe
+  });
+
+  it('rom.xxx on wrong node type produces unresolved ref warning', () => {
+    // node 0 has basic ROM, no rom.byte
+    const source = 'node 0\n/\\\nf18a.call{addr=rom.byte}';
+    const result = compileCube(source);
+    const msgs = [
+      ...result.errors.map(e => e.message),
+      ...(result.warnings?.map(w => w.message) ?? []),
+    ];
+    expect(msgs.some(m => m.includes('rom.byte'))).toBe(true);
+  });
+});
+
+// ---- ECHO2.cube end-to-end compilation ----
+
+describe('ECHO2.cube sample', () => {
+  it('compiles successfully on node 708', () => {
+    const source = readFileSync(
+      join(__dirname, '../../../samples/ECHO2.cube'),
+      'utf-8',
+    );
+    const result = compileCube(source);
+    expect(result.errors.map(e => `L${e.line}: ${e.message}`)).toEqual([]);
+    expect(result.nodes).toHaveLength(1);
+    expect(result.nodes[0].coord).toBe(708);
+    expect(result.nodes[0].len).toBeLessThanOrEqual(64);
   });
 });

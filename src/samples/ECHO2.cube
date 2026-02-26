@@ -1,0 +1,135 @@
+-- ECHO2: Async Serial Byte Echo (custom bit-bang RX/TX)
+-- Node 708: pin17 is the serial IO pin. B = 0x15D (IO register).
+--
+-- Pin17 encoding (emulator double-inversion = true data):
+--   Idle/Stop: LOW | Start: HIGH | Data 1: HIGH | Data 0: LOW
+
+node 708 { b=0x15D }
+
+/\
+
+-- Store hardcoded baud delay d in RAM[0x3E]
+-- d=135: delay_d ≈ 135*4.1ns = 554ns, delay_full ≈ 1107ns ≈ 1085ns/bit
+lit.hex18{value=135}
+/\ lit.hex18{value=0x3E}
+/\ f18a.astore
+/\ f18a.storeplus
+
+/\
+
+-- Main echo loop
+label{name=echo_loop}
+/\ f18a.call{addr=rx_byte}
+/\ f18a.dup
+/\ lit.hex18{value=0x20000}
+/\ f18a.xor
+/\ f18a.storeb
+/\ f18a.call{addr=emit8}
+/\ f18a.jump{addr=echo_loop}
+
+/\
+
+-- rx_byte: receive one byte via pin17
+-- ( -- byte )
+label{name=rx_byte}
+/\ f18a.call{addr=wait_start}
+/\ f18a.call{addr=delay_d}
+/\ lit.hex18{value=0}
+/\ lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=rx_bit_loop}
+/\ f18a.call{addr=rx_one_bit}
+/\ f18a.next{addr=rx_bit_loop}
+/\ lit.hex18{value=9}
+/\ f18a.push
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.shr
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.unext
+/\ f18a.ret
+
+/\
+
+-- wait_start: loop while pin17 LOW, return when HIGH
+label{name=wait_start}
+/\ f18a.fetchb
+/\ lit.hex18{value=0x20000}
+/\ f18a.and
+/\ f18a.IF{addr=wait_start}
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- rx_one_bit: delay full baud, sample pin17 into accumulator
+-- ( acc -- acc' )
+label{name=rx_one_bit}
+/\ f18a.call{addr=delay_full}
+/\ f18a.shr
+/\ f18a.fetchb
+/\ lit.hex18{value=0x20000}
+/\ f18a.and
+/\ f18a.xor
+/\ f18a.ret
+
+/\
+
+-- delay_d: one unext loop of d iters (loads d from RAM[0x3E])
+-- ~4d cycles (nop nop nop unext per iter)
+label{name=delay_d}
+/\ lit.hex18{value=0x3E}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.unext
+/\ f18a.ret
+
+/\
+
+-- delay_full: two delay_d loops = ~8d cycles = 1 baud period
+label{name=delay_full}
+/\ f18a.call{addr=delay_d}
+/\ f18a.call{addr=delay_d}
+/\ f18a.ret
+
+/\
+
+-- emit8: send 8 bits LSB-first with start/stop bits
+-- ( byte -- )
+label{name=emit8}
+/\ lit.hex18{value=0}
+/\ f18a.call{addr=emit1}
+/\ lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=bit_loop}
+/\ f18a.dup
+/\ f18a.call{addr=emit1}
+/\ f18a.shr
+/\ f18a.next{addr=bit_loop}
+/\ lit.hex18{value=1}
+/\ f18a.call{addr=emit1}
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- emit1: drive one bit, delay one baud period
+-- ( bit -- )  (bit & 1) XOR 3 → !b, then delay_full
+label{name=emit1}
+/\ lit.hex18{value=1}
+/\ f18a.and
+/\ lit.hex18{value=3}
+/\ f18a.xor
+/\ f18a.storeb
+/\ f18a.jump{addr=delay_full}

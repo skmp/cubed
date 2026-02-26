@@ -46,6 +46,7 @@ import sampleRSX from '../../../samples/RSX.cube?raw';
 import sampleRSA from '../../../samples/RSA.cube?raw';
 import sampleRSC from '../../../samples/RSC.cube?raw';
 import sampleEcho from '../../../samples/ECHO.cube?raw';
+import sampleEcho2 from '../../../samples/ECHO2.cube?raw';
 import sampleHello from '../../../samples/HELLO.cube?raw';
 import sampleHello2 from '../../../samples/HELLO2.cube?raw';
 import sampleHelloPF from '../../../samples/HELLO-PF.cube?raw';
@@ -59,6 +60,7 @@ const CUBE_SAMPLES: Record<string, string> = {
   'HELLO2 (Port B, bit-bang)': sampleHello2,
   'HELLO (Serial)': sampleHello,
   'ECHO (Serial RX/TX)': sampleEcho,
+  'ECHO2 (Serial RX/TX, asm)': sampleEcho2,
   'RSC (Serial TX)': sampleRSC,
   'RSA (Delta VCO)': sampleRSA,
   'RSX (Shor N=15)': sampleRSX,

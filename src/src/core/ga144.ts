@@ -411,7 +411,7 @@ export class GA144 {
    */
   sendSerialInput(bytes: number[]): void {
     if (bytes.length === 0) return;
-    const bits = SerialBits.buildBits(bytes, GA144.BOOT_BAUD);
+    const bits = SerialBits.dataBits(bytes, GA144.BOOT_BAUD);
     this.enqueueSerialBits(708, bits);
   }
 

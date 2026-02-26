@@ -277,10 +277,18 @@ function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymb
       // Backward reference — label already defined
       targetAddr = knownAddr;
     } else {
-      // Forward reference — emit placeholder, resolve later
-      ctx.builder.addForwardRef(labelName);
-      ctx.builder.emitJump(sym.opcode!, 0);
-      return;
+      // Check if it's a ROM function symbol with a known address
+      const addrSym = ctx.resolved.symbols.get(labelName);
+      if (addrSym && addrSym.kind === SymbolKind.ROM_FUNC && addrSym.romAddr !== undefined) {
+        targetAddr = addrSym.romAddr;
+        // ROM addresses (>0x80) need slot 0 for 10-bit range — flush if needed
+        ctx.builder.flushWithJump();
+      } else {
+        // Forward reference — emit placeholder, resolve later
+        ctx.builder.addForwardRef(labelName);
+        ctx.builder.emitJump(sym.opcode!, 0);
+        return;
+      }
     }
   } else if (relArg && relArg.value.kind === 'literal') {
     // Relative: flush to get accurate location counter, then add offset
