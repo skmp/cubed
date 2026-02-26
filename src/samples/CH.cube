@@ -31,14 +31,14 @@
 -- Layout (640x480):
 --   Flag: 256x256 at (192,112)-(447,367)
 --   Horizontal bar: 160x64 at (240,208)-(399,271)
---   Vertical bar: 64x160 at (288,152)-(351,311)
+--   Vertical bar: 64x160 at (288,152)-(351,327)
 --
 -- Row breakdown for G/B channels (480 rows):
 --   Rows 0-151:   black (152 rows)
 --   Rows 152-207: vertical bar only (56 rows)
 --   Rows 208-271: both bars (64 rows)
---   Rows 272-311: vertical bar only (40 rows)
---   Rows 312-479: black (168 rows)
+--   Rows 272-327: vertical bar only (56 rows)
+--   Rows 328-479: black (152 rows)
 
 -- ============================================================
 -- RED FEEDER (node 116)
@@ -57,15 +57,20 @@ lit.hex18{value=0}
 
 /\
 
--- Rows 0-111: 112*640 = 71680 black pixels
+-- Rows 0-111: 112*640 = 71680 black pixels (NOPs for timing parity)
 label{name=top}
 /\ lit.hex18{value=71679}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f1}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f1}
 /\ f18a.drop
 
 /\
@@ -77,38 +82,53 @@ lit.hex18{value=255}
 
 /\
 
--- 192 black
+-- 192 black (NOPs for timing parity with G/B feeders)
 lit.hex18{value=191}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f2}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f2}
 /\ f18a.drop
 
 /\
 
--- 256 red
+-- 256 red (NOPs for timing parity with G/B feeders)
 lit.hex18{value=255}
 /\ f18a.push
 /\ lit.hex18{value=0x0AA}
 /\ label{name=f3}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f3}
 /\ f18a.drop
 
 /\
 
--- 192 black
+-- 192 black (NOPs for timing parity with G/B feeders)
 lit.hex18{value=191}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f4}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f4}
 /\ f18a.drop
 
 /\
@@ -117,14 +137,19 @@ f18a.next{addr=row}
 
 /\
 
--- Rows 368-479: 112*640 = 71680 black pixels
+-- Rows 368-479: 112*640 = 71680 black pixels (NOPs for timing parity)
 lit.hex18{value=71679}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f5}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f5}
 /\ f18a.drop
 
 /\
@@ -506,21 +531,28 @@ lit.hex18{value=0x175}
 
 /\
 
--- Rows 272-311: 40 rows, vertical bar pattern (288 black + 64 white + 288 black)
-lit.hex18{value=39}
+-- Rows 272-327: 56 rows, vertical bar (277 black + 64 white + 299 black)
+-- NOPs slow local generation to match relay pipeline timing.
+-- Pixel counts shifted 11px left to compensate for NOP-induced constant offset.
+lit.hex18{value=55}
 /\ f18a.push
 /\ label{name=vbar}
 
 /\
 
--- 288 black
-lit.hex18{value=287}
+-- 277 black
+lit.hex18{value=276}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f1}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f1}
 /\ f18a.drop
 
 /\
@@ -531,20 +563,30 @@ lit.hex18{value=63}
 /\ lit.hex18{value=0x0AA}
 /\ label{name=f2}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f2}
 /\ f18a.drop
 
 /\
 
--- 288 black
-lit.hex18{value=287}
+-- 299 black
+lit.hex18{value=298}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f3}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f3}
 /\ f18a.drop
 
 /\
@@ -553,14 +595,19 @@ f18a.next{addr=vbar}
 
 /\
 
--- Rows 312-479: 168*640 = 107520 black pixels (single fill)
-lit.hex18{value=107519}
+-- Rows 328-479: 152*640 = 97280 black pixels
+lit.hex18{value=97279}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f4}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f4}
 /\ f18a.drop
 
 /\
@@ -777,42 +824,62 @@ lit.hex18{value=0x175}
 
 /\
 
--- Rows 272-311: 40 rows, vertical bar (288 black + 64 white + 288 black)
-lit.hex18{value=39}
+-- Rows 272-327: 56 rows, vertical bar (277 black + 64 white + 299 black)
+-- NOPs slow local generation to match relay pipeline timing.
+-- Pixel counts shifted 11px left to compensate for NOP-induced constant offset.
+lit.hex18{value=55}
 /\ f18a.push
 /\ label{name=vbar}
 
 /\
 
-lit.hex18{value=287}
+-- 277 black
+lit.hex18{value=276}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f1}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f1}
 /\ f18a.drop
 
 /\
 
+-- 64 white
 lit.hex18{value=63}
 /\ f18a.push
 /\ lit.hex18{value=0x0AA}
 /\ label{name=f2}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f2}
 /\ f18a.drop
 
 /\
 
-lit.hex18{value=287}
+-- 299 black
+lit.hex18{value=298}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f3}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f3}
 /\ f18a.drop
 
 /\
@@ -821,14 +888,19 @@ f18a.next{addr=vbar}
 
 /\
 
--- Rows 312-479: 168*640 = 107520 black pixels
-lit.hex18{value=107519}
+-- Rows 328-479: 152*640 = 97280 black pixels
+lit.hex18{value=97279}
 /\ f18a.push
 /\ lit.hex18{value=0x155}
 /\ label{name=f4}
 /\ f18a.dup
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.storeb
-/\ f18a.unext
+/\ f18a.next{addr=f4}
 /\ f18a.drop
 
 /\
