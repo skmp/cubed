@@ -1,218 +1,880 @@
--- Swiss Flag (CH) 256x256 VGA Output (EVB002 7-node architecture)
+-- Swiss Flag (CH) 640x480 VGA Output — Full Cross
 -- Renders a Swiss flag centered on a 640x480 framebuffer.
--- Red square with white cross bar (simplified: horizontal bar only).
--- Full cross requires more code than 64-word RAM allows per node.
+-- Red 256x256 square with white cross (both horizontal and vertical bars).
 --
--- Architecture: feeder-std.relay pipeline for synchronized RGB output.
---   Feeder nodes (116, 616, 716) generate pixel data using std.fill{}
---   with B redirected to the east port (RIGHT=0x1D5 for even-x nodes).
---   DAC std.relay nodes (117, 617, 717) read from west (RIGHT=0x1D5 for
---   odd-x nodes) and write to IO.
---   R std.relay (117) signals sync node (217) after each row for HSYNC.
+-- Written in raw F18A assembly (f18a.*, lit.*, label{}).
+--
+-- Architecture: 11-node feeder-relay pipeline for synchronized RGB output.
+--   R channel: feeder 116 → relay DAC 117 (+ sync trigger to 217)
+--   G channel: upstream feeder 615 → main feeder 616 → relay DAC 617
+--   B channel: upstream feeder 715 → main feeder 716 → relay DAC 717
+--   Sync: node 217 receives row-end signals from 117, emits HSYNC/VSYNC
+--
+-- G/B channels are split across 2 feeder nodes each because the full
+-- cross pattern (5 distinct row regions) exceeds 64-word RAM per node.
+-- For all-uniform row regions, a single fill with count=rows*640 avoids
+-- an outer loop, saving ~4 words per region.
 --
 -- EVB002 VGA wiring:
---   Node 117 DAC (117.ao) -> R channel
---   Node 617 DAC (617.ao) -> G channel
---   Node 717 DAC (717.ao) -> B channel
---   Node 217 pin17 (GPIO) -> HSYNC / VSYNC
+--   Node 117 DAC (117.ao) → R channel
+--   Node 617 DAC (617.ao) → G channel
+--   Node 717 DAC (717.ao) → B channel
+--   Node 217 pin17 (GPIO) → HSYNC / VSYNC
 --
 -- DAC XOR encoding: write (desired ^ 0x155) to IO register.
 --   Zero output:  0x000 ^ 0x155 = 0x155
 --   Max output:   0x1FF ^ 0x155 = 0x0AA
 --
--- LUDR port mapping (x=16 even, x=17 odd, y=1 odd, y=2 even):
---   116 east -> RIGHT = 0x1D5
---   117 west -> RIGHT = 0x1D5
---   117 north -> UP = 0x145
---   217 south -> UP = 0x145
---
 -- Layout (640x480):
 --   Flag: 256x256 at (192,112)-(447,367)
---   Cross bar: 160x64 at (240,208)-(399,271)
+--   Horizontal bar: 160x64 at (240,208)-(399,271)
+--   Vertical bar: 64x160 at (288,152)-(351,311)
 --
--- Row breakdown (480 rows):
---   Rows 0-111:   black (112 rows)
---   Rows 112-207: red flag, no bar (96 rows)
---   Rows 208-271: red flag + white bar center (64 rows)
---   Rows 272-367: red flag, no bar (96 rows)
---   Rows 368-479: black (112 rows)
-
--- ============================================================
--- RED DAC RELAY (node 117)
--- ============================================================
--- Reads pixel data from west (RIGHT=0x1D5) and writes to DAC.
--- After each row, signals sync node (217) via north (UP=0x145).
-
-#include std
-
-/\
-
-node 117
-
-/\
-
-std.forever{}
-/\ std.loop{n=480}
-/\ std.relay{port=0x1D5, count=640}
-/\ std.send{port=0x145, value=0}
-/\ std.again{}
-/\ std.repeat{}
-
--- ============================================================
--- GREEN DAC RELAY (node 617)
--- ============================================================
-
-node 617
-
-/\
-
-std.forever{}
-/\ std.loop{n=480}
-/\ std.relay{port=0x1D5, count=640}
-/\ std.again{}
-/\ std.repeat{}
-
--- ============================================================
--- BLUE DAC RELAY (node 717)
--- ============================================================
-
-node 717
-
-/\
-
-std.forever{}
-/\ std.loop{n=480}
-/\ std.relay{port=0x1D5, count=640}
-/\ std.again{}
-/\ std.repeat{}
+-- Row breakdown for G/B channels (480 rows):
+--   Rows 0-151:   black (152 rows)
+--   Rows 152-207: vertical bar only (56 rows)
+--   Rows 208-271: both bars (64 rows)
+--   Rows 272-311: vertical bar only (40 rows)
+--   Rows 312-479: black (168 rows)
 
 -- ============================================================
 -- RED FEEDER (node 116)
 -- ============================================================
--- R = max (0x0AA) for entire 256x256 flag, zero (0x155) elsewhere.
+-- R = max (0x0AA) for entire 256x256 flag area (both red and white
+-- cross areas have R=max). Black (0x155) outside flag.
+-- B register set to east port (RIGHT=0x1D5 for even-x node).
 
 node 116 { b=0x1D5 }
 
 /\
 
-std.forever{}
+-- Sync: send "go" signal east to 117
+lit.hex18{value=0}
+/\ f18a.storeb
 
 /\
 
--- Black above flag: 112 rows
-std.loop{n=112}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
+-- Rows 0-111: 112*640 = 71680 black pixels
+label{name=top}
+/\ lit.hex18{value=71679}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f1}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
 
 /\
 
--- Flag area: 256 rows (R is max across entire flag width)
-std.loop{n=256}
-/\ std.fill{value=0x155, count=192}
-/\ std.fill{value=0x0AA, count=256}
-/\ std.fill{value=0x155, count=192}
-/\ std.again{}
+-- Rows 112-367: 256 rows, per-row pattern (192 black + 256 red + 192 black)
+lit.hex18{value=255}
+/\ f18a.push
+/\ label{name=row}
 
 /\
 
--- Black below flag: 112 rows
-std.loop{n=112}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
+-- 192 black
+lit.hex18{value=191}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f2}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
 
-/\ std.repeat{}
+/\
+
+-- 256 red
+lit.hex18{value=255}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f3}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 192 black
+lit.hex18{value=191}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f4}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=row}
+
+/\
+
+-- Rows 368-479: 112*640 = 71680 black pixels
+lit.hex18{value=71679}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f5}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.jump{addr=top}
 
 -- ============================================================
--- GREEN FEEDER (node 616)
+-- RED DAC RELAY (node 117)
 -- ============================================================
--- G = max (0x0AA) for white bar only, zero (0x155) elsewhere.
+-- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
+-- After each row of 640 pixels, signals sync node 217 via north (UP=0x145).
 
-node 616 { b=0x1D5 }
-
-/\
-
-std.forever{}
+node 117
 
 /\
 
--- Black + red top: 208 rows (112 black + 96 red, both G=0)
-std.loop{n=208}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
+-- Wait for sync "go" signal from 116
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
 
 /\
 
--- White bar rows: 64 rows
-std.loop{n=64}
-/\ std.fill{value=0x155, count=240}
-/\ std.fill{value=0x0AA, count=160}
-/\ std.fill{value=0x155, count=240}
-/\ std.again{}
+label{name=frame}
 
 /\
 
--- Red bottom + black: 208 rows (96 red + 112 black, both G=0)
-std.loop{n=208}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
-
-/\ std.repeat{}
-
--- ============================================================
--- BLUE FEEDER (node 716)
--- ============================================================
--- B = same as G (white bar only).
-
-node 716 { b=0x1D5 }
+-- 480 rows
+lit.hex18{value=479}
+/\ f18a.push
 
 /\
 
-std.forever{}
+label{name=row}
 
 /\
 
--- Black + red top: 208 rows
-std.loop{n=208}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
+-- Relay 640 pixels: read from west port, write to IO
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ lit.hex18{value=639}
+/\ f18a.push
+/\ label{name=px}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=px}
 
 /\
 
--- White bar rows: 64 rows
-std.loop{n=64}
-/\ std.fill{value=0x155, count=240}
-/\ std.fill{value=0x0AA, count=160}
-/\ std.fill{value=0x155, count=240}
-/\ std.again{}
+-- Signal sync node 217 via north (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
 
 /\
 
--- Red bottom + black: 208 rows
-std.loop{n=208}
-/\ std.fill{value=0x155, count=640}
-/\ std.again{}
+f18a.next{addr=row}
 
-/\ std.repeat{}
+/\
+
+f18a.jump{addr=frame}
 
 -- ============================================================
 -- SYNC SIGNALS (node 217 pin17 GPIO)
 -- ============================================================
--- Waits for signal from R std.relay (117) after each row,
--- then emits HSYNC. VSYNC at end of frame.
+-- Waits for signal from R relay (117) after each row via south (UP=0x145),
+-- emits HSYNC, then broadcasts "next row" north to 317 (DOWN=0x115)
+-- so that G/B DAC relays (617, 717) stay row-synchronized.
+-- VSYNC at end of frame, also broadcast north.
 
 node 217
 
 /\
 
-std.forever{}
-/\ std.loop{n=480}
-/\ std.recv{port=0x145}
-/\ std.send{port=0x15D, value=0x20000}
-/\ std.again{}
+label{name=frame}
 
 /\
 
--- End of frame: VSYNC
-std.send{port=0x15D, value=0x30000}
+-- 480 rows
+lit.hex18{value=479}
+/\ f18a.push
 
-/\ std.repeat{}
+/\
+
+label{name=row}
+
+/\
+
+-- Wait for signal from 117 via south (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- HSYNC: pin17 drive low = 0x20000 (write to B=0x15D)
+lit.hex18{value=0x20000}
+/\ f18a.storeb
+
+/\
+
+-- Broadcast row sync north to 317 (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+f18a.next{addr=row}
+
+/\
+
+-- VSYNC: pin17 drive high = 0x30000 (write to B=0x15D)
+-- No broadcast for VSYNC — 617/717 loop exactly 480 rows matching the row syncs
+lit.hex18{value=0x30000}
+/\ f18a.storeb
+
+/\
+
+f18a.jump{addr=frame}
+
+-- ============================================================
+-- SYNC RELAY NODES (317, 417, 517)
+-- ============================================================
+-- Relay row sync signals from 217 northward to 617.
+-- Each reads from south, writes to north, forever.
+
+-- Node 317 (y=3 odd): south=DOWN(0x115), north=UP(0x145)
+node 317
+
+/\
+
+label{name=loop}
+
+/\
+
+-- Recv from south (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- Send north (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+f18a.jump{addr=loop}
+
+-- Node 417 (y=4 even): south=UP(0x145), north=DOWN(0x115)
+node 417
+
+/\
+
+label{name=loop}
+
+/\
+
+-- Recv from south (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- Send north (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+f18a.jump{addr=loop}
+
+-- Node 517 (y=5 odd): south=DOWN(0x115), north=UP(0x145)
+node 517
+
+/\
+
+label{name=loop}
+
+/\
+
+-- Recv from south (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- Send north (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+f18a.jump{addr=loop}
+
+-- ============================================================
+-- GREEN UPSTREAM FEEDER (node 615)
+-- ============================================================
+-- Generates rows 0-271 for G channel (top portion of frame).
+-- Sends east to node 616 via LEFT=0x175 (odd-x node).
+
+node 615 { b=0x175 }
+
+/\
+
+label{name=top}
+
+/\
+
+-- Rows 0-151: 152*640 = 97280 black pixels (single fill, no outer loop)
+lit.hex18{value=97279}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f1}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- Rows 152-207: 56 rows, vertical bar pattern (288 black + 64 white + 288 black)
+lit.hex18{value=55}
+/\ f18a.push
+/\ label{name=vbar1}
+
+/\
+
+-- 288 black
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f2}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 64 white
+lit.hex18{value=63}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f3}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 288 black
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f4}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=vbar1}
+
+/\
+
+-- Rows 208-271: 64 rows, both bars (240 black + 160 white + 240 black)
+lit.hex18{value=63}
+/\ f18a.push
+/\ label{name=both}
+
+/\
+
+-- 240 black
+lit.hex18{value=239}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f5}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 160 white
+lit.hex18{value=159}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f6}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 240 black
+lit.hex18{value=239}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f7}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=both}
+
+/\
+
+f18a.jump{addr=top}
+
+-- ============================================================
+-- GREEN MAIN FEEDER (node 616)
+-- ============================================================
+-- Relays rows 0-271 from node 615 (via west LEFT=0x175), then generates
+-- rows 272-479 locally. Sends east to 617 via RIGHT=0x1D5 (even-x).
+
+node 616 { b=0x1D5 }
+
+/\
+
+-- Sync: send a "go" signal east to 617 so it doesn't start relaying
+-- before we're ready (617 may boot and start running before us).
+lit.hex18{value=0}
+/\ f18a.storeb
+
+/\
+
+label{name=top}
+
+/\
+
+-- Relay rows 0-271 from 615: 272*640 = 174080 values
+lit.hex18{value=0x175}
+/\ f18a.astore
+/\ lit.hex18{value=174079}
+/\ f18a.push
+/\ label{name=relay}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=relay}
+
+/\
+
+-- Rows 272-311: 40 rows, vertical bar pattern (288 black + 64 white + 288 black)
+lit.hex18{value=39}
+/\ f18a.push
+/\ label{name=vbar}
+
+/\
+
+-- 288 black
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f1}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 64 white
+lit.hex18{value=63}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f2}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- 288 black
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f3}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=vbar}
+
+/\
+
+-- Rows 312-479: 168*640 = 107520 black pixels (single fill)
+lit.hex18{value=107519}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f4}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.jump{addr=top}
+
+-- ============================================================
+-- GREEN DAC RELAY (node 617)
+-- ============================================================
+-- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
+-- After each row, waits for row sync from 517 south (UP=0x145),
+-- then forwards sync north to 717 (DOWN=0x115).
+
+node 617
+
+/\
+
+-- Wait for sync "go" signal from 616 (may boot before 616 is loaded)
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+label{name=frame}
+
+/\
+
+lit.hex18{value=479}
+/\ f18a.push
+
+/\
+
+label{name=row}
+
+/\
+
+-- Relay 640 pixels: read from west (RIGHT=0x1D5)
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ lit.hex18{value=639}
+/\ f18a.push
+/\ label{name=px}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=px}
+
+/\
+
+-- Wait for row sync from 517 south (UP=0x145)
+lit.hex18{value=0x145}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+-- Forward sync north to 717 (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ lit.hex18{value=0}
+/\ f18a.store
+
+/\
+
+f18a.next{addr=row}
+
+/\
+
+f18a.jump{addr=frame}
+
+-- ============================================================
+-- BLUE UPSTREAM FEEDER (node 715)
+-- ============================================================
+-- Identical pattern to G upstream feeder (615) but on row 7.
+-- Sends east to node 716 via LEFT=0x175 (odd-x node).
+
+node 715 { b=0x175 }
+
+/\
+
+label{name=top}
+
+/\
+
+-- Rows 0-151: 152*640 = 97280 black pixels
+lit.hex18{value=97279}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f1}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+-- Rows 152-207: 56 rows, vertical bar (288 black + 64 white + 288 black)
+lit.hex18{value=55}
+/\ f18a.push
+/\ label{name=vbar1}
+
+/\
+
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f2}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=63}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f3}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f4}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=vbar1}
+
+/\
+
+-- Rows 208-271: 64 rows, both bars (240 black + 160 white + 240 black)
+lit.hex18{value=63}
+/\ f18a.push
+/\ label{name=both}
+
+/\
+
+lit.hex18{value=239}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f5}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=159}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f6}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=239}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f7}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=both}
+
+/\
+
+f18a.jump{addr=top}
+
+-- ============================================================
+-- BLUE MAIN FEEDER (node 716)
+-- ============================================================
+-- Relays rows 0-271 from 715 (via west LEFT=0x175), then generates
+-- rows 272-479 locally. Sends east to 717 via RIGHT=0x1D5 (even-x).
+
+node 716 { b=0x1D5 }
+
+/\
+
+-- Sync: send "go" signal east to 717
+lit.hex18{value=0}
+/\ f18a.storeb
+
+/\
+
+label{name=top}
+
+/\
+
+-- Relay rows 0-271 from 715: 272*640 = 174080 values
+lit.hex18{value=0x175}
+/\ f18a.astore
+/\ lit.hex18{value=174079}
+/\ f18a.push
+/\ label{name=relay}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=relay}
+
+/\
+
+-- Rows 272-311: 40 rows, vertical bar (288 black + 64 white + 288 black)
+lit.hex18{value=39}
+/\ f18a.push
+/\ label{name=vbar}
+
+/\
+
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f1}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=63}
+/\ f18a.push
+/\ lit.hex18{value=0x0AA}
+/\ label{name=f2}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+lit.hex18{value=287}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f3}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=vbar}
+
+/\
+
+-- Rows 312-479: 168*640 = 107520 black pixels
+lit.hex18{value=107519}
+/\ f18a.push
+/\ lit.hex18{value=0x155}
+/\ label{name=f4}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.unext
+/\ f18a.drop
+
+/\
+
+f18a.jump{addr=top}
+
+-- ============================================================
+-- BLUE DAC RELAY (node 717)
+-- ============================================================
+-- Reads pixel data from west (RIGHT=0x1D5 for odd-x) and writes to DAC.
+-- After each row, waits for row sync from 617 south (DOWN=0x115).
+
+node 717
+
+/\
+
+-- Wait for sync "go" signal from 716
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+label{name=frame}
+
+/\
+
+lit.hex18{value=479}
+/\ f18a.push
+
+/\
+
+label{name=row}
+
+/\
+
+-- Relay 640 pixels: read from west (RIGHT=0x1D5)
+lit.hex18{value=0x1D5}
+/\ f18a.astore
+/\ lit.hex18{value=639}
+/\ f18a.push
+/\ label{name=px}
+/\ f18a.fetch
+/\ f18a.storeb
+/\ f18a.next{addr=px}
+
+/\
+
+-- Wait for row sync from 617 south (DOWN=0x115)
+lit.hex18{value=0x115}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.drop
+
+/\
+
+f18a.next{addr=row}
+
+/\
+
+f18a.jump{addr=frame}
