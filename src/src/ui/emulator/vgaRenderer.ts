@@ -26,6 +26,9 @@ export interface VgaRenderState {
   lastDrawnSeq: number;
   forceFullRedraw: boolean;
   lastHasSyncSignals: boolean | null;
+  /** Duration of the last fully rendered row (HSYNC-delimited). Used to
+   *  correctly time-sample partial rows that span chunk boundaries. */
+  lastRowDuration: number;
 }
 
 export function createRenderState(): VgaRenderState {
@@ -35,6 +38,7 @@ export function createRenderState(): VgaRenderState {
     lastDrawnSeq: 0,
     forceFullRedraw: false,
     lastHasSyncSignals: null,
+    lastRowDuration: 0,
   };
 }
 
@@ -63,6 +67,8 @@ interface RowData {
   startTs: number;
   endTs: number;
   isAfterVsync: boolean;
+  /** True if this row was not terminated by HSYNC/VSYNC (partial data). */
+  isPartial: boolean;
 }
 
 export interface RenderResult {
@@ -117,8 +123,16 @@ export function renderIoWrites(
 
   // Collect rows of timestamped channel writes between HSYNC/VSYNC boundaries.
   const rows: RowData[] = [];
-  let currentRow: RowData = { rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1, isAfterVsync: false };
+  const newRow = (afterVsync: boolean): RowData => ({
+    rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1,
+    isAfterVsync: afterVsync, isPartial: false,
+  });
+
+  let currentRow = newRow(false);
   let pendingHsyncTs = -1;
+  /** Seq position after the last HSYNC/VSYNC — the start of the current
+   *  incomplete row. Used to roll back lastDrawnSeq for partial rows. */
+  let lastCompletedSeq = seq;
 
   for (let s = seq; s < ioWriteSeq; s++) {
     const offset = s - startSeq;
@@ -136,7 +150,8 @@ export function renderIoWrites(
           rows.push(currentRow);
         }
         pendingHsyncTs = -1;
-        currentRow = { rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1, isAfterVsync: true };
+        lastCompletedSeq = s + 1;
+        currentRow = newRow(true);
         continue;
       }
 
@@ -155,7 +170,8 @@ export function renderIoWrites(
         currentRow.rWrites.push([ts, decoded]);
         currentRow.endTs = pendingHsyncTs;
         rows.push(currentRow);
-        currentRow = { rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1, isAfterVsync: false };
+        lastCompletedSeq = s + 1;
+        currentRow = newRow(false);
         pendingHsyncTs = -1;
         continue;
       } else {
@@ -164,7 +180,8 @@ export function renderIoWrites(
         if (currentRow.rWrites.length > 0 || currentRow.gWrites.length > 0 || currentRow.bWrites.length > 0) {
           rows.push(currentRow);
         }
-        currentRow = { rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1, isAfterVsync: false };
+        lastCompletedSeq = s;
+        currentRow = newRow(false);
         pendingHsyncTs = -1;
       }
     }
@@ -182,12 +199,15 @@ export function renderIoWrites(
     }
   }
 
-  // Push final in-progress row (if any)
+  // Push final in-progress row as partial (no HSYNC/VSYNC delimiter yet).
+  // Use the previous row's duration for time-sampling so it renders at the
+  // correct pixel positions instead of being stretched across 640 columns.
   if (currentRow.rWrites.length > 0 || currentRow.gWrites.length > 0 || currentRow.bWrites.length > 0) {
     const lastR = currentRow.rWrites.length > 0 ? currentRow.rWrites[currentRow.rWrites.length - 1][0] : 0;
     const lastG = currentRow.gWrites.length > 0 ? currentRow.gWrites[currentRow.gWrites.length - 1][0] : 0;
     const lastB = currentRow.bWrites.length > 0 ? currentRow.bWrites[currentRow.bWrites.length - 1][0] : 0;
     currentRow.endTs = Math.max(lastR, lastG, lastB);
+    currentRow.isPartial = true;
     rows.push(currentRow);
   }
 
@@ -206,6 +226,47 @@ export function renderIoWrites(
     const rowStart = row.startTs;
     const rowEnd = row.endTs;
     const rowDuration = rowEnd - rowStart;
+
+    if (row.isPartial && state.lastRowDuration > 0) {
+      // Partial row (no HSYNC yet): use previous row's duration to calculate
+      // time-per-pixel so data renders at the correct x positions. Only render
+      // columns covered by the partial data, leaving the rest untouched.
+      const pixelDt = state.lastRowDuration / texW;
+      let rIdx = 0, gIdx = 0, bIdx = 0;
+      let curR = 0, curG = 0, curB = 0;
+      // Compute how many columns the partial data covers based on the
+      // reference row duration. Render at least those columns; if data
+      // happens to extend further (same row, just missing HSYNC), render all.
+      const dataCols = Math.min(texW, Math.ceil((rowEnd - rowStart) / pixelDt) + 1);
+
+      for (let x = 0; x < dataCols; x++) {
+        const sampleT = rowStart + (x + 1) * pixelDt;
+
+        while (rIdx < row.rWrites.length && row.rWrites[rIdx][0] <= sampleT) {
+          curR = row.rWrites[rIdx][1];
+          rIdx++;
+        }
+        while (gIdx < row.gWrites.length && row.gWrites[gIdx][0] <= sampleT) {
+          curG = row.gWrites[gIdx][1];
+          gIdx++;
+        }
+        while (bIdx < row.bWrites.length && row.bWrites[bIdx][0] <= sampleT) {
+          curB = row.bWrites[bIdx][1];
+          bIdx++;
+        }
+
+        const texOff = (cursor.y * texW + x) * 4;
+        texData[texOff]     = curR;
+        texData[texOff + 1] = curG;
+        texData[texOff + 2] = curB;
+        texData[texOff + 3] = 255;
+      }
+      // Don't advance cursor.y — this row will be re-rendered completely
+      // when the next chunk delivers the HSYNC that ends it.
+      // Roll back lastDrawnSeq so the partial row's data is re-processed.
+      state.lastDrawnSeq = lastCompletedSeq;
+      return { dirty: true, vsyncCount };
+    }
 
     if (rowDuration <= 0) {
       // All writes in the same instant — just render them sequentially
@@ -238,6 +299,7 @@ export function renderIoWrites(
         texData[texOff + 2] = curB;
         texData[texOff + 3] = 255;
       }
+      state.lastRowDuration = rowDuration;
     }
 
     cursor.x = 0;
