@@ -264,7 +264,10 @@ export class F18ANode {
 
     const writingNode = this.writingNodes[port];
     if (writingNode) {
-      // Value was ready
+      // Value was ready — synchronize simulated time on handshake
+      const maxTime = Math.max(this.thermal.simulatedTime, writingNode.thermal.simulatedTime);
+      this.thermal.simulatedTime = maxTime;
+      writingNode.thermal.simulatedTime = maxTime;
       this.fetchedData = this.portVals[port]!;
       this.writingNodes[port] = null;
       writingNode.finishPortWrite();
@@ -292,6 +295,10 @@ export class F18ANode {
       } else {
         const writingNode = this.writingNodes[port];
         if (writingNode && !done) {
+          // Synchronize simulated time on handshake
+          const maxTime = Math.max(this.thermal.simulatedTime, writingNode.thermal.simulatedTime);
+          this.thermal.simulatedTime = maxTime;
+          writingNode.thermal.simulatedTime = maxTime;
           this.fetchedData = this.portVals[port]!;
           this.writingNodes[port] = null;
           writingNode.finishPortWrite();
@@ -327,6 +334,10 @@ export class F18ANode {
   private portWrite(port: PortIndex, value: number): boolean {
     const readingNode = this.readingNodes[port];
     if (readingNode) {
+      // Synchronize simulated time on handshake
+      const maxTime = Math.max(this.thermal.simulatedTime, readingNode.thermal.simulatedTime);
+      this.thermal.simulatedTime = maxTime;
+      readingNode.thermal.simulatedTime = maxTime;
       this.readingNodes[port] = null;
       readingNode.finishPortRead(value);
       return true;
@@ -345,6 +356,10 @@ export class F18ANode {
     for (const port of ports) {
       const readingNode = this.readingNodes[port];
       if (readingNode) {
+        // Synchronize simulated time on handshake
+        const maxTime = Math.max(this.thermal.simulatedTime, readingNode.thermal.simulatedTime);
+        this.thermal.simulatedTime = maxTime;
+        readingNode.thermal.simulatedTime = maxTime;
         this.readingNodes[port] = null;
         readingNode.finishPortRead(value);
       }
