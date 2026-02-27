@@ -146,8 +146,8 @@ export function useEmulator() {
     }
   }, [language, post]);
 
-  const sendSerialInput = useCallback((bytes: number[]) => {
-    post({ type: 'sendSerialInput', bytes });
+  const sendSerialInput = useCallback((bytes: number[], baud: number) => {
+    post({ type: 'sendSerialInput', bytes, baud });
   }, [post]);
 
   const selectNode = useCallback((coord: number | null) => {

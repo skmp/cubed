@@ -186,7 +186,7 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
 
     case 'sendSerialInput':
       if (ga144) {
-        ga144.sendSerialInput(msg.bytes);
+        ga144.sendSerialInput(msg.bytes, msg.baud);
       }
       break;
   }

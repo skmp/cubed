@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
 import { Box, Typography } from '@mui/material';
 import { SERIAL_NODES } from '../../core/constants';
+import { GA144 } from '../../core/ga144';
+import { SerialBits } from '../../core/serial';
 import { readIoWrite, taggedCoord, taggedValue } from './vgaResolution';
 
 interface SerialOutputProps {
   ioWrites: number[];
+  ioWriteTimestamps: number[];
   ioWriteCount: number;
   ioWriteStart: number;
   ioWriteSeq: number;
+  baud: number;
 }
 
 const SCAN_WINDOW = 2_000_000;
@@ -29,12 +33,15 @@ function formatValue(v: number): string {
 }
 
 export const SerialOutput: React.FC<SerialOutputProps> = ({
-  ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq,
+  ioWrites, ioWriteTimestamps, ioWriteCount, ioWriteStart, ioWriteSeq, baud,
 }) => {
   const text = useMemo(() => {
     const scanStart = Math.max(0, ioWriteCount - SCAN_WINDOW);
+    const scanCount = ioWriteCount - scanStart;
+    const scanStartIdx = ioWriteStart + scanStart;
     const parts: string[] = [];
 
+    // Collect tagged data values (asynctx protocol: bit 17 marks data)
     for (let i = scanStart; i < ioWriteCount; i++) {
       const tagged = readIoWrite(ioWrites, ioWriteStart, i);
       const coord = taggedCoord(tagged);
@@ -42,19 +49,28 @@ export const SerialOutput: React.FC<SerialOutputProps> = ({
 
       if (!SERIAL_NODES.has(coord)) continue;
 
-      let dataVal: number | null = null;
       if (rawVal & ASYNCTX_DATA_TAG) {
-        dataVal = rawVal & ~ASYNCTX_DATA_TAG;
-      } else if (rawVal > 3) {
-        dataVal = rawVal;
+        parts.push(formatValue(rawVal & ~ASYNCTX_DATA_TAG));
       }
+    }
 
-      if (dataVal !== null) parts.push(formatValue(dataVal));
+    // If no tagged data found, try bit-bang serial decoding on each serial node
+    if (parts.length === 0) {
+      for (const nodeCoord of SERIAL_NODES) {
+        const bits = GA144.ioWritesToBitsFromBuffer(
+          ioWrites, ioWriteTimestamps, scanStartIdx, scanCount, nodeCoord,
+        );
+        if (bits.length === 0) continue;
+        const decoded = SerialBits.decodeBits(bits, baud);
+        for (const b of decoded) {
+          parts.push(formatValue(b));
+        }
+      }
     }
 
     return parts.join('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq]);
+  }, [ioWrites, ioWriteTimestamps, ioWriteCount, ioWriteStart, ioWriteSeq, baud]);
 
   if (text.length === 0) return null;
 

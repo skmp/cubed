@@ -10,7 +10,7 @@ interface IoPanelProps {
   ioWriteCount: number;
   ioWriteStart: number;
   ioWriteSeq: number;
-  onSendSerialInput: (bytes: number[]) => void;
+  onSendSerialInput: (bytes: number[], baud: number) => void;
 }
 
 export const IoPanel: React.FC<IoPanelProps> = ({
@@ -22,13 +22,14 @@ export const IoPanel: React.FC<IoPanelProps> = ({
   onSendSerialInput,
 }) => {
   const [serialText, setSerialText] = useState('');
+  const [baudRate, setBaudRate] = useState(921600);
 
   const sendText = useCallback(() => {
     if (serialText.length === 0) return;
     const encoded = new TextEncoder().encode(serialText + '\n');
-    onSendSerialInput(Array.from(encoded));
+    onSendSerialInput(Array.from(encoded), baudRate);
     setSerialText('');
-  }, [serialText, onSendSerialInput]);
+  }, [serialText, baudRate, onSendSerialInput]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -53,11 +54,23 @@ export const IoPanel: React.FC<IoPanelProps> = ({
       )}
       <SerialOutput
         ioWrites={ioWrites}
+        ioWriteTimestamps={ioWriteTimestamps}
         ioWriteCount={ioWriteCount}
         ioWriteStart={ioWriteStart}
         ioWriteSeq={ioWriteSeq}
+        baud={baudRate}
       />
       <Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5, gap: 1 }}>
+        <TextField
+          size="small"
+          variant="outlined"
+          label="Baud"
+          type="number"
+          value={baudRate}
+          onChange={(e) => setBaudRate(Number(e.target.value) || 115200)}
+          sx={{ width: 100 }}
+          inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+        />
         <TextField
           size="small"
           variant="outlined"

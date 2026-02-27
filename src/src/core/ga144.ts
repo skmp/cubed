@@ -411,9 +411,9 @@ export class GA144 {
    * (as a terminal emulator would write to the COM port), and buildBits
    * applies the FTDI's inverted TXD polarity to the wire.
    */
-  sendSerialInput(bytes: number[]): void {
+  sendSerialInput(bytes: number[], baud: number = GA144.BOOT_BAUD): void {
     if (bytes.length === 0) return;
-    const bits = SerialBits.buildBits(bytes, GA144.BOOT_BAUD);
+    const bits = SerialBits.buildBits(bytes, baud);
     this.enqueueSerialBits(708, bits);
   }
 
@@ -423,20 +423,34 @@ export class GA144 {
    * are considered; data tags (bit 17 set, etc.) are skipped.
    */
   ioWritesToBits(nodeCoord: number): SerialBit[] {
-    const PIN1_BIT = 1; // bit 0: pin1 output enable (serial modulation)
     const count = this.ioWriteSeq - this.ioWriteStartSeq;
-    const cap = this.ioWriteBuffer.length;
+    return GA144.ioWritesToBitsFromBuffer(
+      this.ioWriteBuffer, this.ioWriteTimestamps,
+      this.ioWriteStart, count, nodeCoord,
+    );
+  }
+
+  /**
+   * Convert tagged IO writes + timestamps into SerialBit[] segments for a given node.
+   * Works on raw ring-buffer arrays — usable from both the GA144 instance and the UI.
+   */
+  static ioWritesToBitsFromBuffer(
+    ioWrites: number[], ioWriteTimestamps: number[],
+    ioWriteStart: number, ioWriteCount: number, nodeCoord: number,
+  ): SerialBit[] {
+    const PIN1_BIT = 1; // bit 0: pin1 output enable (serial modulation)
+    const cap = ioWrites.length;
 
     // Collect pin1 state transitions with timestamps
     const transitions: { t: number; value: boolean }[] = [];
-    for (let i = 0; i < count; i++) {
-      const pos = (this.ioWriteStart + i) % cap;
-      const tagged = this.ioWriteBuffer[pos];
+    for (let i = 0; i < ioWriteCount; i++) {
+      const pos = (ioWriteStart + i) % cap;
+      const tagged = ioWrites[pos];
       const coord = (tagged / 0x40000) | 0;
       if (coord !== nodeCoord) continue;
       const val = tagged & 0x3FFFF;
       if (val > 3) continue;
-      transitions.push({ t: this.ioWriteTimestamps[pos], value: (val & PIN1_BIT) !== 0 });
+      transitions.push({ t: ioWriteTimestamps[pos], value: (val & PIN1_BIT) !== 0 });
     }
 
     if (transitions.length === 0) return [];
