@@ -1334,17 +1334,23 @@ function emitAsyncTx(
   jmp('call', 0);                  // emit1(1) — stop bit (drive high)
   emit(';');                       // return from emit8
 
-  // === EMIT1: transmit one bit over IO ===
-  // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b
+  // === EMIT1: transmit one bit over IO with baud delay ===
+  // ( bit -- ) drives IO: (bit & 1) XOR 3 → !b, then delay ~750 cycles
   // F18A 'or' = XOR: bit=0 → 0b11 (drive high/idle), bit=1 → 0b10 (drive low)
-  // Note: on real hardware a ~865-cycle baud delay follows each !b. In the
-  // emulator that delay is omitted so results appear without millions of idle steps.
+  // Baud delay: ~375 iterations × ~2 cycles = ~750 cycles ≈ 921600 baud at 700MHz
   builder.label('__asynctx_emit1');
   lit(1);
   emit('and');                     // T = bit & 1
   lit(3);
   emit('or');                      // T = (bit & 1) XOR 3  (F18A 'or' = XOR)
   emit('!b');                      // drive IO pin, pop
+  lit(375);                        // baud delay count (~750 cycles at ~2 cycles/iter)
+  emit('push');                    // R = [delay_count, caller_ret, ...]
+  fwj();                           // flush — next word is the tight delay loop
+  emit('.');                       // slot 0: nop (unext target)
+  emit('.');                       // slot 1: nop
+  emit('.');                       // slot 2: nop
+  emit('unext');                   // slot 3: unext — loops to slot 0 of this word
   emit(';');                       // return from emit1
 
   // Resolve all forward refs within this builtin

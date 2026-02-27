@@ -6,6 +6,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import UsbIcon from '@mui/icons-material/Usb';
 import { registerArrayForthLanguage } from './arrayforthLang';
 import { registerCubeLanguage } from './cubeLang';
+import { SerialConsoleDialog } from './SerialConsoleDialog';
 import type { CompileError, CompiledNode } from '../../core/types';
 
 // Web Serial API type declarations
@@ -15,6 +16,7 @@ interface WebSerialPort {
   close(): Promise<void>;
   setSignals(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
   writable: WritableStream<Uint8Array> | null;
+  readable: ReadableStream<Uint8Array> | null;
 }
 interface Serial { requestPort(): Promise<WebSerialPort> }
 function getSerial(): Serial | null {
@@ -112,6 +114,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
   const [baudRate, setBaudRate] = useState(921600);
   const [serialProgress, setSerialProgress] = useState<number | null>(null);
   const [serialError, setSerialError] = useState<string | null>(null);
+  const [serialPort, setSerialPort] = useState<WebSerialPort | null>(null);
+  const [serialConsoleOpen, setSerialConsoleOpen] = useState(false);
 
   useEffect(() => {
     onCompileRef.current = onCompile;
@@ -195,13 +199,24 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
     let port: WebSerialPort | null = null;
     try {
       port = await serial.requestPort();
-      await port.open({ baudRate });
+      await port.open({ baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 64 });
       setSerialProgress(0);
       setSerialError(null);
+
+      // After open(), wait for FTDI TX line to settle to idle (LOW).
+      // A glitch during init could false-trigger the boot ROM's auto-baud.
+      await new Promise(r => setTimeout(r, 200));
+
+      // Reset chip via RTS → RESET- (active low) on EVB002.
+      // FT232R default: OS assert RTS → RTS# pin LOW → RESET- LOW = reset.
+      console.log('[serial] resetting chip via RTS');
       await port.setSignals({ requestToSend: true });
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 150));
       await port.setSignals({ requestToSend: false });
-      await new Promise(r => setTimeout(r, 100));
+      // Wait for boot ROM to reach async serial wait loop
+      await new Promise(r => setTimeout(r, 500));
+
+      console.log(`[serial] sending ${bootStreamBytes.length} bytes at ${baudRate} baud`);
       const writer = port.writable!.getWriter();
       const total = bootStreamBytes.length;
       let sent = 0;
@@ -212,8 +227,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
         setSerialProgress((sent / total) * 100);
       }
       writer.releaseLock();
-      await port.close();
+      // Wait for FTDI to finish clocking out all bytes before closing
+      const txTimeMs = Math.ceil((total * 10 * 1000) / baudRate) + 100;
+      console.log(`[serial] waiting ${txTimeMs}ms for TX drain`);
+      await new Promise(r => setTimeout(r, txTimeMs));
+      console.log('[serial] done, opening console');
       setSerialProgress(null);
+      setSerialPort(port);
+      setSerialConsoleOpen(true);
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'NotFoundError') {
         setSerialProgress(null);
@@ -307,7 +328,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
             />
             <Tooltip title={!getSerial() ? 'Web Serial not available (use Chrome/Edge)' : !bootStreamBytes ? 'No boot stream available' : 'Send over serial'}>
               <span>
-                <IconButton size="small" onClick={handleSendSerial} disabled={!bootStreamBytes || !getSerial() || serialProgress !== null} sx={{ color: '#aaa' }}>
+                <IconButton size="small" onClick={handleSendSerial} disabled={!bootStreamBytes || !getSerial() || serialProgress !== null || serialConsoleOpen} sx={{ color: '#aaa' }}>
                   <UsbIcon fontSize="small" />
                 </IconButton>
               </span>
@@ -389,6 +410,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ language, onCompile, onS
           )}
         </Box>
       )}
+      <SerialConsoleDialog
+        open={serialConsoleOpen}
+        port={serialPort}
+        onClose={() => { setSerialConsoleOpen(false); setSerialPort(null); }}
+      />
     </Box>
   );
 };
