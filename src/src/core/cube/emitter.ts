@@ -87,11 +87,16 @@ export function emitCode(
     builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
   }
 
+  // Collect any address overflow errors from code generation
+  for (const e of builder.getErrors()) {
+    ctx.errors.push({ line: 0, col: 0, message: e.message });
+  }
+
   // Resolve any forward references
   const refErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(refErrors, 'cube');
   for (const e of refErrors) {
-    ctx.warnings.push({ line: 0, col: 0, message: e.message });
+    ctx.errors.push({ line: 0, col: 0, message: e.message });
   }
 
   const { mem, len, maxAddr } = builder.build();

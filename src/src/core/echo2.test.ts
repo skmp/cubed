@@ -1,6 +1,6 @@
 /**
  * ECHO2 sample end-to-end test: compile ECHO2.cube, boot via serial,
- * send bytes, and verify they are echoed back as tagged IO writes.
+ * send bytes, and verify they are echoed back via pin1 serial output.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -11,30 +11,10 @@ import { SerialBits } from './serial';
 import { ROM_DATA } from './rom-data';
 import { compileCube } from './cube';
 import { buildBootStream } from './bootstream';
-import { readIoWrite, taggedCoord, taggedValue } from '../ui/emulator/vgaResolution';
+import { disassembleWord } from './disassembler';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-const ECHO_DATA_TAG = 0x20000;
-
-function extractEchoedBytes(snap: {
-  ioWrites: number[];
-  ioWriteStart: number;
-  ioWriteCount: number;
-}): number[] {
-  const bytes: number[] = [];
-  for (let i = 0; i < snap.ioWriteCount; i++) {
-    const tagged = readIoWrite(snap.ioWrites, snap.ioWriteStart, i);
-    const coord = taggedCoord(tagged);
-    if (coord !== 708) continue;
-    const raw = taggedValue(tagged);
-    if (raw & ECHO_DATA_TAG) {
-      bytes.push(raw & 0xFF);
-    }
-  }
-  return bytes;
-}
 
 /** Boot GA144 with ECHO2, wait for user code, return ready GA144 */
 function bootEcho2() {
@@ -81,8 +61,7 @@ describe('ECHO2 sample: serial echo via raw assembly', () => {
       ga.stepUntilDone(5_000_000); // enough for RX + TX + gap
     }
 
-    const snap = ga.getSnapshot();
-    const echoed = extractEchoedBytes(snap);
+    const echoed = ga.decodeSerialOutput(708);
 
     expect(echoed.length).toBeGreaterThanOrEqual(testBytes.length);
     for (let i = 0; i < testBytes.length; i++) {
@@ -99,12 +78,104 @@ describe('ECHO2 sample: serial echo via raw assembly', () => {
       ga.stepUntilDone(5_000_000);
     }
 
-    const snap = ga.getSnapshot();
-    const echoed = extractEchoedBytes(snap);
+    const echoed = ga.decodeSerialOutput(708);
 
     expect(echoed.length).toBeGreaterThanOrEqual(3);
     expect(echoed[0]).toBe(0x61);
     expect(echoed[1]).toBe(0x62);
     expect(echoed[2]).toBe(0x63);
+  });
+
+  it('no slot-2 address overflow in compiled binary', () => {
+    const source = readFileSync(join(__dirname, '../../samples/ECHO2.cube'), 'utf-8');
+    const compiled = compileCube(source);
+    expect(compiled.errors).toHaveLength(0);
+
+    const node = compiled.nodes[0];
+    // Verify no call/jump in slot 2 has a truncated address
+    for (let i = 0; i < node.len; i++) {
+      const raw = node.mem[i];
+      if (raw === null || raw === undefined) continue;
+      const dis = disassembleWord(raw);
+      const slot2 = dis.slots[2];
+      if (slot2 && slot2.address !== undefined) {
+        // Slot 2 only has 3-bit address field (0-7)
+        expect(slot2.address).toBeLessThanOrEqual(7);
+      }
+    }
+  });
+
+  it('ioWritesToBits produces correct pin drive transitions', { timeout: 30_000 }, () => {
+    const { ga } = bootEcho2();
+
+    ga.sendSerialInput([0x41]);
+    ga.stepUntilDone(5_000_000);
+
+    const bits = ga.ioWritesToBits(708);
+    // emit8 sends 10 bits (start + 8 data + stop), producing multiple transitions
+    expect(bits.length).toBeGreaterThan(0);
+
+    const decoded = ga.decodeSerialOutput(708);
+    expect(decoded.length).toBeGreaterThanOrEqual(1);
+    expect(decoded[0]).toBe(0x41);
+  });
+
+  it('disassemble compiled binary', () => {
+    const source = readFileSync(join(__dirname, '../../samples/ECHO2.cube'), 'utf-8');
+    const compiled = compileCube(source);
+    expect(compiled.errors).toHaveLength(0);
+
+    const node = compiled.nodes[0];
+    console.log(`Node ${node.coord}: ${node.len} words, b=${node.b?.toString(16)}, p=${node.p}`);
+
+    for (let i = 0; i < node.len; i++) {
+      const raw = node.mem[i];
+      if (raw === null || raw === undefined) {
+        console.log(`  [${i.toString().padStart(2)}] <null>`);
+        continue;
+      }
+      const dis = disassembleWord(raw);
+      const slots = dis.slots
+        .filter((s: any) => s !== null)
+        .map((s: any) => {
+          let str = s.opcode;
+          if (s.address !== undefined) str += `(${s.address})`;
+          return str;
+        })
+        .join(' ');
+      console.log(`  [${i.toString().padStart(2)}] 0x${raw.toString(16).padStart(5, '0')}  ${slots}`);
+    }
+  });
+
+  it('check serial output bits', { timeout: 30_000 }, () => {
+    const { ga } = bootEcho2();
+
+    ga.sendSerialInput([0x41]);
+    ga.stepUntilDone(5_000_000);
+
+    const bits = ga.ioWritesToBits(708);
+    console.log('Bit segments:', bits.length);
+    for (const b of bits) {
+      console.log(`  ${b.value ? 'HIGH' : 'LOW'}: ${b.durationNS.toFixed(0)} ns`);
+    }
+
+    const decoded = ga.decodeSerialOutput(708);
+    console.log('Decoded:', decoded.length, 'bytes:', decoded.map(b => `0x${b.toString(16)}`));
+
+    // Raw IO writes
+    const snap = ga.getSnapshot(708);
+    let count708lo = 0;
+    const vals: string[] = [];
+    for (let i = 0; i < snap.ioWriteCount; i++) {
+      const pos = (snap.ioWriteStart + i) % snap.ioWrites.length;
+      const tagged = snap.ioWrites[pos];
+      const coord = (tagged / 0x40000) | 0;
+      const val = tagged & 0x3FFFF;
+      if (coord === 708 && val <= 3) {
+        count708lo++;
+        if (vals.length < 30) vals.push(`${val}`);
+      }
+    }
+    console.log('Pin drive writes:', count708lo, 'values:', vals.join(', '));
   });
 });

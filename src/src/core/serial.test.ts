@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
-import { SerialBits } from './serial';
+import { SerialBits, type SerialBit } from './serial';
 import { compileCube } from './cube';
 
 // Test baud rates expressed in Hz. These are chosen to give round nanosecond values.
@@ -74,5 +74,42 @@ describe('SerialBits.buildBits (RS232 polarity)', () => {
 
   it('NS_PER_TICK is still accessible on GA144', () => {
     expect(GA144.NS_PER_TICK).toBe(1.5);
+  });
+});
+
+describe('SerialBits.decodeBits', () => {
+  it('round-trips a single byte', () => {
+    const bits = SerialBits.buildBits([0x41], BAUD_150NS);
+    expect(SerialBits.decodeBits(bits, BAUD_150NS)).toEqual([0x41]);
+  });
+
+  it('round-trips multiple bytes', () => {
+    const input = [0x00, 0xFF, 0x55, 0xAA, 0x42];
+    const bits = SerialBits.buildBits(input, BAUD_150NS);
+    expect(SerialBits.decodeBits(bits, BAUD_150NS)).toEqual(input);
+  });
+
+  it('round-trips with idle lead-in', () => {
+    const input = [0x61, 0x62, 0x63];
+    const bits = SerialBits.buildBits(input, BAUD_150NS, BAUD_150NS_IDLE_300NS);
+    expect(SerialBits.decodeBits(bits, BAUD_150NS)).toEqual(input);
+  });
+
+  it('round-trips at boot baud rate', () => {
+    const input = [0xD2, 0xFF, 0xFF, 0x2D, 0x00, 0x00];
+    const bits = SerialBits.bootStreamBits(input, GA144.BOOT_BAUD);
+    expect(SerialBits.decodeBits(bits, GA144.BOOT_BAUD)).toEqual(input);
+  });
+
+  it('decodes all 256 byte values', () => {
+    const input = Array.from({ length: 256 }, (_, i) => i);
+    const bits = SerialBits.buildBits(input, BAUD_150NS);
+    expect(SerialBits.decodeBits(bits, BAUD_150NS)).toEqual(input);
+  });
+
+  it('returns empty array for empty/idle-only stream', () => {
+    expect(SerialBits.decodeBits([], BAUD_150NS)).toEqual([]);
+    const idleOnly: SerialBit[] = [{ value: false, durationNS: 10000 }];
+    expect(SerialBits.decodeBits(idleOnly, BAUD_150NS)).toEqual([]);
   });
 });

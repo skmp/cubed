@@ -33,6 +33,8 @@ export class CodeBuilder {
   private _lastWasJump = false;
   /** Pending data words placed after @p (inline literal pattern). */
   private pendingData: number[] = [];
+  /** Errors accumulated during code generation. */
+  private errors: Array<{ message: string }> = [];
 
   constructor(memSize: number = 64) {
     this.mem = new Array(memSize).fill(null);
@@ -187,6 +189,15 @@ export class CodeBuilder {
     const slot = this.slotPointer;
     this.currentWord[slot] = opcode;
 
+    // Validate address fits in available bits for this slot
+    const maxAddr = [0x3FF, 0xFF, 0x7][slot];
+    if (maxAddr !== undefined && addr > maxAddr) {
+      this.errors.push({
+        message: `Address 0x${addr.toString(16)} does not fit in slot ${slot} ` +
+          `(${[10, 8, 3][slot]}-bit field, max 0x${maxAddr.toString(16)})`,
+      });
+    }
+
     // Assemble instruction word with XOR-encoded opcodes and raw address bits.
     // Matches reference: opcodes get per-slot XOR, addresses do NOT.
     let encoded: number;
@@ -324,6 +335,10 @@ export class CodeBuilder {
 
   getForwardRefs(): Array<{ name: string; wordAddr: number; slot: number }> {
     return this.forwardRefs;
+  }
+
+  getErrors(): Array<{ message: string }> {
+    return this.errors;
   }
 
   resolveForwardRefs(errors: Array<{ message: string }>, context: string): void {

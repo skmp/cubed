@@ -1,8 +1,8 @@
 -- ECHO2: Async Serial Byte Echo (custom bit-bang RX/TX)
 -- Node 708: pin17 is the serial IO pin. B = 0x15D (IO register).
 --
--- Pin17 encoding (emulator double-inversion = true data):
---   Idle/Stop: LOW | Start: HIGH | Data 1: HIGH | Data 0: LOW
+-- Pin17 encoding (FTDI inverted TXD, matching real EVB002):
+--   Idle/Stop: LOW | Start: HIGH | Data 1: LOW | Data 0: HIGH
 
 node 708 { b=0x15D }
 
@@ -24,6 +24,8 @@ label{name=echo_loop}
 /\ lit.hex18{value=0x20000}
 /\ f18a.xor
 /\ f18a.storeb
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.call{addr=emit8}
 /\ f18a.jump{addr=echo_loop}
 
@@ -31,6 +33,8 @@ label{name=echo_loop}
 
 -- rx_byte: receive one byte via pin17
 -- ( -- byte )
+-- Wire is FTDI-inverted: data 1→LOW, data 0→HIGH. After assembling
+-- 8 bits and shifting down, XOR 0xFF to un-invert.
 label{name=rx_byte}
 /\ f18a.call{addr=wait_start}
 /\ f18a.call{addr=delay_d}
@@ -51,6 +55,8 @@ label{name=rx_bit_loop}
 /\ f18a.nop
 /\ f18a.nop
 /\ f18a.unext
+/\ lit.hex18{value=0xFF}
+/\ f18a.xor
 /\ f18a.ret
 
 /\
@@ -132,4 +138,6 @@ label{name=emit1}
 /\ lit.hex18{value=3}
 /\ f18a.xor
 /\ f18a.storeb
+/\ f18a.nop
+/\ f18a.nop
 /\ f18a.jump{addr=delay_full}

@@ -407,12 +407,66 @@ export class GA144 {
 
   /**
    * Send bytes as serial input to node 708 at boot baud rate.
-   * Appends to any in-flight serial stream (boot or prior input).
+   * Models the full EVB002 COM port path: callers pass plain bytes
+   * (as a terminal emulator would write to the COM port), and buildBits
+   * applies the FTDI's inverted TXD polarity to the wire.
    */
   sendSerialInput(bytes: number[]): void {
     if (bytes.length === 0) return;
-    const bits = SerialBits.dataBits(bytes, GA144.BOOT_BAUD);
+    const bits = SerialBits.buildBits(bytes, GA144.BOOT_BAUD);
     this.enqueueSerialBits(708, bits);
+  }
+
+  /**
+   * Extract pin1 state changes from the IO write ring buffer as a SerialBit[] stream.
+   * Only IO writes from the target node with values ≤ 3 (pin drive commands)
+   * are considered; data tags (bit 17 set, etc.) are skipped.
+   */
+  ioWritesToBits(nodeCoord: number): SerialBit[] {
+    const PIN1_BIT = 1; // bit 0: pin1 output enable (serial modulation)
+    const count = this.ioWriteSeq - this.ioWriteStartSeq;
+    const cap = this.ioWriteBuffer.length;
+
+    // Collect pin1 state transitions with timestamps
+    const transitions: { t: number; value: boolean }[] = [];
+    for (let i = 0; i < count; i++) {
+      const pos = (this.ioWriteStart + i) % cap;
+      const tagged = this.ioWriteBuffer[pos];
+      const coord = (tagged / 0x40000) | 0;
+      if (coord !== nodeCoord) continue;
+      const val = tagged & 0x3FFFF;
+      if (val > 3) continue;
+      transitions.push({ t: this.ioWriteTimestamps[pos], value: (val & PIN1_BIT) !== 0 });
+    }
+
+    if (transitions.length === 0) return [];
+
+    // Each transition lasts until the next one
+    const bits: SerialBit[] = [];
+    for (let i = 0; i < transitions.length - 1; i++) {
+      const dur = transitions[i + 1].t - transitions[i].t;
+      const val = transitions[i].value;
+      if (bits.length > 0 && bits[bits.length - 1].value === val) {
+        bits[bits.length - 1].durationNS += dur;
+      } else {
+        bits.push({ value: val, durationNS: dur });
+      }
+    }
+    // Last transition has no known end — zero duration (ignored by decoder)
+    const last = transitions[transitions.length - 1];
+    if (!(bits.length > 0 && bits[bits.length - 1].value === last.value)) {
+      bits.push({ value: last.value, durationNS: 0 });
+    }
+
+    return bits;
+  }
+
+  /**
+   * Decode serial output from a node's pin1 IO writes.
+   * Converts pin1 state changes to a bit stream, then RS232-decodes into bytes.
+   */
+  decodeSerialOutput(nodeCoord: number, baud: number = GA144.BOOT_BAUD): number[] {
+    return SerialBits.decodeBits(this.ioWritesToBits(nodeCoord), baud);
   }
 
   // ========================================================================
