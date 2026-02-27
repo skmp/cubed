@@ -16,58 +16,59 @@ Most edge nodes use the standard GPIO `io` register layout:
 
 ### Bit Layout
 
+The WRITE and READ sides of the io register have different bit assignments:
+
 ```
-Bit: 17  16  15  14  13  12  11  10  09  08  07  06  05  04  03  02  01  00
-     [  pin17  ] [  pin5  ] [  pin3  ] [  pin1  ] [Rd][Rw][Ld][Lw][Dd][Dw][Ud][Uw]
+Bit:    17  16  15  14  13  12  11  10   9   8   7   6   5   4   3   2   1   0
+reset:   0   1   0   1   0   1   0   1   0   1   0   1   0   1   0   1   0   1
+WRITE: [pin17 ctl]                  WD           ph9     ph7 [p5 ctl][p3 ctl][p1 ctl]
+READ:  p17  Rr  Rw  Dr  Dw  Lr  Lw  Ur  Uw               p5      p3      p1
 ```
 
-**Upper bits (17–8)**: Pin control (4 pins × 2 bits each, and wake bits)
+**WRITE side**: Pin drive control (2-bit fields), WD, phantom signals
 
-**Lower bits (7–0)**: Port handshake status
+**READ side**: Pin input state (single bits), port handshake status
 
-### Port Handshake Status Bits (Read-Only)
+### Port Handshake Status Bits (READ, bits 16–9)
 
 | Bit | Name | Description |
-|-----|------|-------------|
-| 0   | Uw   | Up port write handshake (0 = write pending) |
-| 1   | Ud   | Up port read handshake (0 = data available) |
-| 2   | Dw   | Down port write handshake |
-| 3   | Dd   | Down port read handshake |
-| 4   | Lw   | Left port write handshake |
-| 5   | Ld   | Left port read handshake |
-| 6   | Rw   | Right port write handshake |
-| 7   | Rd   | Right port read handshake |
+|-|-|-|
+| 16 | Rr- | Right port read handshake (0 = read pending) |
+| 15 | Rw | Right port write handshake (1 = write pending) |
+| 14 | Dr- | Down port read handshake (0 = read pending) |
+| 13 | Dw | Down port write handshake (1 = write pending) |
+| 12 | Lr- | Left port read handshake (0 = read pending) |
+| 11 | Lw | Left port write handshake (1 = write pending) |
+| 10 | Ur- | Up port read handshake (0 = read pending) |
+| 9 | Uw | Up port write handshake (1 = write pending) |
 
-When a handshake bit reads as **0**, the corresponding operation is pending/available. When **1**, the port is idle/empty.
-
-These bits are useful for polling port status before attempting reads/writes, or for implementing non-blocking communication patterns.
-
-### GPIO Pin Control Bits
+### GPIO Pin Control Bits (WRITE)
 
 Each GPIO pin is controlled by a 2-bit field:
 
 | Value | Pin State |
-|-------|-----------|
-| 00    | High-impedance (high-Z), input mode |
-| 01    | Weak pulldown (~50kΩ to ground) |
-| 10    | Drive low (strong output low) |
-| 11    | Drive high (strong output high) |
+|-|-|
+| 00 | High-impedance (high-Z), input mode |
+| 01 | Weak pulldown (~50kΩ to ground) |
+| 10 | Drive low (strong output low) |
+| 11 | Drive high (strong output high) |
 
-The pin numbering follows the physical pin assignment for each node. Common pins for edge nodes:
+GPIO pins are named by the bit position where their state is read:
 
-- **Pin 17** (bits 17–16): Most commonly used GPIO pin
-- **Pin 5** (bits 15–14)
-- **Pin 3** (bits 13–12)
-- **Pin 1** (bits 11–10)
+- **Pin 17**: write control bits 17–16, read state bit 17
+- **Pin 5**: write control bits 5–4, read state bit 5
+- **Pin 3**: write control bits 3–2, read state bit 3
+- **Pin 1**: write control bits 1–0, read state bit 1
 
 Not all edge nodes have all 4 pin pairs. The exact pin availability depends on the node position and chip variant.
 
-### Wake/Phantom Bits
+### Special Control Bits (WRITE)
 
-Some bits in the `io` register control wakeup behavior:
-
-- **Wakeup pin**: When configured, a pin can generate a wakeup signal that causes the node to resume execution from a sleep state
-- **Phantom signal**: Used internally for node coordination
+| Bit | Name | Description |
+|-|-|-|
+| 11 | WD | Wake Disable — controls wakeup polarity for pin 17. 0 = wake on high (reset default), 1 = wake on low |
+| 8 | phan 9 | Phantom wakeup signal for bit 9. 1 = signal high to receiver |
+| 6 | phan 7 | Phantom wakeup signal for bit 7. 1 = signal high to receiver |
 
 ## Analog Nodes
 
@@ -144,7 +145,7 @@ io b!       \ Point B to io register
 20000 !b    \ Write 0x20000 — sets pin 17 low (bits 17:16 = 10)
 ```
 
-Writing to the `io` register updates all pin states simultaneously. The handshake status bits (7–0) are read-only and not affected by writes.
+Writing to the `io` register updates all pin states simultaneously. The handshake status bits (16–9 on READ) are read-only and not affected by writes.
 
 ### Important Notes
 
