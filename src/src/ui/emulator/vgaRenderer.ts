@@ -11,6 +11,7 @@ import {
   decodeDac,
   isHsync,
   isVsync,
+  isHblankEnd,
 } from './vgaResolution';
 
 // ---- Precomputed 9-bit DAC → 8-bit channel lookup (512 entries) ----
@@ -69,6 +70,11 @@ interface RowData {
   isAfterVsync: boolean;
   /** True if this row was not terminated by HSYNC/VSYNC (partial data). */
   isPartial: boolean;
+  /** HSYNC timestamp that started this row (falling edge). -1 if unknown
+   *  (first row of stream or after VSYNC). Used as the VGA-correct active
+   *  period start for time-sampling — pixels are timed relative to HSYNC,
+   *  not the first pixel arrival. */
+  hsyncTs: number;
 }
 
 export interface RenderResult {
@@ -123,13 +129,16 @@ export function renderIoWrites(
 
   // Collect rows of timestamped channel writes between HSYNC/VSYNC boundaries.
   const rows: RowData[] = [];
-  const newRow = (afterVsync: boolean): RowData => ({
+  const newRow = (afterVsync: boolean, hsyncTs = -1): RowData => ({
     rWrites: [], gWrites: [], bWrites: [], startTs: -1, endTs: -1,
-    isAfterVsync: afterVsync, isPartial: false,
+    isAfterVsync: afterVsync, isPartial: false, hsyncTs,
   });
 
   let currentRow = newRow(false);
   let pendingHsyncTs = -1;
+  /** Last confirmed HSYNC timestamp — persists across rows and VSYNC so
+   *  every row can reference its starting HSYNC for time-sampling. */
+  let lastConfirmedHsyncTs = -1;
   /** Seq position after the last HSYNC/VSYNC — the start of the current
    *  incomplete row. Used to roll back lastDrawnSeq for partial rows. */
   let lastCompletedSeq = seq;
@@ -151,12 +160,23 @@ export function renderIoWrites(
         }
         pendingHsyncTs = -1;
         lastCompletedSeq = s + 1;
+        // After VSYNC, the next row will get its hsyncTs from the first
+        // HSYNC of the new frame. Pass -1 for now.
         currentRow = newRow(true);
         continue;
       }
 
       if (isHsync(tagged)) {
         pendingHsyncTs = ts;
+        continue;
+      }
+
+      if (isHblankEnd(tagged)) {
+        // H-blank end marker — record the timestamp for the active pixel
+        // period start. This will be applied to the new row once the
+        // pending HSYNC is resolved (the current row is still the previous
+        // one until a DAC write triggers HSYNC resolution).
+        lastConfirmedHsyncTs = ts;
         continue;
       }
     }
@@ -171,7 +191,10 @@ export function renderIoWrites(
         currentRow.endTs = pendingHsyncTs;
         rows.push(currentRow);
         lastCompletedSeq = s + 1;
-        currentRow = newRow(false);
+        // Use h-blank-end timestamp if available, else fall back to HSYNC
+        const rowRefTs = lastConfirmedHsyncTs >= 0 ? lastConfirmedHsyncTs : pendingHsyncTs;
+        lastConfirmedHsyncTs = -1;
+        currentRow = newRow(false, rowRefTs);
         pendingHsyncTs = -1;
         continue;
       } else {
@@ -181,12 +204,22 @@ export function renderIoWrites(
           rows.push(currentRow);
         }
         lastCompletedSeq = s;
-        currentRow = newRow(false);
+        // Use h-blank-end timestamp if available, else fall back to HSYNC
+        const rowRefTs = lastConfirmedHsyncTs >= 0 ? lastConfirmedHsyncTs : pendingHsyncTs;
+        lastConfirmedHsyncTs = -1;
+        currentRow = newRow(false, rowRefTs);
         pendingHsyncTs = -1;
       }
     }
 
+    // Only process DAC pixel writes (R, G, B nodes); ignore other IO writes
+    // (e.g. sync node blanking writes) so they don't affect row timing.
+    if (coord !== VGA_NODE_R && coord !== VGA_NODE_G && coord !== VGA_NODE_B) continue;
+
     const decoded = DAC_TO_8BIT[decodeDac(val)];
+
+    // Track startTs as the earliest pixel write (any channel) — used as
+    // fallback when no HSYNC timestamp is available for the row.
     if (currentRow.startTs < 0) currentRow.startTs = ts;
 
     if (coord === VGA_NODE_R) {
@@ -223,7 +256,11 @@ export function renderIoWrites(
     if (row.rWrites.length === 0 && row.gWrites.length === 0 && row.bWrites.length === 0) continue;
     if (cursor.y >= texH) continue;
 
-    const rowStart = row.startTs;
+    // Use HSYNC timestamp as the row start reference when available —
+    // this is the VGA-correct active period start (falling HSYNC edge).
+    // Falls back to the first pixel timestamp for the initial row or
+    // rows without sync signals.
+    const rowStart = row.hsyncTs >= 0 ? row.hsyncTs : row.startTs;
     const rowEnd = row.endTs;
     const rowDuration = rowEnd - rowStart;
 

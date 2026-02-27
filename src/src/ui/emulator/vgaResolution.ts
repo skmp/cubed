@@ -5,8 +5,10 @@ export const DAC_XOR = 0x155;
 
 // Pin17 states in bits 17:16 of the IO register
 // 00 = high-Z, 01 = weak pulldown, 10 = drive low, 11 = drive high
-export const PIN17_DRIVE_LOW = 0x20000;   // bits 17:16 = 10
-export const PIN17_DRIVE_HIGH = 0x30000;  // bits 17:16 = 11
+export const PIN17_HIGHZ = 0x00000;       // bits 17:16 = 00
+export const PIN17_PULLDOWN = 0x10000;    // bits 17:16 = 01 (h-blank end)
+export const PIN17_DRIVE_LOW = 0x20000;   // bits 17:16 = 10 (HSYNC)
+export const PIN17_DRIVE_HIGH = 0x30000;  // bits 17:16 = 11 (VSYNC)
 export const PIN17_MASK = 0x30000;        // bits 17:16
 
 export interface Resolution {
@@ -63,6 +65,16 @@ export function isVsync(tagged: number): boolean {
   if (coord !== VGA_NODE_SYNC) return false;
   const val = taggedValue(tagged);
   return (val & PIN17_MASK) === PIN17_DRIVE_HIGH;
+}
+
+/** Check if an IO write from the sync node signals h-blank end.
+ *  EVB002: node 217 pin17 weak pulldown (bits 17:16 = 01) — marks the
+ *  transition from blanking to active pixel period. */
+export function isHblankEnd(tagged: number): boolean {
+  const coord = taggedCoord(tagged);
+  if (coord !== VGA_NODE_SYNC) return false;
+  const val = taggedValue(tagged);
+  return (val & PIN17_MASK) === PIN17_PULLDOWN;
 }
 
 /** Check if a tagged write is a DAC pixel write (from R, G, or B node). */

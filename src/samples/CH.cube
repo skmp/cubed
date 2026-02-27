@@ -228,7 +228,7 @@ f18a.jump{addr=frame}
 -- Per-row: send "start" north (chain) + south (117), wait for 117 "done",
 -- emit HSYNC. After row 479: emit VSYNC instead, loop to next frame.
 
-node 217
+node 217 { b=0x15D }
 
 /\
 
@@ -274,6 +274,24 @@ lit.hex18{value=0x20000}
 
 /\
 
+-- H-blank delay: ~160 pixel clocks worth of blanking.
+-- Write pin17=weak pulldown (0x10000) to IO on each iteration so that
+-- simulated time advances with IO writes (keeps timing in sync
+-- with other nodes via the event queue, unlike bare NOPs).
+-- Pin17 0x10000 = h-blank active (neither HSYNC nor VSYNC).
+-- The last write marks h-blank end — the renderer uses it as the
+-- active pixel period start.
+lit.hex18{value=639}
+/\ f18a.push
+/\ lit.hex18{value=0x10000}
+/\ label{name=hblank}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.next{addr=hblank}
+/\ f18a.drop
+
+/\
+
 f18a.next{addr=row}
 
 /\
@@ -281,6 +299,25 @@ f18a.next{addr=row}
 -- VSYNC: pin17 drive high = 0x30000 (write to B=0x15D)
 lit.hex18{value=0x30000}
 /\ f18a.storeb
+
+/\
+
+-- V-blank delay: 45 lines × ~7680ns/line ≈ 345600ns.
+-- Use IO writes (pin17=weak pulldown 0x10000) to keep timing synchronized.
+-- Inner: dup storeb next = 3 ticks/iter × 2560 iters = 7680 ticks ≈ 1 line.
+-- Outer: 45 iters.
+lit.hex18{value=44}
+/\ f18a.push
+/\ label{name=vblank_outer}
+/\ lit.hex18{value=2559}
+/\ f18a.push
+/\ lit.hex18{value=0x10000}
+/\ label{name=vblank_inner}
+/\ f18a.dup
+/\ f18a.storeb
+/\ f18a.next{addr=vblank_inner}
+/\ f18a.drop
+/\ f18a.next{addr=vblank_outer}
 
 /\
 
