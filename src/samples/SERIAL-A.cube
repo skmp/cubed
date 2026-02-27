@@ -1,0 +1,85 @@
+-- SERIAL-A: Continuously transmit 'A' (0x41) over async serial
+-- Node 708: pin1 is the TX serial IO pin. B = 0x15D (IO register).
+--
+-- Pin1 encoding (write ctl bits 1-0 of IO register, FTDI inverted TXD, matching real EVB002):
+--   Idle/Stop: LOW | Start: HIGH | Data 1: LOW | Data 0: HIGH
+--   Value 2 (0b10): pin1 drive low | Value 3 (0b11): pin1 drive high
+--
+-- Baud delay d=135 stored in RAM[0x3E]:
+--   delay_d ≈ 135*4.1ns ≈ 554ns, delay_full ≈ 1107ns ≈ 1085ns/bit (921600 baud)
+
+node 708 { b=0x15D }
+
+/\
+
+-- Store baud delay d=135 in RAM[0x3E]
+lit.hex18{value=135}
+/\ lit.hex18{value=0x3E}
+/\ f18a.astore
+/\ f18a.storeplus
+
+/\
+
+-- Main loop: send 'A' forever
+label{name=main}
+/\ lit.hex18{value=0x41}
+/\ f18a.call{addr=emit8}
+/\ f18a.jump{addr=main}
+
+/\
+
+-- emit8: send 8 bits LSB-first with start/stop bits
+-- ( byte -- )
+label{name=emit8}
+/\ lit.hex18{value=0}
+/\ f18a.call{addr=emit1}
+/\ lit.hex18{value=7}
+/\ f18a.push
+
+/\
+
+label{name=bit_loop}
+/\ f18a.dup
+/\ f18a.call{addr=emit1}
+/\ f18a.shr
+/\ f18a.next{addr=bit_loop}
+/\ lit.hex18{value=1}
+/\ f18a.call{addr=emit1}
+/\ f18a.drop
+/\ f18a.ret
+
+/\
+
+-- emit1: drive one bit, delay one baud period
+-- ( bit -- )  (bit & 1) XOR 3 → !b, then delay_full
+label{name=emit1}
+/\ lit.hex18{value=1}
+/\ f18a.and
+/\ lit.hex18{value=3}
+/\ f18a.xor
+/\ f18a.storeb
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.jump{addr=delay_full}
+
+/\
+
+-- delay_d: one unext loop of d iters (loads d from RAM[0x3E])
+label{name=delay_d}
+/\ lit.hex18{value=0x3E}
+/\ f18a.astore
+/\ f18a.fetch
+/\ f18a.push
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.nop
+/\ f18a.unext
+/\ f18a.ret
+
+/\
+
+-- delay_full: two delay_d loops = 1 baud period
+label{name=delay_full}
+/\ f18a.call{addr=delay_d}
+/\ f18a.call{addr=delay_d}
+/\ f18a.ret

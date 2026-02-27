@@ -53,6 +53,7 @@ import sampleHello from '../../../samples/HELLO.cube?raw';
 import sampleHello2 from '../../../samples/HELLO2.cube?raw';
 import sampleHelloPF from '../../../samples/HELLO-PF.cube?raw';
 import sampleNIC10 from '../../../samples/NIC10.cube?raw';
+import sampleSerialA from '../../../samples/SERIAL-A.cube?raw';
 
 const DEFAULT_ARRAYFORTH = defaultArrayforth;
 
@@ -63,6 +64,7 @@ const CUBE_SAMPLES: Record<string, string> = {
   'HELLO (Serial)': sampleHello,
   'ECHO (Serial RX/TX)': sampleEcho,
   'ECHO2 (Serial RX/TX, asm)': sampleEcho2,
+  'SERIAL-A (TX \'A\', asm)': sampleSerialA,
   'RSC (Serial TX)': sampleRSC,
   'RSA (Delta VCO)': sampleRSA,
   'RSX (Shor N=15)': sampleRSX,

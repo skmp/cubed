@@ -76,8 +76,8 @@ export const MULTIPORT_ADDRESSES: Record<number, PortIndex[]> = {
 // IO register bit positions
 export const IO_BITS = {
   PIN17_BIT: 1 << 17,
-  PIN5_BIT:  1 << 6,
-  PIN3_BIT:  1 << 4,
+  PIN5_BIT:  1 << 5,
+  PIN3_BIT:  1 << 3,
   PIN1_BIT:  2,
   // Read status bits (clear = pending)
   Rr_MASK: 0x3FFFF & ~(1 << 16), // Right read
