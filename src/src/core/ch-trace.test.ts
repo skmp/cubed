@@ -9,11 +9,11 @@ import { ROM_DATA } from './rom-data';
 import { buildBootStream } from './bootstream';
 import { VGA_NODE_R, VGA_NODE_G, VGA_NODE_B } from './constants';
 import {
-  readIoWrite, readIoTimestamp, taggedCoord, taggedValue,
-  isHsync, isVsync, decodeDac,
+  readIoWrite, readIoTimestamp, taggedCoord,
+  isHsync, isVsync,
 } from '../ui/emulator/vgaResolution';
 import {
-  renderIoWrites, createRenderState, DAC_TO_8BIT,
+  renderIoWrites, createRenderState,
 } from '../ui/emulator/vgaRenderer';
 import { ResolutionTracker } from '../ui/emulator/vgaResolution';
 
@@ -213,12 +213,12 @@ describe('Node 217 sync timing investigation', () => {
 
     // Analyze raw timestamp data around the transition at row 272
     // Walk the IO writes to find per-row timing details
-    const startSeq2 = s.ioWriteSeq - s.ioWriteCount;
+    const _startSeq2 = s.ioWriteSeq - s.ioWriteCount;
     let rowIdx = 0;
     let rCountInRow = 0;
     let firstRTsInRow = -1;
     let firstGTsInRow = -1;
-    let lastWriteTsInRow = -1;
+    let _lastWriteTsInRow = -1;
     let hsyncTs = -1;
 
     console.log('\nRaw row timing around transition (rows 270-275):');
@@ -247,17 +247,17 @@ describe('Node 217 sync timing investigation', () => {
         rCountInRow = 0;
         firstRTsInRow = -1;
         firstGTsInRow = -1;
-        lastWriteTsInRow = -1;
+        _lastWriteTsInRow = -1;
         continue;
       }
 
       if (coord === VGA_NODE_R) {
         rCountInRow++;
         if (firstRTsInRow < 0) firstRTsInRow = ts;
-        lastWriteTsInRow = ts;
+        _lastWriteTsInRow = ts;
       } else if (coord === VGA_NODE_G) {
         if (firstGTsInRow < 0) firstGTsInRow = ts;
-        lastWriteTsInRow = ts;
+        _lastWriteTsInRow = ts;
       }
     }
   });

@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { GA144 } from './ga144';
 import { ROM_DATA } from './rom-data';
 import { coordToIndex } from './constants';
-import type { SerialBit } from './serial';
+import type { ThermalState } from './thermal';
 
 /** Create a fresh GA144 and inject IO writes for the given node coord. */
 function makeGaWithWrites(
@@ -18,7 +18,7 @@ function makeGaWithWrites(
   ga.reset();
   const idx = coordToIndex(coord);
   for (const w of writes) {
-    ga.onIoWrite(idx, w.value, { simulatedTime: w.timeNS } as any);
+    ga.onIoWrite(idx, w.value, { simulatedTime: w.timeNS } as ThermalState);
   }
   return ga;
 }
@@ -115,9 +115,9 @@ describe('ioWritesToBits', () => {
     const idx708 = coordToIndex(708);
     const idx100 = coordToIndex(100);
     // Interleave writes from two nodes
-    ga.onIoWrite(idx708, 3, { simulatedTime: 0 } as any);
-    ga.onIoWrite(idx100, 2, { simulatedTime: 500 } as any);
-    ga.onIoWrite(idx708, 2, { simulatedTime: 1000 } as any);
+    ga.onIoWrite(idx708, 3, { simulatedTime: 0 } as ThermalState);
+    ga.onIoWrite(idx100, 2, { simulatedTime: 500 } as ThermalState);
+    ga.onIoWrite(idx708, 2, { simulatedTime: 1000 } as ThermalState);
 
     const bits708 = ga.ioWritesToBits(708);
     expect(bits708).toHaveLength(2);
@@ -146,7 +146,7 @@ describe('ioWritesToBits', () => {
     const pinValues = [3, 2, 3, 3, 3, 3, 3, 2, 3, 2]; // start + 8 data + stop
     let t = 0;
     for (const v of pinValues) {
-      ga.onIoWrite(idx, v, { simulatedTime: t } as any);
+      ga.onIoWrite(idx, v, { simulatedTime: t } as ThermalState);
       t += bitNS;
     }
 
@@ -177,7 +177,7 @@ describe('ioWritesToBits', () => {
     let t = 0;
     for (const b of testBytes) {
       for (const v of byteToPin(b)) {
-        ga.onIoWrite(idx, v, { simulatedTime: t } as any);
+        ga.onIoWrite(idx, v, { simulatedTime: t } as ThermalState);
         t += bitNS;
       }
       t += bitNS * 2; // idle gap between bytes

@@ -4,7 +4,6 @@ import {
   detectResolution,
   ResolutionTracker,
   type Resolution,
-  type SyncClocks,
 } from './vgaResolution';
 import {
   renderIoWrites,
@@ -221,8 +220,12 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
     return detectResolution(resTrackerRef.current, ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq, ioWriteTimestamps);
   }, [ioWrites, ioWriteCount, ioWriteStart, ioWriteSeq, ioWriteTimestamps]);
 
-  const tracker = resTrackerRef.current;
-  const syncClocks: SyncClocks = { hsyncHz: tracker.hsyncHz, vsyncHz: tracker.vsyncHz };
+  const [hsyncHz, vsyncHz] = useMemo(() => {
+    const t = resTrackerRef.current;
+    return [t.hsyncHz, t.vsyncHz] as const;
+    // resolution is a dependency to ensure we re-read after detectResolution updates the tracker
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolution]);
 
   const displayWidth = resolution.width;
   const displayHeight = resolution.height;
@@ -383,11 +386,11 @@ export const VgaDisplay: React.FC<VgaDisplayProps> = ({ ioWrites, ioWriteTimesta
         {resolution.complete && (
           <Chip label={`${displayWidth}×${displayHeight}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
-        {syncClocks.hsyncHz !== null && (
-          <Chip label={`H: ${syncClocks.hsyncHz >= 1000 ? (syncClocks.hsyncHz / 1000).toFixed(1) + 'kHz' : syncClocks.hsyncHz.toFixed(1) + 'Hz'}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
+        {hsyncHz !== null && (
+          <Chip label={`H: ${hsyncHz >= 1000 ? (hsyncHz / 1000).toFixed(1) + 'kHz' : hsyncHz.toFixed(1) + 'Hz'}`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
-        {syncClocks.vsyncHz !== null && (
-          <Chip label={`V: ${syncClocks.vsyncHz.toFixed(1)}Hz`} size="small" sx={{ fontSize: '9px', height: 18 }} />
+        {vsyncHz !== null && (
+          <Chip label={`V: ${vsyncHz.toFixed(1)}Hz`} size="small" sx={{ fontSize: '9px', height: 18 }} />
         )}
         {ioWriteCount > 0 && (
           <>

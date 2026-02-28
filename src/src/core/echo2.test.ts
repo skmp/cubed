@@ -136,8 +136,8 @@ describe('ECHO2 sample: serial echo via raw assembly', () => {
       }
       const dis = disassembleWord(raw);
       const slots = dis.slots
-        .filter((s: any) => s !== null)
-        .map((s: any) => {
+        .filter(s => s !== null)
+        .map(s => {
           let str = s.opcode;
           if (s.address !== undefined) str += `(${s.address})`;
           return str;

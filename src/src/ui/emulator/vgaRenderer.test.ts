@@ -6,7 +6,6 @@ import {
   renderIoWrites,
   createRenderState,
   clearToBlack,
-  fillNoise,
   DAC_TO_8BIT,
 } from './vgaRenderer';
 import {
