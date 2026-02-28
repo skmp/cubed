@@ -87,16 +87,22 @@ export function emitCode(
     builder.emitJump(OPCODE_MAP.get('jump')!, haltAddr);
   }
 
+  // Find the source location of the __node directive for this node
+  const nodeDirective = resolved.program.conjunction.items.find(
+    item => item.kind === 'application' && item.functor === '__node'
+  );
+  const nodeLoc = nodeDirective?.loc ?? { line: 0, col: 0 };
+
   // Collect any address overflow errors from code generation
   for (const e of builder.getErrors()) {
-    ctx.errors.push({ line: 0, col: 0, message: e.message });
+    ctx.errors.push({ line: e.line ?? nodeLoc.line, col: e.col ?? nodeLoc.col, message: `Node ${plan.nodeCoord}: ${e.message}` });
   }
 
   // Resolve any forward references
   const refErrors: Array<{ message: string }> = [];
   builder.resolveForwardRefs(refErrors, 'cube');
   for (const e of refErrors) {
-    ctx.errors.push({ line: 0, col: 0, message: e.message });
+    ctx.errors.push({ line: nodeLoc.line, col: nodeLoc.col, message: `Node ${plan.nodeCoord}: ${e.message}` });
   }
 
   const { mem, len, maxAddr } = builder.build();
@@ -104,11 +110,6 @@ export function emitCode(
   // Error if code exceeds RAM, warn if close to limit.
   // maxAddr tracks the highest address the compiler attempted to write,
   // even beyond the 64-word array (which silently truncates).
-  // Find the source location of the __node directive for this node
-  const nodeDirective = resolved.program.conjunction.items.find(
-    item => item.kind === 'application' && item.functor === '__node'
-  );
-  const nodeLoc = nodeDirective?.loc ?? { line: 0, col: 0 };
 
   if (maxAddr > 64) {
     ctx.errors.push({
@@ -291,7 +292,9 @@ function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymb
       } else {
         // Forward reference — emit placeholder, resolve later
         ctx.builder.addForwardRef(labelName);
+        ctx.builder.setCurrentLoc(app.loc);
         ctx.builder.emitJump(sym.opcode!, 0);
+        ctx.builder.setCurrentLoc(null);
         return;
       }
     }
@@ -302,7 +305,9 @@ function emitF18aAddressOp(ctx: EmitContext, app: Application, sym: ResolvedSymb
   }
 
   if (targetAddr !== undefined) {
+    ctx.builder.setCurrentLoc(app.loc);
     ctx.builder.emitJump(sym.opcode!, targetAddr);
+    ctx.builder.setCurrentLoc(null);
   } else {
     ctx.errors.push({
       line: app.loc.line,

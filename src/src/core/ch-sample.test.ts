@@ -39,6 +39,7 @@ describe('CH.cube Swiss flag sample', () => {
   it('compiles without errors', () => {
     const source = readFileSync(samplePath, 'utf-8');
     const result = compileCube(source);
+    for (const e of result.errors) console.log(`  ${e.line}:${e.col} ${e.message}`);
     expect(result.errors).toHaveLength(0);
     expect(result.nodes.length).toBe(12);
 

@@ -204,6 +204,7 @@ lit.hex18{value=0x1D5}
 /\ label{name=px}
 /\ f18a.fetch
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=px}
 
 /\
@@ -287,6 +288,7 @@ lit.hex18{value=639}
 /\ label{name=hblank}
 /\ f18a.dup
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=hblank}
 /\ f18a.drop
 
@@ -315,6 +317,7 @@ lit.hex18{value=44}
 /\ label{name=vblank_inner}
 /\ f18a.dup
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=vblank_inner}
 /\ f18a.drop
 /\ f18a.next{addr=vblank_outer}
@@ -564,6 +567,7 @@ lit.hex18{value=0x175}
 /\ label{name=relay}
 /\ f18a.fetch
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=relay}
 
 /\
@@ -703,6 +707,7 @@ lit.hex18{value=0x1D5}
 /\ label{name=px}
 /\ f18a.fetch
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=px}
 
 /\
@@ -857,6 +862,7 @@ lit.hex18{value=0x175}
 /\ label{name=relay}
 /\ f18a.fetch
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=relay}
 
 /\
@@ -990,6 +996,7 @@ lit.hex18{value=0x1D5}
 /\ label{name=px}
 /\ f18a.fetch
 /\ f18a.storeb
+/\ f18a.nop
 /\ f18a.next{addr=px}
 
 /\

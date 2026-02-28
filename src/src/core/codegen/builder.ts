@@ -34,7 +34,9 @@ export class CodeBuilder {
   /** Pending data words placed after @p (inline literal pattern). */
   private pendingData: number[] = [];
   /** Errors accumulated during code generation. */
-  private errors: Array<{ message: string }> = [];
+  private errors: Array<{ message: string; line?: number; col?: number }> = [];
+  /** Source location to associate with errors from the current operation. */
+  private currentLoc: { line: number; col: number } | null = null;
 
   constructor(memSize: number = 64) {
     this.mem = new Array(memSize).fill(null);
@@ -74,6 +76,11 @@ export class CodeBuilder {
 
   getExtendedArith(): number {
     return this.extendedArith;
+  }
+
+  /** Set source location to attach to subsequent errors. */
+  setCurrentLoc(loc: { line: number; col: number } | null): void {
+    this.currentLoc = loc;
   }
 
   /**
@@ -186,6 +193,7 @@ export class CodeBuilder {
     } else if (this.slotPointer >= 3) {
       this.flush();
     }
+
     const slot = this.slotPointer;
     this.currentWord[slot] = opcode;
 
@@ -195,6 +203,7 @@ export class CodeBuilder {
       this.errors.push({
         message: `Address 0x${addr.toString(16)} does not fit in slot ${slot} ` +
           `(${[10, 8, 3][slot]}-bit field, max 0x${maxAddr.toString(16)})`,
+        ...(this.currentLoc ? { line: this.currentLoc.line, col: this.currentLoc.col } : {}),
       });
     }
 
@@ -337,7 +346,7 @@ export class CodeBuilder {
     return this.forwardRefs;
   }
 
-  getErrors(): Array<{ message: string }> {
+  getErrors(): Array<{ message: string; line?: number; col?: number }> {
     return this.errors;
   }
 
