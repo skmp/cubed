@@ -20,7 +20,7 @@ export interface CubeCompileResult extends CompiledProgram {
   variables?: VariableMap;
   sourceMap?: SourceMapEntry[];
   nodeCoord?: number;
-  warnings?: CompileError[];
+  warnings: CompileError[];
 }
 
 /**
@@ -70,13 +70,13 @@ export function compileCube(source: string): CubeCompileResult {
   // Tokenize
   const { tokens, errors: tokenErrors } = tokenizeCube(source);
   if (tokenErrors.length > 0) {
-    return { nodes: [], errors: tokenErrors };
+    return { nodes: [], errors: tokenErrors, warnings: [] };
   }
 
   // Parse
   const { ast, errors: parseErrors } = parseCube(tokens);
   if (parseErrors.length > 0) {
-    return { nodes: [], errors: parseErrors };
+    return { nodes: [], errors: parseErrors, warnings: [] };
   }
 
   // Split by node directives
@@ -125,7 +125,7 @@ export function compileCube(source: string): CubeCompileResult {
   return {
     nodes: allErrors.length > 0 ? [] : allNodes,
     errors: allErrors,
-    warnings: allWarnings.length > 0 ? allWarnings : undefined,
+    warnings: allWarnings,
     symbols: lastSymbols,
     variables: lastVarMap,
     sourceMap: allSourceMap.length > 0 ? allSourceMap : undefined,

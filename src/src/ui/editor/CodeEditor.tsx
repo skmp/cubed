@@ -10,7 +10,7 @@ import { SerialConsoleDialog } from './SerialConsoleDialog';
 import type { CompileError, CompiledNode } from '../../core/types';
 
 // Web Serial API type declarations
-interface SerialPortOptions { baudRate: number }
+interface SerialPortOptions { baudRate: number; dataBits?: number; stopBits?: number; parity?: string; flowControl?: string; bufferSize?: number }
 interface WebSerialPort {
   open(options: SerialPortOptions): Promise<void>;
   close(): Promise<void>;
